@@ -2,6 +2,7 @@
 // Electron userData wird nur in Resolvern gelesen; Tests koennen per Env oder
 // Injection deterministisch bleiben. Keine Secrets, keine Inhalte.
 import { app } from 'electron'
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -63,8 +64,21 @@ export function prefsPath(): string {
   return join(userDataRoot(), '.rawallmconfig', 'prefs.json')
 }
 
+function prefsArchiveRoot(): string | null {
+  if (sandboxRoot()) return null
+  try {
+    const p = prefsPath()
+    if (!existsSync(p)) return null
+    const parsed = JSON.parse(readFileSync(p, 'utf8')) as { archiveRoot?: unknown }
+    return typeof parsed.archiveRoot === 'string' ? cleanPath(parsed.archiveRoot) : null
+  } catch {
+    return null
+  }
+}
+
 export function resolveDefaultArchiveRoot(): string {
   return cleanPath(process.env.RAWALLM_ARCHIVE_ROOT)
     ?? cleanPath(injectedArchiveRootResolver?.())
+    ?? prefsArchiveRoot()
     ?? archiveRoot()
 }

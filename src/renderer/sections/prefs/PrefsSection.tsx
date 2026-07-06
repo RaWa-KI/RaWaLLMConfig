@@ -76,6 +76,25 @@ function TweakRow({ def, value, onPick }: {
   )
 }
 
+function BackupPathRow({ value, onPick, onReset }: {
+  value: string
+  onPick: () => void
+  onReset: () => void
+}) {
+  return (
+    <div className="backup-row">
+      <div>
+        <div className="tweak-label">Backup-Ordner</div>
+        <code className="backup-path">{value || 'Standardpfad der App'}</code>
+      </div>
+      <div className="backup-actions">
+        <button type="button" className="pill ghost" onClick={onPick}>{Icon.folder} Wählen</button>
+        {value && <button type="button" className="pill ghost" onClick={onReset}>Standard</button>}
+      </div>
+    </div>
+  )
+}
+
 function usePrefsStoreHint(): string | null {
   const [storeHint, setStoreHint] = useState<string | null>(null)
   useEffect(() => {
@@ -98,6 +117,12 @@ export function PrefsSection() {
 
   // Persistierten Zustand sichtbar machen (Live-Vorschau), sobald Prefs da sind.
   useEffect(() => { applyToHtml(prefs) }, [prefs])
+
+  async function pickArchiveRoot(): Promise<void> {
+    const res = await window.electronAPI?.pickFolder()
+    if (!res?.data) return
+    await setPref('archiveRoot', res.data)
+  }
 
   return (
     <main className="main" style={{ gridColumn: '1 / -1' }}>
@@ -133,6 +158,11 @@ export function PrefsSection() {
             onPick={(v) => void setPref(def.key, v)}
           />
         ))}
+        <BackupPathRow
+          value={String(prefs.archiveRoot ?? '')}
+          onPick={() => void pickArchiveRoot()}
+          onReset={() => void setPref('archiveRoot', '')}
+        />
       </div>
     </main>
   )

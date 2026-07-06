@@ -8,7 +8,7 @@
 // Config-Wurzeln als allowedRoots. Die Wurzelliste kommt aus configRoots()
 // (Single Source) — keine doppelte Pfadliste. KEINE Secret-Werte.
 import { join } from 'node:path'
-import { DEFAULT_ARCHIVE_ROOT } from './backup'
+import { resolveDefaultArchiveRoot } from './backup'
 import { DEFAULT_AUDIT_PATH } from './audit-log'
 import { configRootList, activeSandboxRoot } from './config-roots'
 
@@ -136,7 +136,7 @@ export function getWriteContext(): WriteContext {
     }
   }
   return {
-    archiveRoot: ENV.archiveOverride ?? DEFAULT_ARCHIVE_ROOT,
+    archiveRoot: ENV.archiveOverride ?? resolveDefaultArchiveRoot(),
     auditPath: ENV.auditOverride ?? DEFAULT_AUDIT_PATH,
     allowedRoots,
     sandboxRoot: null

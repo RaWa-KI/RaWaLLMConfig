@@ -1,7 +1,8 @@
 // app-paths.spec.ts — portable App-Schreibpfade ohne reale UserData-Mutation.
 import { test, expect } from '@playwright/test'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import {
   archiveRoot,
   auditPath,
@@ -61,5 +62,24 @@ test('RAWALLM_ARCHIVE_ROOT gewinnt nur fuer Backup-Archivroot', () => {
   } finally {
     restoreEnv('RAWALLM_ARCHIVE_ROOT', old)
     setArchiveRootResolver(null)
+  }
+})
+
+test('gespeicherter Pref-Archivroot gewinnt vor AppData-Default', () => {
+  const oldSandbox = process.env.RAWALLM_SANDBOX_ROOT
+  const oldArchive = process.env.RAWALLM_ARCHIVE_ROOT
+  const userData = join(tmpdir(), 'rawallm-app-paths-pref-userdata')
+  const chosen = join(tmpdir(), 'rawallm-app-paths-pref-archive')
+  try {
+    delete process.env.RAWALLM_SANDBOX_ROOT
+    delete process.env.RAWALLM_ARCHIVE_ROOT
+    setUserDataRootResolver(() => userData)
+    mkdirSync(dirname(prefsPath()), { recursive: true })
+    writeFileSync(prefsPath(), JSON.stringify({ archiveRoot: chosen }), 'utf8')
+    expect(resolveDefaultArchiveRoot()).toBe(chosen)
+  } finally {
+    restoreEnv('RAWALLM_SANDBOX_ROOT', oldSandbox)
+    restoreEnv('RAWALLM_ARCHIVE_ROOT', oldArchive)
+    setUserDataRootResolver(null)
   }
 })

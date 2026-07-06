@@ -45,3 +45,25 @@
   gap: 7px;
   flex-wrap: wrap;
 }
+
+.backup-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.backup-path {
+  display: block;
+  max-width: min(64vw, 720px);
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.backup-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
