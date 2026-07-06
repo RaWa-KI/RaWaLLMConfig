@@ -25,6 +25,8 @@ export interface UpdateCheckRequest { /* leer; Quelle = RAWALLM_UPDATE_DIR */ }
 export interface UpdateCheckResultData {
   hasUpdate: boolean; currentVersion: string; latestVersion: string | null
   info: UpdateInfo | null; sourceConfigured: boolean
+  sourceKind: UpdateSourceKind | null; sourceLabel: string
+  releaseNotes: string | null; lastSourceError: string | null
 }
 export type UpdateCheckResult = IpcResult<UpdateCheckResultData>
 export interface UpdateDownloadRequest { version: string }
@@ -40,8 +42,10 @@ export type UpdatePhase = 'idle'|'checking'|'available'|'downloading'|'ready'|'i
 export interface UpdateHistoryEntry { ts: string; event: string; detail?: string }
 export interface UpdateStateData {
   phase: UpdatePhase; sourceConfigured: boolean; currentVersion: string
+  sourceKind: UpdateSourceKind | null; sourceLabel: string
   latestVersion: string | null; assetName: string | null; stagedPath: string | null
-  lastError: string | null; history: UpdateHistoryEntry[]
+  releaseNotes: string | null; lastCheckedAt: string | null
+  lastError: string | null; lastSourceError: string | null; history: UpdateHistoryEntry[]
 }
 export type UpdateStateResult = IpcResult<UpdateStateData>
 export interface UpdateProgressPayload {

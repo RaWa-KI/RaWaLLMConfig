@@ -8,6 +8,7 @@
 import type {
   UpdatePhase,
   UpdateHistoryEntry,
+  UpdateSourceKind,
   UpdateStateData,
 } from '@shared/contract-updates'
 
@@ -25,11 +26,16 @@ const HISTORY_MAX = 20
 let state: UpdateStateData = {
   phase: 'idle',
   sourceConfigured: false,
+  sourceKind: null,
+  sourceLabel: 'Quelle wird geprüft',
   currentVersion: '',        // wird beim ersten Check via setSourceState(_, version) befuellt
   latestVersion: null,
   assetName: null,
   stagedPath: null,
+  releaseNotes: null,
+  lastCheckedAt: null,
   lastError: null,
+  lastSourceError: null,
   history: [],
 }
 
@@ -76,15 +82,30 @@ export function clearError(): void {
  * currentVersion kommt als Parameter (deps.getVersion() im update-manager) —
  * haelt dieses Modul electron-frei und pur testbar.
  */
-export function setSourceState(configured: boolean, version: string): void {
+export function setSourceState(
+  configured: boolean,
+  version: string,
+  kind: UpdateSourceKind | null,
+  label: string,
+  sourceError: string | null = null
+): void {
   state.sourceConfigured = configured
   state.currentVersion = version
+  state.sourceKind = kind
+  state.sourceLabel = label
+  state.lastSourceError = sourceError
 }
 
 /** Setzt latestVersion + assetName nach erfolgreichem Manifest-Read. */
-export function setAvailable(latestVersion: string, assetName: string | null): void {
+export function setAvailable(
+  latestVersion: string | null,
+  assetName: string | null,
+  releaseNotes: string | null = null
+): void {
   state.latestVersion = latestVersion
   state.assetName = assetName
+  state.releaseNotes = releaseNotes
+  state.lastCheckedAt = new Date().toISOString()
 }
 
 /** Setzt stagedPath nach erfolgreichem Download. */

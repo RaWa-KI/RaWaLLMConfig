@@ -34,7 +34,25 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-lt);
-  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.ump-source-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: color-mix(in oklab, var(--amber), #fff 82%);
+  border: 2px solid var(--amber);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--amber-d, var(--ink));
+}
+
+.ump-source-warning svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 /* ── Idle-Card (konfiguriert, kein Update) ──────────────────────────────── */

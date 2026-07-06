@@ -19,6 +19,7 @@ import type {
   UpdateInstallRequest,
   UpdateInstallResult,
   UpdateProgressPayload,
+  UpdateStateData,
 } from '@shared/contract-updates'
 
 import { isPathWithin } from '../lib/path-within'
@@ -27,11 +28,10 @@ import { buildUpdateInfo } from './update-source-local'
 import type { UpdateSourcePort } from './update-source-port'
 import { getDeps } from './update-manager-deps'
 import {
-  getUpdateState, pushHistory, setPhase, setError,
-  clearError, setSourceState, setAvailable, setStagedPath, markPreviousVersion,
+  getUpdateState as getStateSnapshot, pushHistory, setPhase, setError,
+  clearError, setAvailable, setStagedPath, markPreviousVersion,
 } from './update-state'
-
-export { getUpdateState }
+import { currentUpdateState, syncUpdateSource, updateCheckPayload } from './update-source-state'
 
 // ---------------------------------------------------------------------------
 // Konstanten
@@ -68,6 +68,10 @@ function getUpdateSource(): UpdateSourcePort {
   return resolveUpdateSource()
 }
 
+export function getUpdateState(): UpdateStateData {
+  return currentUpdateState(getUpdateSource())
+}
+
 /** Pre-Snapshot der prefs-Datei (HR7). Gibt Fehlerstring oder null zurueck. */
 function snapshotPrefs(): string | null {
   const snap = getDeps().exportPrefsSnapshot()
@@ -85,39 +89,30 @@ async function runCheck(): Promise<UpdateCheckResult> {
   const deps = getDeps()
   setPhase('checking')
   clearError()
-  setSourceState(false, deps.getVersion())
 
   const source = getUpdateSource()
+  syncUpdateSource(source, deps.getVersion())
   const manifest = await source.readManifest()
   if (!manifest.sourceConfigured) {
     setPhase('idle')
-    return {
-      data: { hasUpdate: false, currentVersion: deps.getVersion(),
-        latestVersion: null, info: null, sourceConfigured: false },
-      error: null,
-    }
+    setAvailable(null, null)
+    return { data: updateCheckPayload(getUpdateState(), false, null), error: null }
   }
 
-  setSourceState(true, deps.getVersion())
+  syncUpdateSource(source, deps.getVersion())
   if (manifest.error || !manifest.release) {
     setPhase('idle')
-    return {
-      data: { hasUpdate: false, currentVersion: deps.getVersion(),
-        latestVersion: null, info: null, sourceConfigured: true },
-      error: null,
-    }
+    syncUpdateSource(source, deps.getVersion(), manifest.error ? 'Quelle gerade nicht erreichbar' : null)
+    setAvailable(null, null)
+    return { data: updateCheckPayload(getUpdateState(), false, null), error: null }
   }
 
   const { hasUpdate, info, latestVersion } = buildUpdateInfo(manifest.release, deps.getVersion())
-  setAvailable(latestVersion ?? '', info?.assetName ?? null)
+  setAvailable(latestVersion ?? '', info?.assetName ?? null, info?.releaseNotes ?? manifest.release.body ?? null)
   setPhase(hasUpdate ? 'available' : 'idle')
   pushHistory(hasUpdate ? 'update-available' : 'up-to-date')
 
-  return {
-    data: { hasUpdate, currentVersion: deps.getVersion(),
-      latestVersion: latestVersion ?? null, info: info ?? null, sourceConfigured: true },
-    error: null,
-  }
+  return { data: updateCheckPayload(getUpdateState(), hasUpdate, info ?? null), error: null }
 }
 
 /** Check mit Dedup (genau ein in-flight Promise — 1:1 RawaLite). */
@@ -151,7 +146,7 @@ function requireReadyIntegrity(source: UpdateSourcePort, sha256Verified: boolean
 async function prepareDownload(
   req: UpdateDownloadRequest
 ): Promise<DownloadReady | { data: null; error: string }> {
-  const st = getUpdateState()
+  const st = getStateSnapshot()
   if (st.phase === 'downloading') return { data: null, error: 'busy' }
   if (!st.latestVersion || req.version !== st.latestVersion) {
     return { data: null, error: 'version-mismatch' }
@@ -254,7 +249,7 @@ export async function installUpdate(req: UpdateInstallRequest): Promise<UpdateIn
     return { data: null, error: UPDATE_DISABLED_REASON }
   }
 
-  const st = getUpdateState()
+  const st = getStateSnapshot()
   if (st.phase !== 'ready' || !st.stagedPath) {
     return { data: null, error: 'kein-Installer-bereit' }
   }

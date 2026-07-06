@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { MergeView } from '@codemirror/merge'
 import { EditorView, basicSetup } from 'codemirror'
 import { EditorState, type Extension } from '@codemirror/state'
@@ -6,6 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { json } from '@codemirror/lang-json'
 import { useWriteConfig } from '../../state/store-write-config'
 import { useStore } from '../../state/store'
+import { useRafRefresh } from '../../lib/useRafRefresh'
 import { seiteForFamily } from '@shared/dup-labels'
 import { MergeBar, type SaveSide } from './MergeBar'
 import { MergeArrows } from './MergeArrows'
@@ -44,6 +45,16 @@ function roExt(writeEnabled: boolean): Extension[] {
   return [EditorState.readOnly.of(true), EditorView.editable.of(false)]
 }
 
+function sameChunkRows(a: ChunkRow[], b: ChunkRow[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((row, i) => {
+    const other = b[i]
+    return row.index === other.index && row.fromA === other.fromA && row.toA === other.toA
+      && row.fromB === other.fromB && row.toB === other.toB && row.topA === other.topA
+      && row.topB === other.topB
+  })
+}
+
 // Eine Editor-Seite konfigurieren: basicSetup + on-brand-Theme + lineWrapping + Sprache + RO-Gate.
 function sideConfig(doc: string, path: string, writeEnabled: boolean, onChange: () => void) {
   return {
@@ -68,91 +79,13 @@ export function MergeEditor(props: MergeEditorProps) {
   const seite = seiteForFamily(ui.llm)
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<MergeView | null>(null)
+  const { rows, dirty, refresh, resetRows } = useMergeRefresh(viewRef, initialTrunk, initialMirror)
   const [busy, setBusy] = useState<SaveSide | null>(null)
-  const [rows, setRows] = useState<ChunkRow[]>([])
-  const [dirty, setDirty] = useState(false)
-
-  // Pfeil-Zeilen + dirty-Flag aus dem aktuellen View-Stand neu ableiten.
-  const refresh = useCallback(() => {
-    const v = viewRef.current
-    if (!v) return
-    setRows(buildChunkRows(v.a, v.b))
-    setDirty(
-      v.a.state.doc.toString() !== initialTrunk || v.b.state.doc.toString() !== initialMirror
-    )
-  }, [initialTrunk, initialMirror])
-
-  // MergeView mounten. Re-create bei Pfad-/Content-/Gate-Wechsel. StrictMode:
-  // Cleanup ruft destroy() -> kein doppelter Editor bei doppeltem Mount (React 19).
-  useEffect(() => {
-    const el = hostRef.current
-    if (!el) return
-    const view = new MergeView({
-      a: sideConfig(initialTrunk, trunkPath, writeEnabled, refresh),
-      b: sideConfig(initialMirror, mirrorPath, writeEnabled, refresh),
-      parent: el,
-      gutter: true,
-      highlightChanges: true
-      // collapseUnchanged bewusst NICHT gesetzt (v4-Mockup §voller Inhalt):
-      // CM rendert dann den kompletten Datei-Inhalt unverkuerzt, keine
-      // '… N unchanged lines …'-Faltung. Richtet zugleich block.top der
-      // Chunks an der echten Zeile aus -> Pfeile sitzen am Chunk (merge-chunks).
-    })
-    viewRef.current = view
-    requestAnimationFrame(refresh)
-    return () => {
-      view.destroy()
-      viewRef.current = null
-      setRows([])
-      setDirty(false)
-    }
-  }, [trunkPath, mirrorPath, initialTrunk, initialMirror, writeEnabled, refresh])
-
-  // Seiten-Scroll/-Resize -> Pfeil-Positionen neu messen.
-  // CM feuert kein geometryChanged wenn .cm-mergeView overflow:visible die SEITE
-  // scrollen laesst statt den internen Scroller. Deshalb window-Listener als Ergaenzung.
-  useEffect(() => {
-    window.addEventListener('scroll', refresh, { passive: true })
-    window.addEventListener('resize', refresh)
-    return () => {
-      window.removeEventListener('scroll', refresh)
-      window.removeEventListener('resize', refresh)
-    }
-  }, [refresh])
-
-  // Einen Chunk in die gewuenschte Richtung uebernehmen (←/→), dann Pfeile neu messen.
-  function onAdopt(index: number, dir: 'left' | 'right') {
-    const v = viewRef.current
-    if (!v || !writeEnabled) return
-    const row = rows.find((r) => r.index === index)
-    if (!row) return
-    adoptChunk(v.a, v.b, row, dir)
-    requestAnimationFrame(refresh)
-  }
-
-  // Aktuellen Editor-Inhalt EINER Seite gated speichern (editEntry zeigt Toast).
-  // Save-Quelle ist der vollstaendige Editor-Doc-Stand, nie maskierter Text.
-  async function save(side: SaveSide) {
-    const v = viewRef.current
-    if (!v || !writeEnabled || busy) return
-    const path = side === 'a' ? trunkPath : mirrorPath
-    const content = (side === 'a' ? v.a : v.b).state.doc.toString()
-    setBusy(side)
-    try {
-      await editEntry(path, content)
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  // Beide Seiten auf den geladenen Ausgangsstand zuruecksetzen (kein Schreibvorgang).
-  function revert() {
-    const v = viewRef.current
-    if (!v || !writeEnabled) return
-    v.a.dispatch({ changes: { from: 0, to: v.a.state.doc.length, insert: initialTrunk } })
-    v.b.dispatch({ changes: { from: 0, to: v.b.state.doc.length, insert: initialMirror } })
-    requestAnimationFrame(refresh)
-  }
+  useMountedMergeView(hostRef, viewRef, props, writeEnabled, refresh, resetRows)
+  useWindowRefresh(refresh)
+  const { onAdopt, save, revert } = useMergeCommands({
+    viewRef, rows, writeEnabled, busy, setBusy, editEntry, props, refresh
+  })
 
   return (
     <div className="merge-editor">
@@ -171,4 +104,98 @@ export function MergeEditor(props: MergeEditorProps) {
       />
     </div>
   )
+}
+
+function useMergeRefresh(viewRef: RefObject<MergeView | null>, initialTrunk: string, initialMirror: string) {
+  const [rows, setRows] = useState<ChunkRow[]>([])
+  const [dirty, setDirty] = useState(false)
+  const refreshNow = useCallback(() => {
+    const v = viewRef.current
+    if (!v) return
+    const nextRows = buildChunkRows(v.a, v.b)
+    const nextDirty = v.a.state.doc.toString() !== initialTrunk || v.b.state.doc.toString() !== initialMirror
+    setRows((cur) => (sameChunkRows(cur, nextRows) ? cur : nextRows))
+    setDirty((cur) => (cur === nextDirty ? cur : nextDirty))
+  }, [initialTrunk, initialMirror, viewRef])
+  const refresh = useRafRefresh(refreshNow)
+  const resetRows = useCallback(() => {
+    setRows([])
+    setDirty(false)
+  }, [])
+  return { rows, dirty, refresh, resetRows }
+}
+
+function useMountedMergeView(
+  hostRef: RefObject<HTMLDivElement | null>,
+  viewRef: RefObject<MergeView | null>,
+  props: MergeEditorProps,
+  writeEnabled: boolean,
+  refresh: () => void,
+  resetRows: () => void,
+) {
+  const { trunkPath, mirrorPath, initialTrunk, initialMirror } = props
+  useEffect(() => {
+    const el = hostRef.current
+    if (!el) return
+    const view = new MergeView({
+      a: sideConfig(initialTrunk, trunkPath, writeEnabled, refresh),
+      b: sideConfig(initialMirror, mirrorPath, writeEnabled, refresh),
+      parent: el,
+      gutter: true,
+      highlightChanges: true
+    })
+    viewRef.current = view
+    refresh()
+    return () => { view.destroy(); viewRef.current = null; resetRows() }
+  }, [trunkPath, mirrorPath, initialTrunk, initialMirror, writeEnabled, refresh, resetRows, hostRef, viewRef])
+}
+
+function useWindowRefresh(refresh: () => void) {
+  useEffect(() => {
+    window.addEventListener('scroll', refresh, { passive: true })
+    window.addEventListener('resize', refresh)
+    return () => {
+      window.removeEventListener('scroll', refresh)
+      window.removeEventListener('resize', refresh)
+    }
+  }, [refresh])
+}
+
+interface MergeCommandsArgs {
+  viewRef: RefObject<MergeView | null>
+  rows: ChunkRow[]
+  writeEnabled: boolean
+  busy: SaveSide | null
+  setBusy(side: SaveSide | null): void
+  editEntry(path: string, content: string): Promise<boolean>
+  props: MergeEditorProps
+  refresh(): void
+}
+
+function useMergeCommands(args: MergeCommandsArgs) {
+  const { viewRef, rows, writeEnabled, busy, setBusy, editEntry, props, refresh } = args
+  const onAdopt = (index: number, dir: 'left' | 'right') => {
+    const v = viewRef.current
+    if (!v || !writeEnabled) return
+    const row = rows.find((r) => r.index === index)
+    if (!row) return
+    adoptChunk(v.a, v.b, row, dir)
+    refresh()
+  }
+  const save = async (side: SaveSide) => {
+    const v = viewRef.current
+    if (!v || !writeEnabled || busy) return
+    const path = side === 'a' ? props.trunkPath : props.mirrorPath
+    const content = (side === 'a' ? v.a : v.b).state.doc.toString()
+    setBusy(side)
+    try { await editEntry(path, content) } finally { setBusy(null) }
+  }
+  const revert = () => {
+    const v = viewRef.current
+    if (!v || !writeEnabled) return
+    v.a.dispatch({ changes: { from: 0, to: v.a.state.doc.length, insert: props.initialTrunk } })
+    v.b.dispatch({ changes: { from: 0, to: v.b.state.doc.length, insert: props.initialMirror } })
+    refresh()
+  }
+  return { onAdopt, save, revert }
 }

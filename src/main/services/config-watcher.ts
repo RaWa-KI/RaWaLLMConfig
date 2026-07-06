@@ -4,6 +4,7 @@ import path from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
 import { IPC_EVENTS } from '@shared/channels'
 import type { ConfigChangedPayload, ConfigFamily, ConfigRootKind } from '@shared/contract-watcher-fs'
+import { markConfigScanCacheStale } from './config-scan-cache'
 import { configRootList, configRoots } from './config-roots'
 
 const DEBOUNCE_MS = 650
@@ -103,6 +104,7 @@ export function stopConfigWatcher(): void {
 function queueChange(filePath: string, debounceMs = DEBOUNCE_MS): void {
   if (shouldIgnoreConfigPath(filePath)) return
   const match = classifyConfigPath(filePath)
+  markConfigScanCacheStale(WATCHER_REASON)
   pendingFamilies.add(match.family)
   pendingRootKinds.add(match.rootKind)
   if (debounceTimer) clearTimeout(debounceTimer)

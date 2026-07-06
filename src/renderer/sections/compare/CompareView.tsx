@@ -5,8 +5,8 @@ import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
 import type { CoverageComparePreset } from '../../state/types'
 import { CompareToolbar } from './CompareToolbar'
-import { CompareColumn } from './CompareColumn'
 import { CompareSummary } from './CompareSummary'
+import { CompareVirtualRows } from './CompareVirtualRows'
 import { alignColumns } from './compare-logic'
 import './CompareView.css'
 
@@ -29,9 +29,20 @@ type SummaryMode = 'default' | 'coverage'
 
 export function CompareView({ cat }: { cat: Category }) {
   const { ui } = useStore()
+  const { st, preset, summaryMode, handleCompare } = useCompareState(ui.comparePreset)
+  return (
+    <div className="cmp-view">
+      {preset && <CoveragePresetPanel preset={preset} onStart={() => handleCompare(preset.candidates)} />}
+      <CompareToolbar cat={cat} onCompare={handleCompare} />
+      <CompareBody st={st} summaryMode={summaryMode} />
+    </div>
+  )
+}
+
+function useCompareState(comparePreset: CoverageComparePreset | null) {
   const [st, setSt] = useState<CompareState>(INITIAL)
   const [startedPresetKey, setStartedPresetKey] = useState<string | null>(null)
-  const preset = ui.comparePreset?.source === 'coverage' ? ui.comparePreset : null
+  const preset = comparePreset?.source === 'coverage' ? comparePreset : null
   const presetKey = useMemo(() => preset ? coveragePresetKey(preset) : null, [preset])
 
   // Vergleich starten: Bridge-Guard, dann compareMulti. Fehler werden sanitisiert
@@ -67,19 +78,7 @@ export function CompareView({ cat }: { cat: Category }) {
 
   const summaryMode: SummaryMode =
     preset && sameCandidates(st.candidates, preset.candidates) ? 'coverage' : 'default'
-
-  return (
-    <div className="cmp-view">
-      {preset && (
-        <CoveragePresetPanel
-          preset={preset}
-          onStart={() => handleCompare(preset.candidates)}
-        />
-      )}
-      <CompareToolbar cat={cat} onCompare={handleCompare} />
-      <CompareBody st={st} summaryMode={summaryMode} />
-    </div>
-  )
+  return { st, preset, summaryMode, handleCompare }
 }
 
 // Anzeige-Zustaende: kein/zu wenig Result, loading, error, Result -> N Spalten.
@@ -105,7 +104,7 @@ function CompareBody({ st, summaryMode }: { st: CompareState; summaryMode: Summa
 // Die Spaltenzahl wird ueber die CSS-Variable --cmp-cols per Callback-Ref am DOM
 // gesetzt (kein inline-style-Objekt, HR27/Lint: Styles bleiben in CompareView.css).
 function CompareGrid({ result, summaryMode }: { result: MultiCompareResult; summaryMode: SummaryMode }) {
-  const aligned = alignColumns(result)
+  const aligned = useMemo(() => alignColumns(result), [result])
   const n = aligned.length
   const gridRef = useCallback(
     (el: HTMLDivElement | null) => el?.style.setProperty('--cmp-cols', String(n)),
@@ -123,9 +122,7 @@ function CompareGrid({ result, summaryMode }: { result: MultiCompareResult; summ
         </div>
       )}
       <div className="cmp-grid" ref={gridRef}>
-        {aligned.map((column, j) => (
-          <CompareColumn key={column.col.path + ':' + j} column={column} />
-        ))}
+        <CompareVirtualRows columns={aligned} />
       </div>
     </div>
   )

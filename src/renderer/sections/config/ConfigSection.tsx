@@ -1,4 +1,5 @@
-import type { Category, ConfigEntry, DuplicateSet, EntryStatus, LlmConfig } from '@shared/contract'
+import { useMemo } from 'react'
+import type { Category, DuplicateSet, LlmConfig } from '@shared/contract'
 import type { CoverageRow } from '@shared/contract-coverage'
 import { normalizeCat } from '@shared/cat-key'
 import { useStore } from '../../state/store'
@@ -10,6 +11,7 @@ import { CompareView } from '../compare/CompareView'
 import { CoverageView } from '../coverage/CoverageView'
 import { ConfigDiagnostics } from './ConfigDiagnostics'
 import { DiagnosticsSummary } from './DiagnosticsSummary'
+import { buildHits } from './config-filter'
 
 // Config-Sektion: Kategorie-Sidebar + Anzeige (Uebersicht / Duplikate) oder
 // Suchtreffer. WP-D-a: EntryDetailPanel als Overlay entfernt (dual-drawer-overlay-
@@ -107,71 +109,15 @@ function CategorySidebar({
   )
 }
 
-// Sichtbarer Treffer-Text (name+desc+cat.label) — case-insensitiv durchsucht.
-// Liefert die Sichtbar-Seite getrennt, damit „Treffer im Datei-Inhalt" exakt dann
-// markiert wird, wenn NUR die Index-/Feld-Seite (nicht der sichtbare Text) matcht.
-function visibleText(cat: Category, entry: ConfigEntry): string {
-  return (entry.name + ' ' + entry.desc + ' ' + cat.label).toLowerCase()
-}
-
-// Datei-Inhalts-Seite: extrahierte searchKeys (NUR Keys/Headings, NIE Werte) plus
-// die Feld-Schluessel UND -Werte aus entry.fields. Felder sind kuratierte, bereits
-// maskierte Anzeige-Werte (Secret-Werte landen dort nie) — daher mitdurchsuchbar.
-function fileText(entry: ConfigEntry): string {
-  const keys = entry.searchKeys ?? []
-  const fields = entry.fields ?? {}
-  const fieldText = Object.entries(fields)
-    .map(([k, v]) => k + ' ' + v)
-    .join(' ')
-  return (keys.join(' ') + ' ' + fieldText).toLowerCase()
-}
-
-// Einen Eintrag gegen den (lowercase) Query pruefen und ggf. als Hit anhaengen.
-// inFile=true, wenn der sichtbare Text NICHT matcht, aber die Datei-/Feld-Seite —
-// dann markiert der Renderer „Treffer im Datei-Inhalt".
-function pushHit(
-  out: SearchHit[],
-  llm: string,
-  cat: Category,
-  entry: ConfigEntry,
-  q: string,
-): void {
-  const inVisible = visibleText(cat, entry).includes(q)
-  const inFile = !inVisible && fileText(entry).includes(q)
-  if (inVisible || inFile) out.push({ llm, cat, entry, inFile })
-}
-
-// Echter Filter: Textsuche UND Status-Filter kombinierbar. Mit Text-Query wird
-// cross-family ueber ALLE config.data.data-Familien gesucht (Owner-Default); ohne
-// Query (reiner Status-Filter) bleibt es bei der aktuellen Familie, damit die
-// per-Familie-Status-Sicht nicht vermischt wird. Leerer Query matcht alles.
-function buildHits(
-  families: Record<string, LlmConfig>,
-  currentLlm: string,
-  query: string,
-  statusFilter: EntryStatus | null,
-): SearchHit[] {
-  const q = query.trim().toLowerCase()
-  const out: SearchHit[] = []
-  const ids = q ? Object.keys(families) : [currentLlm]
-  for (const llm of ids) {
-    const ad = families[llm]
-    if (!ad) continue
-    ad.categories.forEach((cat) =>
-      cat.entries.forEach((entry) => {
-        if (statusFilter !== null && entry.status !== statusFilter) return
-        pushHit(out, llm, cat, entry, q)
-      }),
-    )
-  }
-  return out
-}
-
 function ConfigMain({ ad }: { ad: LlmConfig }) {
   const { config, ui, actions } = useStore()
   const query = ui.search.trim()
+  const families = config.data?.data ?? {}
+  const hits = useMemo(
+    () => query || ui.statusFilter !== null ? buildHits(families, ui.llm, query, ui.statusFilter) : [],
+    [families, query, ui.llm, ui.statusFilter]
+  )
   if (query || ui.statusFilter !== null) {
-    const families = config.data?.data ?? {}
     // Treffer oeffnen. Gleiche Familie: Drawer oeffnet direkt (unveraendert).
     // Fremde Familie: erst Familie wechseln, damit der Eintrag dort sichtbar ist.
     // Hinweis: der Store-Effekt (store.tsx) leert bei echtem Familienwechsel
@@ -185,7 +131,7 @@ function ConfigMain({ ad }: { ad: LlmConfig }) {
     }
     return (
       <SearchView
-        hits={buildHits(families, ui.llm, query, ui.statusFilter)}
+        hits={hits}
         query={query}
         statusFilter={ui.statusFilter}
         onOpen={onOpen}

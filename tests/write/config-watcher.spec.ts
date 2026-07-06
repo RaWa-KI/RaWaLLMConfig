@@ -64,7 +64,7 @@ test('Watcher buendelt mehrere Aenderungen zu einem Metadaten-Payload', async ()
     isDestroyed: () => false,
     webContents: { send: (_channel: string, payload: ConfigChangedPayload) => sent.push(payload) }
   }
-  startConfigWatcher(() => win as never, { roots: [root], debounceMs: 80 })
+  startConfigWatcher(() => win as never, { roots: [root], debounceMs: 350 })
   await wait(700)
   writeFileSync(join(root, 'settings.json'), '{}', 'utf8')
   writeFileSync(join(root, 'config.json'), '{}', 'utf8')

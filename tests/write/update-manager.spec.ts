@@ -7,7 +7,7 @@
 // SELBST her (check vor download vor install im Testkoerper), kein
 // require-Cache-Hack, keine Reihenfolge-Abhaengigkeit zwischen Tests.
 import { test, expect } from '@playwright/test'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { makeSandbox, seedFile, type Sandbox } from './fixtures'
@@ -118,12 +118,23 @@ async function reachReady(sb: Sandbox): Promise<void> {
 // --- checkForUpdates ----------------------------------------------------------
 
 test.describe('checkForUpdates', () => {
-  test('ohne RAWALLM_UPDATE_DIR -> sourceConfigured false, kein Update', async () => {
+  test('Default-Quelle ist schon im frischen State konfiguriert', async () => {
+    const sb = makeSandbox()
+    installDeps(sb)
+    delete process.env[ENV_RELEASE]
+    const st = getUpdateState()
+    expect(st.sourceConfigured).toBe(true)
+    expect(st.sourceKind).toBe('https')
+    expect(st.sourceLabel).toBe('Öffentliche Releases')
+  })
+
+  test('ungueltige Quelle -> sourceConfigured false, kein Update', async () => {
     const sb = makeSandbox()
     installDeps(sb)
     const r = await checkForUpdates()
     expect(r.error).toBe(null)
     expect(r.data?.sourceConfigured).toBe(false)
+    expect(r.data?.sourceLabel).toBe('Quelle gerade nicht erreichbar')
     expect(r.data?.hasUpdate).toBe(false)
     expect(r.data?.currentVersion).toBe(CURRENT_VERSION)
     expect(r.data?.latestVersion).toBe(null)
@@ -143,6 +154,8 @@ test.describe('checkForUpdates', () => {
     const st = getUpdateState()
     expect(st.phase).toBe('available')
     expect(st.latestVersion).toBe('9.9.9')
+    expect(st.sourceLabel).toBe('Lokaler Update-Ordner')
+    expect(st.releaseNotes).toBe('Notes')
     expect(st.history.some((h) => h.event === 'update-available')).toBe(true)
   })
 
@@ -157,6 +170,16 @@ test.describe('checkForUpdates', () => {
     expect(r.data?.sourceConfigured).toBe(true)
     expect(r.data?.latestVersion).toBe(null)
     expect(getUpdateState().phase).toBe('idle')
+  })
+})
+
+test.describe('Update-Manager UI-Texte', () => {
+  test('Leerzustand zeigt keine internen Env-Namen', () => {
+    const panelPath = join(process.cwd(), 'src/renderer/sections/updates/UpdateManagerPanel.tsx')
+    const panel = readFileSync(panelPath, 'utf8')
+    expect(panel).not.toContain('RAWALLM_UPDATE_DIR')
+    expect(panel).not.toContain('RAWALLM_RELEASE_URL')
+    expect(panel).toContain('Quelle gerade nicht erreichbar')
   })
 })
 

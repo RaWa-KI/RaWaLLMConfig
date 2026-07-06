@@ -1,7 +1,7 @@
 import type { CoverageRow as CoverageRowData } from '@shared/contract-coverage'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import { CoverageRow } from './CoverageRow'
+import { CoverageVirtualTable } from './CoverageVirtualTable'
 import { coveragePreset } from './coverage-compare'
 import './CoverageView.css'
 import './CoverageDetail.css'
@@ -13,19 +13,6 @@ import './CoverageDetail.css'
 
 interface Props {
   rows: CoverageRowData[]
-}
-
-// Tabellen-Kopfzeile mit den drei Spalten-Labels.
-function CoverageTableHead() {
-  return (
-    <div className="cvg-thead">
-      <div className="cvg-th cvg-th--name">Config</div>
-      <div className="cvg-th">Shared</div>
-      <div className="cvg-th">Claude</div>
-      <div className="cvg-th">Codex</div>
-      <div className="cvg-th cvg-th--expand" aria-hidden="true" />
-    </div>
-  )
 }
 
 // Leerzustand: keine Coverage-Daten fuer diese Kategorie.
@@ -60,14 +47,7 @@ export function CoverageView({ rows }: Props) {
   }
   return (
     <div className="cvg-view">
-      <div className="cvg-table">
-        <CoverageTableHead />
-        <div className="cvg-tbody">
-          {rows.map((row) => (
-            <CoverageRow key={row.cat + '/' + row.name} row={row} onInspect={inspectRow} />
-          ))}
-        </div>
-      </div>
+      <CoverageVirtualTable rows={rows} onInspect={inspectRow} />
     </div>
   )
 }

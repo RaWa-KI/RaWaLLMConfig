@@ -27,9 +27,17 @@ export const GITHUB_FILES = new Set([
 ])
 
 export const SCRIPT_FILES = new Set([
+  'scripts/audit-probe/bridge-checks.mjs',
+  'scripts/audit-probe/dump-verify.mjs',
+  'scripts/audit-probe/launch.mjs',
+  'scripts/audit-probe/perf-metrics.mjs',
+  'scripts/audit-probe/timeouts.mjs',
+  'scripts/audit-probe/ui-checks.mjs',
   'scripts/generate-update-manifest.mjs',
   'scripts/git-hooks/pre-commit',
-  'scripts/install-git-hooks.mjs'
+  'scripts/install-git-hooks.mjs',
+  'scripts/perf-smoke.mjs',
+  'scripts/ui-smoke.mjs'
 ])
 
 export const FORBIDDEN_DIR_NAMES = new Set([

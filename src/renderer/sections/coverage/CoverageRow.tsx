@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { CoverageRow as CoverageRowData } from '@shared/contract-coverage'
 import type { DiffLine } from '@shared/contract'
 import { Icon } from '../../components/Icon'
@@ -60,7 +60,7 @@ function ImpactHint({ cat, codexState }: { cat: string; codexState: string }) {
   )
 }
 
-export function CoverageRow({ row, onInspect }: Props) {
+export const CoverageRow = memo(function CoverageRow({ row, onInspect }: Props) {
   const hasDiff = row.claude.state === 'abweichend' || row.codex.state === 'abweichend'
   const [diffOpen, setDiffOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -108,4 +108,4 @@ export function CoverageRow({ row, onInspect }: Props) {
       )}
     </div>
   )
-}
+})

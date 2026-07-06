@@ -38,4 +38,9 @@ test.describe('resolveUpdateSource', () => {
       else process.env.RAWALLM_UPDATE_DIR = before
     }
   })
+
+  test('ungueltige Release-Adresse gilt als nicht erreichbare Quelle', () => {
+    const source = resolveUpdateSource({ RAWALLM_RELEASE_URL: 'disabled-for-tests' })
+    expect(source.describe()).toEqual({ kind: 'https', configured: false })
+  })
 })

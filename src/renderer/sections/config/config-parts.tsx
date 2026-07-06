@@ -1,6 +1,8 @@
+import { memo, useMemo } from 'react'
 import type { Category, ConfigEntry, EntryStatus, Scope } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { Pill } from '../../components/Pill'
+import { useVirtualRows } from '../../lib/useVirtualRows'
 import { OverviewEntry } from './OverviewEntry'
 
 // Read-only Praesentationsteile der Config-Sektion (1:1 Prototyp-Optik).
@@ -43,7 +45,7 @@ function markHits(text: string, q: string) {
   )
 }
 
-export function EntryRow({ cat, entry, showCat, highlight, inFile, onClick }: RowProps) {
+export const EntryRow = memo(function EntryRow({ cat, entry, showCat, highlight, inFile, onClick }: RowProps) {
   const hl = highlight ?? ''
   return (
     <div className="row" onClick={onClick}>
@@ -67,17 +69,18 @@ export function EntryRow({ cat, entry, showCat, highlight, inFile, onClick }: Ro
       </div>
     </div>
   )
-}
+})
 
 // Übersicht = Dup-Standard (Owner-Reichweite 15:17: ALLE Übersichten editierbar).
 // Je Scope-Gruppe eine Liste klappbarer OverviewEntry-Eintraege (einspaltiger
 // Direkt-Editor + gleiche Zeilenaktionen). Der Drawer-Detail-Weg (onOpen) bleibt
 // erhalten (Details-Link im Eintrags-Kopf).
 export function OverviewView({ cat, onOpen }: { cat: Category; onOpen(id: string): void }) {
-  const groups = {} as Record<Scope, ConfigEntry[]>
-  cat.entries.forEach((e) => {
-    ;(groups[e.scope] = groups[e.scope] ?? []).push(e)
-  })
+  const groups = useMemo(() => {
+    const next = {} as Record<Scope, ConfigEntry[]>
+    cat.entries.forEach((e) => { ;(next[e.scope] = next[e.scope] ?? []).push(e) })
+    return next
+  }, [cat.entries])
   return (
     <div>
       {SCOPE_ORDER.filter((s) => groups[s]).map((scope) => (
@@ -98,6 +101,9 @@ function ScopeGroup({
   list: ConfigEntry[]
   onOpen(id: string): void
 }) {
+  const enabled = list.length > 40
+  const virtual = useVirtualRows({ count: list.length, estimateSize: 118, overscan: 5, enabled })
+  const indexes = enabled ? virtual.virtualItems : list.map((_, i) => i)
   return (
     <div className="group">
       <div className="group-head">
@@ -106,12 +112,62 @@ function ScopeGroup({
           {list.length} {list.length === 1 ? 'Eintrag' : 'Einträge'}
         </span>
       </div>
-      <div className="dup-panel">
-        {list.map((e) => (
+      <div className="dup-panel" ref={virtual.ref}>
+        {enabled && <div style={{ height: virtual.beforeHeight }} />}
+        {indexes.map((i) => {
+          const e = list[i]
+          return (
           <OverviewEntry key={e.id} cat={cat} entry={e} onOpen={(id) => onOpen(id)} />
-        ))}
+          )
+        })}
+        {enabled && <div style={{ height: virtual.afterHeight }} />}
       </div>
     </div>
+  )
+}
+
+function SearchRows({
+  hits,
+  query,
+  onOpen
+}: {
+  hits: SearchHit[]
+  query: string
+  onOpen(llm: string, catId: string, entryId: string): void
+}) {
+  const virtual = useVirtualRows({ count: hits.length, estimateSize: 68, enabled: hits.length > 80 })
+  const indexes = hits.length > 80 ? virtual.virtualItems : hits.map((_, i) => i)
+  return (
+    <div className="rows" ref={virtual.ref}>
+      {hits.length > 80 && <div style={{ height: virtual.beforeHeight }} />}
+      {indexes.map((i) => <SearchHitRow key={hitKey(hits[i])} hit={hits[i]} query={query} onOpen={onOpen} />)}
+      {hits.length > 80 && <div style={{ height: virtual.afterHeight }} />}
+    </div>
+  )
+}
+
+function hitKey(hit: SearchHit): string {
+  return hit.llm + hit.cat.id + hit.entry.id
+}
+
+function SearchHitRow({
+  hit,
+  query,
+  onOpen
+}: {
+  hit: SearchHit
+  query: string
+  onOpen(llm: string, catId: string, entryId: string): void
+}) {
+  return (
+    <EntryRow
+      cat={hit.cat}
+      entry={hit.entry}
+      showCat
+      highlight={query}
+      inFile={hit.inFile}
+      onClick={() => onOpen(hit.llm, hit.cat.id, hit.entry.id)}
+    />
   )
 }
 
@@ -167,19 +223,7 @@ export function SearchView({
           <p>Nichts gefunden.</p>
         </div>
       ) : (
-        <div className="rows">
-          {hits.map(({ llm, cat, entry, inFile }) => (
-            <EntryRow
-              key={llm + cat.id + entry.id}
-              cat={cat}
-              entry={entry}
-              showCat
-              highlight={query}
-              inFile={inFile}
-              onClick={() => onOpen(llm, cat.id, entry.id)}
-            />
-          ))}
-        </div>
+        <SearchRows hits={hits} query={query} onOpen={onOpen} />
       )}
     </div>
   )

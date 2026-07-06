@@ -11,14 +11,21 @@ import './UpdatesSection.css'
 // Secrets/Pfade werden NIE gerendert — nur generische Fehlertexte.
 // Unterkomponenten: IdleCard, AvailableCard, ProgressRow, ReadyCard.
 
-// ─── Leerzustand: RAWALLM_UPDATE_DIR nicht konfiguriert ──────────────────────
+// ─── Leerzustand: Quelle nicht erreichbar ────────────────────────────────────
 
-function UnconfiguredState() {
+function UnconfiguredState({ label, onCheck, busy }: {
+  label: string
+  onCheck(): void
+  busy: boolean
+}) {
   return (
     <div className="ump-empty">
       <span className="ump-empty-ic">{Icon.plug}</span>
-      <div className="ump-empty-title">Keine Update-Quelle konfiguriert</div>
-      <div className="ump-empty-hint">RAWALLM_UPDATE_DIR oder RAWALLM_RELEASE_URL nicht gesetzt</div>
+      <div className="ump-empty-title">{label}</div>
+      <div className="ump-empty-hint">Bitte eine gültige Update-Quelle auswählen.</div>
+      <button className="ump-btn" onClick={onCheck} disabled={busy}>
+        {Icon.refresh} Erneut prüfen
+      </button>
     </div>
   )
 }
@@ -186,6 +193,16 @@ function PhaseView({
   return <IdleCard state={state} onCheck={onCheck} busy={busy} />
 }
 
+function SourceNotice({ state }: { state: UpdateStateData }) {
+  if (!state.lastSourceError) return null
+  return (
+    <div className="ump-source-warning">
+      <span>{Icon.warn}</span>
+      <span>{state.lastSourceError}</span>
+    </div>
+  )
+}
+
 // ─── Haupt-Panel ──────────────────────────────────────────────────────────────
 
 export function UpdateManagerPanel() {
@@ -208,7 +225,13 @@ export function UpdateManagerPanel() {
   if (!state.sourceConfigured) {
     return (
       <main className="main" style={{ gridColumn: '1 / -1' }}>
-        <div className="ump-wrap"><UnconfiguredState /></div>
+        <div className="ump-wrap">
+          <UnconfiguredState
+            label={state.sourceLabel || 'Quelle gerade nicht erreichbar'}
+            onCheck={() => { void check() }}
+            busy={busy}
+          />
+        </div>
       </main>
     )
   }
@@ -228,11 +251,12 @@ export function UpdateManagerPanel() {
       <div className="view-head">
         <div className="view-title">
           <h2>Update-Manager</h2>
-          <p>Lokale Update-Quelle · Version <span className="mono">{state.currentVersion}</span></p>
+          <p>{state.sourceLabel} · Version <span className="mono">{state.currentVersion}</span></p>
         </div>
       </div>
 
       <div className="ump-wrap">
+        <SourceNotice state={state} />
         <PhaseView
           state={state}
           progress={progress}

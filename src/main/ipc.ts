@@ -2,9 +2,9 @@ import { ipcMain } from 'electron'
 import { IPC } from '@shared/channels'
 import type { AppData, System, Watcher, IpcResult } from '@shared/contract'
 import type { ReadFullRequest, ReadFullResult } from '@shared/contract-write'
-import { scanAll } from './scan/scan-index'
 import { scanSystem, scanWatcher } from './scan/sys-scan'
 import { refreshVersions } from './services/cli-version-cache'
+import { getConfigSnapshot } from './services/config-scan-cache'
 import { readFullCore } from './services/read-full'
 import { applySystemOverrides } from './services/system-store'
 import { guarded } from './lib/guarded'
@@ -39,7 +39,8 @@ async function safeAsync<T>(fn: () => Promise<T>): Promise<IpcResult<T>> {
 }
 
 export function registerIpc(): void {
-  ipcMain.handle(IPC.configGetAll, (): IpcResult<AppData> => safe(() => scanAll()))
+  ipcMain.handle(IPC.configGetAll, (): Promise<IpcResult<AppData>> =>
+    safeAsync(() => getConfigSnapshot({ reason: 'ipc:configGetAll' })))
   // System/Watcher async (PERF-HOCH-01): Versions-Spawns blockieren den
   // Main-Event-Loop nicht mehr; ipcMain.handle + Renderer sind Promise-basiert.
   ipcMain.handle(IPC.systemGetAreas, (): Promise<IpcResult<System>> =>
