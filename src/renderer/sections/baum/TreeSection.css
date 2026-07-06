@@ -1,0 +1,119 @@
+/* ════ PFAD-BAUM (Tree) — read-only (WP-C1) ═════════════════
+   Aus tests/.../claude-config/styles.css portiert; nur die read-only Klassen
+   (Ebenen, Legende, Blatt, Marker). Drag/Vergleich-Klassen kommen spaeter. */
+
+/* Einziges .shell-Kind -> volle Shell-Breite (sonst klemmt es in der 248px-Spalte). */
+.treewrap { display: flex; flex-direction: column; grid-column: 1 / -1; }
+/* view-head ohne Primaer-Titel: nur noch Toolbar-Container, rechtsbuendig. */
+.tree-head { display: flex; justify-content: flex-end; }
+.tree-toolbar { margin-left: auto; }
+.tree-toolbar .pill { cursor: pointer; }
+
+/* Legende — die vier Faelle */
+.tree-legend {
+  display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center;
+  margin-bottom: 18px; padding: 13px 18px;
+}
+.tl-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--text-lt); }
+.tl-chip {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 900;
+  letter-spacing: .02em; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.tl-chip.casc  { background: var(--sage-lt);  color: var(--sage-d);  border: 1.5px solid color-mix(in oklab, var(--sage) 32%, var(--bg-card)); }
+.tl-chip.copy  { background: var(--papa-lt);  color: var(--papa-d);  border: 1.5px solid color-mix(in oklab, var(--papa) 32%, var(--bg-card)); }
+.tl-chip.ptr   { background: var(--lisa-lt);  color: var(--lisa-d);  border: 1.5px solid color-mix(in oklab, var(--lisa) 32%, var(--bg-card)); }
+.tl-chip.warn  { background: var(--terra-lt); color: var(--terra-d); border: 1.5px solid color-mix(in oklab, var(--terra) 32%, var(--bg-card)); }
+.tl-chip.stale { background: var(--amber-lt); color: var(--amber-d); border: 1.5px solid color-mix(in oklab, var(--amber) 32%, var(--bg-card)); }
+
+/* Ebenen-Stapel */
+.tree { display: flex; flex-direction: column; gap: 15px; }
+.scope-card {
+  background: var(--bg-card); border: var(--card-border); border-radius: var(--radius);
+  box-shadow: var(--card-shadow); padding: 15px 18px;
+}
+.scope-head {
+  display: flex; align-items: center; gap: 13px; padding-bottom: 12px;
+  border-bottom: 2px dashed var(--border); margin-bottom: 11px;
+}
+.scope-ic {
+  width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center;
+  justify-content: center; background: var(--bg); border: 2px solid var(--ink); color: var(--text); flex-shrink: 0;
+}
+html[data-structure="lines"] .scope-ic, html[data-structure="emboss"] .scope-ic { border: 1.5px solid var(--border); }
+.scope-ic svg { width: 19px; height: 19px; }
+.scope-meta { flex: 1; min-width: 0; }
+.scope-title { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 900; letter-spacing: -.01em; flex-wrap: wrap; }
+.scope-count {
+  font-size: 13px; font-weight: 900; color: var(--text-lt); background: var(--bg);
+  border: 2px solid var(--border); border-radius: 9px; min-width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center; padding: 0 9px; flex-shrink: 0;
+}
+.scope-empty { font-size: 12.5px; font-weight: 700; color: var(--warm-gray); padding: 8px 6px; font-style: italic; }
+
+/* Kategorie-Gruppe je Ebene */
+.tcat { margin-bottom: 4px; }
+.tcat-head { display: flex; align-items: center; gap: 9px; width: 100%; padding: 6px 8px; border-radius: 9px; text-align: left; }
+.tcat-ic { display: flex; color: var(--text-lt); }
+.tcat-ic svg { width: 16px; height: 16px; }
+.tcat-name { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 800; color: var(--text); }
+.tcat-n { font-size: 11px; font-weight: 800; color: var(--warm-gray); }
+
+/* Blaetter */
+.tleaves { display: flex; flex-direction: column; gap: 6px; padding: 2px 0 8px 26px; position: relative; }
+.tleaves::before { content: ""; position: absolute; left: 13px; top: 0; bottom: 10px; width: 2px; background: var(--border); border-radius: 2px; }
+.tleaf {
+  display: flex; align-items: center; gap: 11px; padding: 8px 12px; background: var(--bg);
+  border: 2px solid var(--border); border-radius: 10px; transition: border-color .14s, transform .1s, box-shadow .14s;
+}
+.tleaf:hover { border-color: var(--ink); transform: translateX(2px); }
+html[data-structure="retro"] .tleaf:hover { box-shadow: 3px 3px 0 var(--ink-2); }
+.tleaf-grip { display: flex; color: var(--warm-gray); flex-shrink: 0; }
+.tleaf-grip svg { width: 14px; height: 14px; }
+.tleaf-name { font-size: 13px; font-weight: 800; color: var(--text); flex-shrink: 0; }
+.tleaf-markers { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tleaf-path {
+  margin-left: auto; font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700;
+  color: var(--warm-gray); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0;
+}
+
+/* Fuss */
+.tree-foot { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; font-size: 12.5px; font-weight: 700; color: var(--warm-gray); line-height: 1.5; padding: 0 4px; }
+.tree-foot svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+
+/* ════ VERGLEICH + DRAG-TO-MOVE (WP-C2/C3) — aus dem Prototyp portiert ═════ */
+
+/* Segment-Toggle „Ein Ort" / „Vergleich" */
+.tree-toolbar { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.seg-toggle { display: inline-flex; border: 2px solid var(--ink); border-radius: 9px; overflow: hidden; }
+.seg-toggle .seg { padding: 7px 16px; font-size: 12.5px; font-weight: 800; border: none; background: var(--bg-card); color: var(--text-lt); cursor: pointer; transition: all .12s; }
+.seg-toggle .seg + .seg { border-left: 2px solid var(--ink); }
+.seg-toggle .seg.on { background: var(--sage); color: #fff; }
+html[data-structure="lines"] .seg-toggle, html[data-structure="emboss"] .seg-toggle { border: 1.5px solid var(--border); }
+
+/* Spaltenkopf-Leiste im Vergleichsmodus */
+.mach-head { display: flex; align-items: flex-end; padding: 2px 30px 10px 0; }
+.mh-axis { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 800; color: var(--text-lt); }
+.mh-axis svg { width: 15px; height: 15px; transform: rotate(45deg); color: var(--warm-gray); }
+.mh-spacer { flex: 1; }
+.mh-col { width: 128px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; }
+.mh-col b { font-size: 12.5px; font-weight: 900; }
+
+/* Vergleichs-Zellen je Blatt */
+.tleaf.compare { cursor: default; }
+.tleaf.compare:hover { transform: none; }
+.mach-cells { display: flex; margin-left: auto; flex-shrink: 0; }
+.mcell { width: 128px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.mcell.empty { color: var(--warm-gray); opacity: .45; font-weight: 800; font-size: 14px; }
+.mc-chip { font-size: 10px; font-weight: 900; letter-spacing: .02em; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+.mc-chip.canon { background: var(--sage-lt); color: var(--sage-d); border: 1.5px solid color-mix(in oklab, var(--sage) 30%, var(--bg-card)); }
+.mc-chip.same  { background: var(--papa-lt); color: var(--papa-d); border: 1.5px solid color-mix(in oklab, var(--papa) 30%, var(--bg-card)); }
+.mc-chip.bak   { background: var(--lisa-lt); color: var(--lisa-d); border: 1.5px solid color-mix(in oklab, var(--lisa) 30%, var(--bg-card)); }
+
+/* Drag-to-Move (nur „Ein Ort") */
+.tleaf[draggable="true"] { cursor: grab; }
+.tleaf.dragging { opacity: .35; }
+.scope-card.droppable { outline: 2px dashed color-mix(in oklab, var(--sage) 36%, var(--bg-card)); outline-offset: 3px; }
+.scope-card.hot { border-color: var(--sage); box-shadow: 6px 6px 0 color-mix(in oklab, var(--sage) 45%, var(--ink-2)); transform: translate(-1px, -1px); }
+html[data-structure="lines"] .scope-card.hot, html[data-structure="emboss"] .scope-card.hot { box-shadow: 0 4px 14px var(--shadow); }
+.drop-hint { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800; color: var(--sage-d); background: var(--sage-lt); border: 1.5px dashed var(--sage); border-radius: 10px; padding: 8px 12px; margin-bottom: 11px; }
+.drop-hint svg { width: 16px; height: 16px; flex-shrink: 0; }

@@ -1,0 +1,93 @@
+/* UpdatesSection — Watcher-Layout-Klassen. Inline-styles aus JSX extrahiert (Touch-it-clean-it).
+   Nutzt globale Tokens; keine eigenen Farb-/Groessen-Werte ohne Token-Referenz. */
+
+/* Lade- und Fehlerzustand */
+.upd-full {
+  grid-column: 1 / -1;
+}
+
+.upd-loading {
+  font-weight: 700;
+  color: var(--warm-gray);
+}
+
+/* Daemon-Card innere Flex-Box */
+.dc-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dc-pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.dc-title {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.dc-note {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-lt);
+  line-height: 1.45;
+}
+
+/* Changelog-Item innere Flex */
+.cl-body {
+  flex: 1;
+}
+
+.cl-head-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+/* Filter-Quellen-Zeile */
+.upd-filter-row {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Quellen-Abstand */
+.upd-sources-head {
+  margin-top: 6px;
+}
+
+/* Changelog-Abstand */
+.upd-changelog-head {
+  margin-top: 20px;
+}
+
+.upd-inline-empty {
+  min-height: 120px;
+  padding: 18px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* Mode-Tab-Leiste (kein inline padding).
+   Regression-Schutz F3: Verursacher ist Flex-Default align-items:stretch auf der
+   globalen .mode-tabs (layout.css ohne align-items + .mode-tab ohne height). Wenn
+   das Manager-Panel fast leer ist, streckt der Grid-/Flex-Stretch die Buttons auf
+   die volle Zellhoehe (Diagnose: 224px). Globale layout.css ist out-of-scope (teilt
+   sich .mode-tabs mit Config-Diff). Deshalb SCOPED Override nur auf .upd-mode-tabs:
+   kein Stretch + harter Hoehen-Cap. Der SVG ist NICHT der Verursacher (bleibt 15px). */
+.upd-mode-tabs {
+  padding: 0 0 0 4px;
+  align-items: flex-start;
+}
+
+.upd-mode-tabs .mode-tab {
+  height: 40px;
+  max-height: 40px;
+  align-self: flex-start;
+  flex: 0 0 auto;
+}

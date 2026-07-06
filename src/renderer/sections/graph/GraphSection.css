@@ -1,0 +1,211 @@
+/* ============================================================
+   Graph-/Wissen-Sektion (WP-B1 Shell): Metrikkopf + WS-Liste.
+   Klassen aus dem RawaSuite-Prototyp (styles.css) portiert; gleiche
+   Namen wie graph.jsx, damit Folge-Agenten andocken koennen.
+   ============================================================ */
+
+/* Einziges .shell-Kind -> volle Shell-Breite (sonst klemmt es in der 248px-Spalte). */
+.graphwrap { display: flex; flex-direction: column; grid-column: 1 / -1; }
+
+/* Shell: WS-Liste links, Metrik-Pane rechts. */
+.graph-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .graph-shell { grid-template-columns: 1fr; }
+}
+
+.graph-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-card);
+  border: var(--card-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--card-shadow-sm);
+  padding: 14px 12px;
+}
+
+.graph-pane { min-width: 0; }
+
+/* WS-Liste: Wiederverwendung der globalen Sidebar-Optik (nav-item/side-label). */
+.graph-side .side-label {
+  font-size: 10.5px; font-weight: 900; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--warm-gray); padding: 4px 10px 8px;
+}
+.graph-side .nav-item {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 10px 12px; border-radius: 12px; font-size: 13.5px; font-weight: 800;
+  color: var(--text-lt); border: 2px solid transparent; transition: all .14s;
+}
+.graph-side .nav-item:hover { background: var(--bg); color: var(--text); }
+.graph-side .nav-item.on {
+  background: var(--terra-lt); color: var(--terra-d); border-color: var(--terra);
+}
+.graph-side .nav-item .ni-ic {
+  width: 19px; height: 19px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.graph-side .nav-item .ni-ic svg { width: 17px; height: 17px; }
+.graph-side .nav-item .ni-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-side .nav-item .ni-count {
+  font-size: 11px; font-weight: 900; color: var(--warm-gray);
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 999px;
+  padding: 1px 8px; min-width: 24px; text-align: center;
+}
+.graph-side .nav-item.on .ni-count {
+  color: var(--terra-d); background: var(--bg-card);
+  border-color: color-mix(in oklab, var(--terra), transparent 60%);
+}
+
+/* Block-Kopf (Sektionstitel mit Icon). */
+.gblock-head { display: flex; align-items: center; gap: 9px; padding: 0 2px 11px; }
+.gblock-head svg { width: 16px; height: 16px; color: var(--text-lt); }
+.gblock-head h3 {
+  font-size: 14px; font-weight: 900; letter-spacing: .03em; color: var(--text-lt);
+}
+.gblock-head > span { font-size: 11.5px; font-weight: 700; color: var(--warm-gray); }
+
+/* Metrikkopf-Kacheln. */
+.gstats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.gstat {
+  flex: 1; min-width: 104px; background: var(--bg-card); border: var(--card-border);
+  border-radius: var(--radius-sm); box-shadow: var(--card-shadow-sm); padding: 12px 14px;
+}
+.gstat.hot { border-color: color-mix(in oklab, var(--terra) 36%, var(--ink)); }
+.gs-n { font-size: 22px; font-weight: 900; letter-spacing: -.02em; display: flex; align-items: baseline; gap: 6px; }
+.gstat.hot .gs-n { color: var(--terra-d); }
+.gs-sub { font-size: 12px; font-weight: 800; color: var(--warm-gray); }
+.gs-l { font-size: 11.5px; font-weight: 800; color: var(--warm-gray); margin-top: 2px; }
+
+/* Leer-/Platzhalter-Hinweis (kein graphify-out im WS). */
+.gph-empty {
+  font-size: 12.5px; font-weight: 700; color: var(--warm-gray); font-style: italic;
+  padding: 14px 16px; background: var(--bg-card); border: 2px dashed var(--border);
+  border-radius: 11px; line-height: 1.5;
+}
+.gph-empty code {
+  font-family: ui-monospace, monospace; font-style: normal; font-weight: 800;
+  color: var(--text); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 6px;
+}
+
+.gph-error svg { color: var(--terra-d); }
+
+/* ============================================================
+   Leaf-Klassen (WP-B2/B3): OrphanTriage · GodNodes · IgnoreRecommend.
+   Append-only — Klassennamen 1:1 aus dem RawaSuite-Prototyp (graph.jsx/
+   styles.css). B1-Regeln oben bleiben unveraendert. `.gblock-head` ist
+   bereits in B1 definiert und wird hier NICHT erneut deklariert.
+   ============================================================ */
+
+/* Block-Container + Mono-Helfer + Toggle-Pill. */
+.gblock { margin-bottom: 20px; }
+.graph-pane .mono { font-family: ui-monospace, 'SF Mono', monospace; }
+.gnote { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 12px; font-weight: 700; color: var(--warm-gray); line-height: 1.5; }
+.gnote svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+
+.graph-pane .pill {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900;
+  padding: 4px 10px; border-radius: 999px; white-space: nowrap; cursor: pointer; border: none;
+}
+.graph-pane .pill.active { background: var(--terra-lt); color: var(--terra-d); }
+.graph-pane .pill.ghost { background: var(--bg); color: var(--warm-gray); border: 1.5px solid var(--border); }
+
+/* Badge-Varianten (rf-badge) — Klassifikations-/Status-Chips. */
+.rf-badge { font-size: 10px; font-weight: 900; letter-spacing: .02em; padding: 3px 8px; border-radius: 999px; }
+.rf-badge.new { background: var(--sage-lt); color: var(--sage-d); }
+.rf-badge.dep { background: var(--amber-lt); color: var(--amber-d); }
+.rf-badge.ren { background: var(--papa-lt); color: var(--papa-d); }
+.rf-badge.rem { background: var(--terra-lt); color: var(--terra-d); }
+.rf-badge.def { background: var(--lisa-lt); color: var(--lisa-d); }
+.rf-badge.muted { background: var(--bg); color: var(--warm-gray); border: 1.5px solid var(--border); }
+
+/* Ignore-Empfehlungen (rec-*). */
+.rec-list { display: flex; flex-direction: column; gap: 8px; }
+.rec-stack, .tri-stack { display: flex; flex-direction: column; gap: 7px; }
+.rec-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg-card); border: 2px solid var(--border); border-radius: 11px; padding: 9px 13px; }
+.rec-rule { font-family: ui-monospace, monospace; font-size: 12.5px; font-weight: 800; color: var(--terra-d); background: var(--terra-lt); border-radius: 6px; padding: 2px 8px; }
+.rec-reason { font-size: 12px; font-weight: 600; color: var(--text-lt); flex: 1; min-width: 160px; line-height: 1.4; }
+.rec-warn { font-weight: 800; color: var(--terra-d); }
+.rec-impact { font-size: 11.5px; font-weight: 800; color: var(--sage-d); white-space: nowrap; }
+.graph-confirm {
+  display: flex; flex-direction: column; gap: 7px; background: var(--bg-card);
+  border: 2px dashed var(--amber); border-radius: 10px; padding: 10px 12px;
+  font-size: 12px; color: var(--text-lt);
+}
+.graph-confirm strong { color: var(--text); }
+.graph-confirm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Orphan-Triage (triage/tri-*). */
+.triage { display: flex; flex-direction: column; gap: 8px; }
+.tri-row { display: flex; align-items: flex-start; gap: 12px; background: var(--bg-card); border: 2px solid var(--border); border-radius: 11px; padding: 11px 14px; }
+.tri-row .rf-badge { font-size: 12px; min-width: 54px; justify-content: center; padding: 4px 9px; display: inline-flex; }
+.tri-main { flex: 1; min-width: 0; }
+.tri-name { font-size: 13.5px; font-weight: 800; display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.tri-key { font-size: 11px; font-weight: 700; color: var(--warm-gray); }
+.tri-action { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text-lt); margin-top: 3px; }
+.tri-action svg { width: 13px; height: 13px; color: var(--sage-d); }
+.tri-items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tri-items code { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--text); background: var(--bg); border: 1.5px solid var(--border); border-radius: 6px; padding: 3px 8px; }
+
+/* God Nodes + Kollisions-Stems (gcols/god-*/coll-*). */
+.gcols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .gcols { grid-template-columns: 1fr; } }
+.god-list, .coll-list { display: flex; flex-direction: column; gap: 7px; }
+.god-row { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 2px solid var(--border); border-radius: 9px; padding: 8px 12px; }
+.god-name { font-size: 11.5px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.god-bar { width: 70px; height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.god-fill { display: block; height: 100%; background: var(--sage); border-radius: 4px; }
+.god-n { font-size: 12px; font-weight: 900; color: var(--sage-d); min-width: 26px; text-align: right; }
+.coll-row { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 2px solid var(--border); border-radius: 9px; padding: 8px 12px; }
+.coll-stem { font-family: ui-monospace, monospace; font-size: 12.5px; font-weight: 800; color: var(--terra-d); flex: 1; }
+.coll-n { font-size: 12px; font-weight: 900; color: var(--terra-d); background: var(--terra-lt); border-radius: 999px; padding: 2px 9px; }
+.coll-fix { font-size: 11px; font-weight: 700; color: var(--warm-gray); }
+
+/* ============================================================
+   Ignore-Scopes-Editor (WP-B4): drei getrennte, einzeln editierbare
+   Scope-Karten (Textarea + Speichern + Feedback). Append-only; Grid-/
+   Karten-/Kopf-Klassen 1:1 aus dem RawaSuite-Prototyp (styles.css),
+   ign-area/ign-bar/ign-save/ign-ok/ign-err/ign-new neu fuer den Editor.
+   ============================================================ */
+.ign-scopes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 820px) { .ign-scopes { grid-template-columns: 1fr; } }
+.ign-scope {
+  display: flex; flex-direction: column; background: var(--bg-card);
+  border: var(--card-border); border-radius: var(--radius-sm);
+  box-shadow: var(--card-shadow-sm); padding: 13px;
+}
+.ign-head { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+.ign-label { font-size: 13.5px; font-weight: 900; color: var(--text); }
+.ign-file { font-family: ui-monospace, monospace; font-size: 10.5px; font-weight: 700; color: var(--warm-gray); }
+.ign-note { font-size: 11.5px; font-weight: 700; color: var(--text-lt); margin-bottom: 8px; line-height: 1.4; }
+.ign-new {
+  font-size: 11px; font-weight: 700; color: var(--amber-d); background: var(--amber-lt);
+  border-radius: 7px; padding: 4px 9px; margin-bottom: 8px; line-height: 1.4;
+}
+.ign-area {
+  width: 100%; min-height: 120px; resize: vertical; box-sizing: border-box;
+  font-family: ui-monospace, 'SF Mono', monospace; font-size: 11.5px; line-height: 1.55;
+  color: var(--text); background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 9px; padding: 9px 10px;
+}
+.ign-area:focus { outline: none; border-color: var(--terra); }
+.ign-area:disabled { opacity: .6; }
+.ign-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }
+.ign-save {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 900;
+  color: var(--terra-d); background: var(--terra-lt); border: none; border-radius: 999px;
+  padding: 5px 13px; cursor: pointer;
+}
+.ign-save svg { width: 13px; height: 13px; }
+.ign-save:hover:not(:disabled) { background: color-mix(in oklab, var(--terra-lt), var(--terra) 18%); }
+.ign-save:disabled { opacity: .55; cursor: default; }
+.ign-ok { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; color: var(--sage-d); }
+.ign-ok svg { width: 13px; height: 13px; }
+.ign-err { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; color: var(--terra-d); line-height: 1.4; }
+.ign-err svg { width: 13px; height: 13px; flex-shrink: 0; }
+.ign-loaderr { color: var(--terra-d); border-color: var(--terra); }

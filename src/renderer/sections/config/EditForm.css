@@ -1,0 +1,98 @@
+/* EditForm — Feld-/Code-Editor (Teil C). Vollinhalt via readFull, nie entry.code.
+   RESKIN auf RawaSuite Warm-Papier-Tokens. */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ef-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+  color: var(--warm-gray);
+}
+
+.ef-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-lt);
+  padding: 10px 0;
+}
+
+.ef-denied {
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--amber-lt);
+  border: 2px solid color-mix(in oklab, var(--amber), transparent 55%);
+  color: var(--amber-d);
+}
+
+.ef-code {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 12px 14px;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  font-weight: 600;
+  background: var(--bg);
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  color: var(--text);
+  outline: none;
+}
+html[data-structure="lines"] .ef-code,
+html[data-structure="emboss"] .ef-code { border: 2px solid var(--border); }
+.ef-code:focus { border-color: var(--terra); }
+
+.ef-warn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber-d);
+}
+
+.ef-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ef-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 2px solid var(--ink);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: var(--card-shadow-sm);
+  transition: all .13s;
+}
+html[data-structure="lines"] .ef-btn,
+html[data-structure="emboss"] .ef-btn { border: 1px solid var(--border); box-shadow: none; }
+
+.ef-btn:not(:disabled):hover { transform: translateY(-1px); }
+html[data-structure="retro"] .ef-btn:not(:disabled):hover { box-shadow: 5px 5px 0 var(--ink-2); }
+
+.ef-btn.primary {
+  background: var(--terra);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.ef-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}

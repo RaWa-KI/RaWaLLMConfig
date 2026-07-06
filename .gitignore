@@ -1,0 +1,40 @@
+# RaWaLLMConfig — Electron/Node
+node_modules/
+dist/
+dist-release/
+out/
+.vite/
+*.log
+npm-debug.log*
+
+# Test-Artefakte (Playwright)
+test-results/
+playwright-report/
+tests/screenshots-verify/
+.playwright-mcp/
+
+# Audit-Runtime-Dump (Laufzeit-Evidenz, nicht committen)
+tests/audit-runtime/
+
+# Design-Export (flache Kopie der Renderer-Design-Dateien zum Upload; redundant, regenerierbar)
+design-export/
+
+# Secrets / lokale Config (nie committen)
+.env
+.env.*
+*.pem
+*.key
+
+# Lokale Daten / Exporte (lokale Entscheidungen/Backups; nie committen)
+*.sql
+cockpit-decisions*.json
+
+# Generierte Graph-Daten + Compact-Transcripts (Runtime, HR7-Archiv extern)
+graphify-out/
+.claude/compaction-backups/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+
+# Archiv liegt extern; keine lokalen Archivkopien ins Repo committen.

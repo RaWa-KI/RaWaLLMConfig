@@ -1,0 +1,76 @@
+/* WriteModeBanner — schlanker Schreibmodus-Indikator.
+   Owner-Entscheid 14:33: kein „Bearbeiten aktivieren"-Banner mehr, nur ein
+   kompakter, nicht-blockierender Statusstreifen.
+   Warm-Papier-Tokens: --sage = aktiv, --warm-gray = ausgeschaltet. */
+
+/* Kompakter Indikator: Schreibmodus aktiv (Default-AN). */
+.wmb-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.wmb-active {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  background: var(--sage-lt);
+  border-bottom: 2px solid color-mix(in oklab, var(--sage), transparent 60%);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sage-d);
+  min-height: 30px;
+}
+
+.wmb-active svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.wmb-sandbox {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warm-gray);
+}
+
+/* Kompakter Indikator: Schreibmodus ausgeschaltet (Env-Opt-out).
+   Neutral, nicht alarmierend — Grund haengt als Tooltip am Element. */
+.wmb-off {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  background: var(--bg);
+  border-bottom: 2px solid color-mix(in oklab, var(--warm-gray), transparent 70%);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--warm-gray);
+  min-height: 30px;
+  cursor: help;
+}
+
+.wmb-off svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.wmb-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  background: var(--amber-lt);
+  border-bottom: 2px solid color-mix(in oklab, var(--amber), transparent 55%);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber-d);
+  min-height: 30px;
+}
+
+.wmb-warning svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}

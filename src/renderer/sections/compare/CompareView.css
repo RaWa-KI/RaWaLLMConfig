@@ -1,0 +1,254 @@
+/* CompareView — N-Spalten-Side-by-side-Vergleich. Optik bewusst wie die
+   Duplikat-Diff-Anzeige: die Spalten erben .diff-col/.diff-col-head/.dline/.dgut/
+   .diff-body aus components.css (Reuse, kein Fork). Hier nur das N-Spalten-Raster,
+   die Zustands-Hinweise und die Spaltenkopf-Ergaenzungen (Origin/Tags/WP-6-Slots).
+   Eigene Klassen mit cmp-Prefix, kollidiert nicht mit dup-/dir-/diff-set-. */
+
+.cmp-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Coverage-Preset aus der Spiegelung. Bleibt Pruefkontext, kein Reconcile. ── */
+.cmp-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+
+.cmp-preset-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cmp-preset-head div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cmp-preset-head strong {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.cmp-preset-head span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-lt);
+}
+
+.cmp-preset-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--papa);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cmp-preset-go:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.cmp-preset-go svg { width: 15px; height: 15px; }
+
+.cmp-preset-cells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cmp-preset-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+}
+
+.cmp-preset-label,
+.cmp-preset-state {
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+.cmp-preset-state {
+  color: var(--papa-d);
+}
+
+.cmp-preset-path,
+.cmp-preset-missing,
+.cmp-preset-note {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-lt);
+}
+
+.cmp-preset-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmp-preset-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cmp-preset-note svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── Zustands-Hinweise (kein Result / loading / error). ── */
+.cmp-placeholder,
+.cmp-loading,
+.cmp-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 16px 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-lt);
+}
+
+.cmp-error {
+  border-color: var(--terra);
+  background: var(--terra-lt);
+  color: var(--terra-d);
+}
+
+.cmp-placeholder svg,
+.cmp-loading svg,
+.cmp-error svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* ── N-Spalten-Raster. Horizontal scrollbar bei vielen Spalten (weiche Grenze,
+   KEINE harte Obergrenze, Q5). min-width pro Spalte haelt die Diff-Optik lesbar. ── */
+.cmp-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cmp-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cmp-cols, 2), minmax(280px, 1fr));
+  gap: var(--gap);
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+/* Spalte erbt .diff-col; cmp-col haelt die Mindestbreite im Scroll-Raster. */
+.cmp-col { min-width: 280px; }
+
+/* ── Spaltenkopf-Ergaenzungen (Label/Origin/Pfad/Tags, MergeColHead-Muster). ── */
+.cmp-col-head {
+  flex-wrap: wrap;
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+
+.cmp-col-head .dc-title {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.cmp-col-head .dc-origin {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  white-space: nowrap;
+}
+
+.cmp-col-head .dc-path {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmp-col-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* WP-6-Slot: Lade-Badge je Spaltenkopf (von WP-6 gefuellt; hier leer/unsichtbar). */
+.cmp-col-load-slot:empty { display: none; }
+
+/* ── Leerlauf-Faltung: ein Lauf fehlender Zeilen wird zu EINER dezenten Markierung
+   kollabiert (kein +/−-Akzent, gedaempft/kursiv/zentriert). Ueberschreibt die
+   geerbten .dline-Akzente bewusst, damit die Faltung visuell ruhig bleibt. ── */
+.dline.fold {
+  display: block;
+  text-align: center;
+  font-style: italic;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--warm-gray, #8a857c);
+  background: transparent;
+  border: 0;
+  padding: 3px 8px;
+  opacity: .75;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Platzhalter wenn eine Spalte nicht lesbar/gefunden ist (kein Crash). */
+.cmp-col-missing {
+  padding: 14px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--warm-gray);
+}
+
+/* ── Zusammenfassung (leichtgewichtig; WP-6 ersetzt den Slot durch CompareSummary). ── */
+.cmp-summary-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cmp-summary-lite {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-lt);
+}
+
+.cmp-truncated {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber-d);
+}
+
+.cmp-truncated svg { width: 14px; height: 14px; flex-shrink: 0; }

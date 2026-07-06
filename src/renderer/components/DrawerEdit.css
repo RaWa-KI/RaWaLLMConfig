@@ -1,0 +1,58 @@
+/* DrawerEdit — Edit-Aufsatz fuer den read-only Drawer (Teil C).
+   RESKIN auf RawaSuite Warm-Papier-Tokens. */
+.drawer-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid var(--border);
+}
+
+.de-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 2px solid var(--ink);
+  background: var(--bg-card);
+  color: var(--text-lt);
+  box-shadow: var(--card-shadow-sm);
+  transition: all .13s;
+}
+html[data-structure="lines"] .de-toggle,
+html[data-structure="emboss"] .de-toggle { border: 1px solid var(--border); box-shadow: none; }
+
+.de-toggle svg { width: 15px; height: 15px; }
+
+.de-toggle:hover { transform: translateY(-1px); }
+html[data-structure="retro"] .de-toggle:hover { box-shadow: 5px 5px 0 var(--ink-2); }
+
+.de-toggle.on {
+  background: var(--terra-lt);
+  border-color: var(--ink);
+  color: var(--terra-d);
+}
+
+.de-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow-sm);
+}
+html[data-structure="lines"] .de-panel,
+html[data-structure="emboss"] .de-panel { border: 1px solid var(--border); box-shadow: none; }
+
+.de-divider {
+  height: 2px;
+  background: var(--border);
+}

@@ -1,0 +1,93 @@
+.cvg-thead,
+.cvg-row-head {
+  grid-template-columns: 1fr 90px 90px 90px 94px;
+}
+
+.cvg-row-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cvg-icon-btn,
+.cvg-expand-btn {
+  flex: 0 0 auto;
+}
+
+.cvg-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-lt);
+  cursor: pointer;
+  transition: all .13s;
+}
+
+.cvg-icon-btn:hover {
+  border-color: var(--papa);
+  color: var(--papa-d);
+}
+
+.cvg-icon-btn.open {
+  background: var(--papa-lt);
+  border-color: var(--papa);
+  color: var(--papa-d);
+}
+
+.cvg-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cvg-detail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 16px 12px;
+}
+
+.cvg-detail-cell {
+  min-width: 0;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 10px;
+}
+
+.cvg-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cvg-detail-label {
+  font-size: 11.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--warm-gray);
+}
+
+.cvg-detail-path {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-lt);
+  overflow-wrap: anywhere;
+}
+
+.cvg-detail-note {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--warm-gray);
+}

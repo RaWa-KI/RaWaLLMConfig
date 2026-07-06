@@ -1,0 +1,234 @@
+/* Editierbarer Side-by-side-Diff (CodeMirror MergeView) im Ordner-Drilldown.
+   Container hoehenbegrenzt + scrollbar; Rahmen im App-Retro-Look (--ink/--radius).
+   Farb-Diff-Markierung kommt aus CodeMirror selbst (.cm-*). */
+
+.merge-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 12px 12px;
+}
+
+/* Spaltenkoepfe (MergeColHead): Raster deckungsgleich mit den CM-Editoren
+   (je flex 1fr) + 44px-Pfeilkanal in der Mitte. v4-Mockup §diff-cols. Die
+   zwei .diff-col-head-Karten sitzen exakt ueber ihren Editor-Spalten. */
+.merge-col-heads {
+  display: grid;
+  grid-template-columns: 1fr 44px 1fr;
+  gap: 0;
+  align-items: end;
+  /* Flex-Gap (.merge-editor) aufheben: Kopf sitzt flush auf der Editor-Karte,
+     beide bilden optisch EINE .diff-col-Karte (v4-Mockup). */
+  margin-bottom: -10px;
+  position: relative;
+  z-index: 2;
+}
+/* Leere Mittelzelle ueber dem Pfeil-Gutter (kein Kopf). */
+.merge-col-gutter {
+  pointer-events: none;
+}
+
+/* G1 — Kopf-Karte je Spalte (v4-Mockup .diff-col-head): Label + Badge + voller
+   Pfad. Rahmen/Radius wie die Editor-Karte darunter, unten ohne Radius, damit
+   Kopf und Editor optisch eine Karte bilden. */
+.merge-col-heads .diff-col-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  border: 2.5px solid var(--ink);
+  border-bottom: none;
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+}
+.merge-col-heads .diff-col-head.shared {
+  background: var(--sage-lt);
+  color: var(--sage-d);
+}
+.merge-col-heads .diff-col-head.claude {
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+.merge-col-heads .dc-title {
+  font-size: 13px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.merge-col-heads .dc-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-left: auto;
+}
+/* Voller Pfad (nie maskiert — Pfade sind keine Werte). Bei Ueberlaenge
+   abschneiden statt umzubrechen; voller Pfad steht im title-Tooltip. */
+.merge-col-heads .dc-path {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Wrapper traegt die Pfeil-Karten als Overlay ueber dem MergeView. Kein
+   eigener Rahmen mehr — die Trennung kommt aus den zwei Editor-Karten (G4). */
+.merge-host-wrap {
+  position: relative;
+}
+
+/* Host ist nur noch transparenter Bezugsrahmen fuer das Pfeil-Overlay.
+   v4-Mockup §voller Inhalt: KEINE Hoehenbegrenzung, KEIN innerer Scroll —
+   der Diff waechst in voller Hoehe, die Seite scrollt. Dadurch teilen Inhalt
+   und das absolute Overlay (.merge-arrows inset:0) denselben Koordinatenraum,
+   und topOf() (block.top + documentTop) sitzt exakt am sichtbaren Chunk. */
+.merge-host {
+  background: transparent;
+}
+/* CM-baseTheme setzt .cm-mergeView { overflow-y:auto } -> innerer Scroll.
+   Hier ueberschrieben, damit die volle Hoehe waechst (siehe oben). */
+.merge-host .cm-mergeView {
+  overflow: visible;
+}
+
+/* Chunk-Uebernahme-Pfeile (←/→). v4-Mockup §Pfeile: eigene MITTELSPALTE zwischen
+   den beiden Editoren (.diff-cols grid 1fr 44px 1fr). CM MergeView hat keine
+   solche Spalte — die beiden Editor-Wrapper (.cm-mergeViewEditor) liegen buendig
+   im Flex-Container (.cm-mergeViewEditors). Wir oeffnen darum unten einen echten
+   44px-Mittelkanal per column-gap, in dem die Pfeil-Karten schweben. Overlay
+   deckt die Host-Breite ab; je Chunk eine vertikal gestapelte Karte (← oben,
+   → unten), mittig im Kanal (left:50% / translateX), vertikal am Chunk (top inline). */
+.merge-arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.merge-arrows-empty {
+  display: none;
+}
+.merge-chunk-row {
+  position: absolute;
+  /* Mittig im 44px-Kanal zwischen den Editoren (column-gap unten). */
+  left: 50%;
+  transform: translateX(-50%);
+}
+/* Schwebende Pfeil-Karte: vertikal gestapelt (← ueber →) wie .chunk-row im
+   Mockup; schmal genug fuer den ~44px-Kanal. Border + Schatten on-brand
+   (--ink/--bg-card/--radius-sm). Eigene pointer-events, Editor bleibt sonst
+   durchklickbar. */
+.merge-chunk-card {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.22), 0 1px 0 var(--ink);
+  pointer-events: auto;
+}
+.merge-arrow-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--ink);
+}
+.merge-arrow-btn:not(:disabled):hover {
+  background: var(--sage-lt);
+  color: var(--sage-d);
+}
+.merge-arrow-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* MergeView + beide Editoren auf volle Breite. */
+.merge-host .cm-mergeView,
+.merge-host .cm-editor {
+  width: 100%;
+}
+
+/* G4 — die zwei CM-Editor-Wrapper als getrennte Karten (v4-Mockup .diff-col):
+   eigener Rahmen (--ink), Radius, leichter Schatten. CM legt sie als
+   .cm-mergeViewEditor (flex 1fr, erst=a/Shared, dann=b/Claude) buendig in
+   .cm-mergeViewEditors; der 44px-Pfeilkanal (column-gap unten) trennt sie.
+   Reine Optik auf die CM-Wrapper, keine CM-Logik. */
+.merge-host .cm-mergeViewEditor {
+  border: 2.5px solid var(--ink);
+  /* Oben eckig: der Kopf (MergeColHead) sitzt flush darauf und traegt die
+     gerundeten oberen Ecken + die Vollfarbe. Unten gerundet = Karten-Abschluss. */
+  border-top: none;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  box-shadow: var(--card-shadow-sm);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+/* Duenner Farb-Seam passend zum Kopf (links sage/Shared, rechts papa/Kopie),
+   damit die Spaltenzuordnung auch am Editor-Koerper sichtbar bleibt. */
+.merge-host .cm-mergeViewEditor:first-child {
+  box-shadow: inset 0 2px 0 var(--sage), var(--card-shadow-sm);
+}
+.merge-host .cm-mergeViewEditor:last-child {
+  box-shadow: inset 0 2px 0 var(--papa), var(--card-shadow-sm);
+}
+.merge-host .cm-mergeViewEditor .cm-editor {
+  background: var(--bg-card);
+}
+
+/* Echter Mittelkanal fuer die Pfeil-Karten (v4-Mockup §Pfeile). CM legt die
+   beiden Editor-Wrapper buendig in einen Flex-Container (.cm-mergeViewEditors:
+   display:flex). Ein column-gap oeffnet exakt mittig einen 44px-Kanal; weil
+   beide Wrapper flex-grow:1/flex-basis:0 sind, schrumpfen sie gleichmaessig und
+   geben den Kanal frei — dort schweben die Pfeile, NICHT auf dem Content.
+   Diff-Farben (.cm-changedLine etc.) und merge-bar bleiben unberuehrt. */
+.merge-host .cm-mergeViewEditors {
+  column-gap: 44px;
+}
+
+/* Speichern-Leiste (.merge-bar/.sb-hint/.merge-revert/.merge-save/.merge-ro-hint):
+   in MergeBar.css ausgelagert (HR27-Split, SRP — MergeBar.tsx besitzt sie). */
+
+/* ── CM-Diff-Farben on-brand (alle 5 Themes via CSS-Tokens) ──────────────
+   Ergaenzen EditorView.theme() aus MergeEditor.tsx fuer Selektoren, die
+   das CM-<style>-Injection-System nicht abdeckt oder wo CSS-Cascade
+   genuegt. Token: --sage-lt/--sage-d (add/changed) + --terra-lt/--terra-d
+   (delete). Alle Werte reagieren automatisch auf html[data-theme]. */
+
+/* Geaenderte Zeile (Merge-Seite A oder B). */
+.merge-host .cm-changedLine {
+  background: color-mix(in oklab, var(--sage-lt) 70%, transparent);
+}
+
+/* Geaenderter Inline-Bereich. */
+.merge-host .cm-changedText {
+  background: color-mix(in oklab, var(--sage) 30%, transparent);
+  border-radius: 2px;
+}
+
+/* Geloeschte Zeile (nur auf der A-Seite sichtbar). */
+.merge-host .cm-deletedLine {
+  background: color-mix(in oklab, var(--terra-lt) 70%, transparent);
+}
+
+/* Geloeschter Inline-Block. */
+.merge-host .cm-deletedChunk {
+  background: color-mix(in oklab, var(--terra) 18%, transparent);
+}
+/* .cm-mergeGap entfernt: collapseUnchanged ist deaktiviert (v4 §voller Inhalt),
+   der Gap-Button rendert nicht mehr — toter Stil. */

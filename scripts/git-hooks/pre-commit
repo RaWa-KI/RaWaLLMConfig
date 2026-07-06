@@ -1,0 +1,9 @@
+#!/bin/sh
+# RaWaLLMConfig pre-commit — leichtes lokales Gate (WP24, DEVEX-MITTEL-01).
+# Versionierte Quelle: scripts/git-hooks/pre-commit — Installation: pnpm hooks:install
+# Bewusst NUR typecheck (Sekunden), NICHT die volle Spec-Suite (Minuten).
+# Voller Lauf vor dist: pnpm verify (typecheck + test).
+pnpm typecheck || {
+  echo "pre-commit: typecheck rot — Commit geblockt (Bypass: --no-verify nur mit Owner-Go)"
+  exit 1
+}

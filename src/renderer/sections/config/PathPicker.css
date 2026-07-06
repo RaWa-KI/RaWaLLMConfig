@@ -1,0 +1,72 @@
+/* PathPicker — durchsuchbare Zielort-/Pfad-Auswahl (Combobox).
+   Ersetzt das freie Texteingabefeld bei „Verschieben"/„Hinzufuegen".
+   RawaSuite Warm-Papier-Tokens. */
+.path-picker { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
+
+.pp-ic { position: absolute; left: 11px; display: flex; color: var(--warm-gray); pointer-events: none; }
+.pp-ic svg { width: 15px; height: 15px; }
+
+.pp-input {
+  width: 100%;
+  padding: 9px 12px 9px 34px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  color: var(--text);
+  outline: none;
+}
+html[data-structure="lines"] .pp-input,
+html[data-structure="emboss"] .pp-input { border: 2px solid var(--border); }
+.pp-input.mono { font-family: ui-monospace, 'SF Mono', monospace; }
+.pp-input:focus { border-color: var(--terra); }
+
+.pp-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  z-index: 30;
+  margin: 0; padding: 5px;
+  list-style: none;
+  max-height: 250px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+html[data-structure="lines"] .pp-list,
+html[data-structure="emboss"] .pp-list { border: 1px solid var(--border); box-shadow: 0 12px 30px var(--shadow); }
+
+.pp-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pp-item svg { width: 15px; height: 15px; color: var(--warm-gray); flex-shrink: 0; }
+.pp-item.active,
+.pp-item:hover { background: var(--terra-lt); color: var(--terra-d); }
+.pp-item.active svg,
+.pp-item:hover svg { color: var(--terra-d); }
+
+.pp-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-path mark { background: color-mix(in oklab, var(--amber), transparent 50%); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+.pp-empty {
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--warm-gray);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-empty svg { width: 14px; height: 14px; flex-shrink: 0; }

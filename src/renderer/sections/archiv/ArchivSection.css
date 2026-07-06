@@ -1,0 +1,140 @@
+/* ArchivSection.css — Archiv-/Restore-Sektion (v1).
+   Klassen-/Variablen-Konvention wie StrukturSection/GraphSection (view-head,
+   btn-ghost, empty, --terra/--papa/--sage/--amber/--bg-card/--border …).
+   Volle Shell-Breite (grid-column 1/-1), damit die Tabelle nicht in der
+   schmalen Spalte klemmt. Read-only Liste + Restore-Confirm-Modal. */
+
+.archivwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  grid-column: 1 / -1;
+}
+
+/* ── Kopf (Titel + Neu-laden) ── */
+.archivwrap .view-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 2px 14px;
+}
+.archivwrap .view-title h2 { font-size: 17px; font-weight: 900; letter-spacing: -.01em; }
+.archivwrap .view-title p { font-size: 12.5px; font-weight: 600; color: var(--text-lt); margin-top: 3px; line-height: 1.5; }
+
+/* ── Zusammenfassung ── */
+.archiv-summary {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--warm-gray);
+  padding: 6px 0 12px; border-bottom: 1px solid var(--border);
+}
+.archiv-summary .sum-sep { opacity: .4; }
+.archiv-summary .sum-warn { color: var(--amber-d); }
+
+/* ── Gruppen je Tag ── */
+.archiv-body { display: flex; flex-direction: column; gap: 18px; padding-top: 14px; }
+.archiv-group { display: flex; flex-direction: column; gap: 8px; }
+.archiv-group-head {
+  font-size: 11.5px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--warm-gray); padding: 2px 2px 0;
+}
+.archiv-group-head .agh-n { color: var(--text-lt); font-weight: 800; }
+
+/* ── Zeilen-Tabelle ── */
+.archiv-rows {
+  display: flex; flex-direction: column;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--bg-card);
+}
+.archiv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) 84px 130px 72px auto;
+  gap: 12px; align-items: center;
+  padding: 9px 14px; border-top: 1px solid var(--border);
+}
+.archiv-row:first-child { border-top: none; }
+.archiv-row--head {
+  background: var(--bg);
+  font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--warm-gray);
+}
+.archiv-file {
+  font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.archiv-orig {
+  font-size: 12.5px; font-weight: 700; color: var(--text-lt);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.archiv-time { font-size: 12px; font-weight: 700; color: var(--warm-gray); font-variant-numeric: tabular-nums; }
+.archiv-size { font-size: 12px; font-weight: 700; color: var(--warm-gray); font-variant-numeric: tabular-nums; }
+
+/* Art-Badge je Backup-Klasse */
+.archiv-kind {
+  display: inline-flex; align-items: center; justify-self: start;
+  font-size: 10px; font-weight: 900; letter-spacing: .02em;
+  padding: 3px 9px; border-radius: 999px; border: 1.5px solid transparent; white-space: nowrap;
+}
+.archiv-kind--write    { background: var(--sage-lt);  color: var(--sage-d);  border-color: color-mix(in oklab, var(--sage) 30%, var(--bg-card)); }
+.archiv-kind--archive  { background: var(--terra-lt); color: var(--terra-d); border-color: color-mix(in oklab, var(--terra) 30%, var(--bg-card)); }
+.archiv-kind--snapshot { background: var(--papa-lt);  color: var(--papa-d);  border-color: color-mix(in oklab, var(--papa) 30%, var(--bg-card)); }
+
+.archiv-act { justify-self: end; }
+.archiv-act .btn-ghost.sm { font-size: 11.5px; padding: 5px 10px; }
+.archiv-ro {
+  font-size: 10.5px; font-weight: 800; color: var(--warm-gray);
+  border: 1.5px solid var(--border); border-radius: 7px; padding: 3px 9px;
+}
+
+.archiv-row--snapshot { opacity: .82; }
+.archiv-error p { color: var(--terra-d); }
+
+@media (max-width: 820px) {
+  .archiv-row { grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .archiv-row--head { display: none; }
+  .archiv-act { justify-self: start; grid-column: 1 / -1; }
+  .archiv-time, .archiv-size { font-size: 11px; }
+}
+
+/* ── Restore-Confirm-Modal (rc-) ── */
+.rc-back {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in oklab, var(--ink) 42%, transparent);
+  padding: 24px;
+}
+.rc-card {
+  width: min(520px, 100%); max-height: 88vh; overflow-y: auto;
+  background: var(--bg-card); border: var(--card-border); border-radius: var(--radius);
+  box-shadow: var(--card-shadow); padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.rc-head { display: flex; align-items: center; gap: 10px; }
+.rc-head .rc-ic { display: flex; color: var(--papa-d); }
+.rc-head .rc-ic svg { width: 18px; height: 18px; }
+.rc-head h3 { font-size: 16px; font-weight: 900; letter-spacing: -.01em; }
+.rc-detail { font-size: 13px; font-weight: 600; color: var(--text-lt); line-height: 1.55; }
+.rc-detail b { color: var(--text); font-weight: 800; }
+.rc-label {
+  font-size: 10.5px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--warm-gray); margin-top: 2px;
+}
+.rc-hint {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 700; color: var(--amber-d);
+  background: var(--amber-lt); border: 1.5px solid color-mix(in oklab, var(--amber) 26%, var(--bg-card));
+  border-radius: 9px; padding: 7px 11px; line-height: 1.4;
+}
+.rc-hint svg { width: 14px; height: 14px; flex-shrink: 0; }
+.rc-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+/* Primary-Stil analog .btn.primary (components.css): terra-Hintergrund, weiß, ink-Rand. */
+.rc-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--terra);
+  color: #fff;
+  border-color: var(--ink);
+}
+.rc-go:hover { background: var(--terra-d); border-color: var(--terra-d); }
+.rc-go svg { width: 14px; height: 14px; }

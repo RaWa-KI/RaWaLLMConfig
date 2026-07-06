@@ -1,0 +1,50 @@
+appId: de.rawasuite.rawallmconfig
+productName: RaWaLLMConfig
+
+directories:
+  output: dist-release
+
+# Kritisch: out/** muss dabei sein — main/preload/renderer liegen alle unter out/
+# (electron-vite build => out/main/index.js, out/preload/index.js, out/renderer/index.html)
+files:
+  - package.json
+  - out/**/*
+
+electronVersion: "42.3.3"
+
+icon: build/icon.ico
+
+# Kein asarUnpack noetig: mariadb (pure-JS-Connector) hat keine nativen .node-Bindings.
+# Geprueft: node_modules/mariadb/** => kein *.node gefunden.
+# DB-Integration ist graceful-optional (Phase-1-read-only-App startet auch ohne DB).
+
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  # enableEmbeddedAsarIntegrityValidation + onlyLoadAppFromAsar: false fuer unsignierten Erst-Installer.
+  # Begruendung: Integrity-Hash wird nur bei signierten Builds injiziert (electron-builder-Doku);
+  # onlyLoadAppFromAsar kollidiert mit electron-builder NSIS-Temp-Dateien ausserhalb des ASAR.
+  # Aktivieren sobald Code-Signing eingefuehrt wird (Phase 2 / Release-Build).
+  enableEmbeddedAsarIntegrityValidation: false
+  onlyLoadAppFromAsar: false
+  loadBrowserProcessSpecificV8Snapshot: false
+  grantFileProtocolExtraPrivileges: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  requestedExecutionLevel: asInvoker
+  icon: build/icon.ico
+  verifyUpdateCodeSignature: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  artifactName: "RaWaLLMConfig-Setup-${version}.${ext}"
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

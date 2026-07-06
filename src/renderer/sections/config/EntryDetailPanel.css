@@ -1,0 +1,49 @@
+/* EntryDetailPanel (Welle 3 / WP-INT-01) — Container fuer Edit- + Explain-Region.
+   RESKIN: einzige Fremd-Referenz war --line (undefiniert) -> var(--border). */
+.entry-detail-panel {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.edp-name {
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.edp-cat {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-lt);
+}
+
+/* Konflikt-Banner: macht die Konflikt-ART (conflictReason) im Detail-Panel
+   deutlich sichtbar. Terra-Akzent, Warn-Glyph, klar als Warnung lesbar. */
+.edp-conflict {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: 11px;
+  background: var(--terra-lt);
+  border: 2px solid color-mix(in oklab, var(--terra), transparent 55%);
+  color: var(--terra-d);
+}
+.edp-conflict-ic {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--terra);
+}
+.edp-conflict-ic svg { width: 17px; height: 17px; }
+.edp-conflict-txt { font-size: 12.5px; font-weight: 700; line-height: 1.4; }

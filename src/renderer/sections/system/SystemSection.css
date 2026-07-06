@@ -1,0 +1,33 @@
+/* SystemSection — WP-S: System-Edit-Bedienweg.
+   Schreibmodus-Banner-Wrapper in der System-Ansicht + Disabled-Optik der
+   Feld-Edit-Buttons bei Write-OFF (sichtbar, aber gesperrt + Tooltip).
+   Out-of-scope-Schutz: NUR system-scoped Selektoren, kein Touch an
+   components.css/layout.css. */
+
+/* Wrapper, damit der wiederverwendete WriteModeBanner im Section-Body
+   buendig sitzt (der globale Banner ist hier in App.tsx unterdrueckt). */
+.sys-write-bar {
+  margin: -2px 0 16px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+}
+
+/* Indikator-Instanz innerhalb der System-Section: keine durchgehende
+   Bottom-Border (sitzt nicht mehr am Layout-Anfang). */
+.sys-write-bar .wmb-active,
+.sys-write-bar .wmb-off {
+  border-bottom: none;
+}
+
+/* Edit-Control bei Write-OFF: sichtbar, aber gesperrt. Hover-Highlight
+   unterdruecken, damit der Disabled-Zustand eindeutig bleibt. */
+.entry-detail .btn-edit-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.entry-detail .btn-edit-field:disabled:hover {
+  border-color: var(--border);
+  color: var(--text-lt);
+}

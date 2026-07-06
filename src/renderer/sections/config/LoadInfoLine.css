@@ -1,0 +1,25 @@
+/* LoadInfoLine — dezente Lade-Hinweis-Zeile unter der Beschreibung im Eintrags-
+   Kopf. Nutzt die Design-Tokens aus tokens.css; eigener lil-Prefix, kollidiert
+   nicht mit lh-/deh-/ove-Set. Das Lade-Chip kommt aus LoadHintBadge.css. */
+
+.load-info-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Erste Zeile: nur das Lade-Chip. */
+.lil-head {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Zweite Zeile: kurze Erklaerung, immer sichtbar — gedaempft, kein Vordergrund. */
+.lil-explain {
+  color: var(--warm-gray);
+  font-style: italic;
+}

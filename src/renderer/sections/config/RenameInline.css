@@ -1,0 +1,64 @@
+/* RenameInline — Inline-Umbenennen-Editor (v4 §Umbenennen).
+   RawaSuite Warm-Papier-Tokens; Klassen-Prefix ri- (kollisionsfrei). */
+.ri-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+.ri-input {
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 2px solid var(--terra);
+  border-radius: 7px;
+  padding: 3px 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  outline: none;
+  min-width: 170px;
+}
+.ri-input.mono { font-family: ui-monospace, 'SF Mono', monospace; }
+
+.ri-chips { display: inline-flex; gap: 5px; }
+
+.ri-chip {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-lt);
+  cursor: pointer;
+  transition: all .12s;
+}
+.ri-chip:hover { border-color: var(--terra); color: var(--terra-d); }
+.ri-chip.active { background: var(--terra); border-color: var(--ink); color: #fff; }
+
+.ri-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--warm-gray);
+  cursor: pointer;
+  transition: all .12s;
+  flex-shrink: 0;
+}
+.ri-act:hover { border-color: var(--terra); color: var(--terra-d); background: var(--terra-lt); }
+.ri-act.ok:hover:not(:disabled) { border-color: var(--sage-d); color: var(--sage-d); background: var(--sage-lt); }
+.ri-act:disabled { opacity: .45; cursor: not-allowed; }
+.ri-act svg { width: 13px; height: 13px; }
+
+.ri-effect {
+  flex-basis: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-lt);
+}

@@ -1,0 +1,158 @@
+/* ============================================================
+   Chrome-/Layout-Styles (1:1 Prototyp): LLM-Leiste, Topbar,
+   Health, Shell/Sidebar/Main, View-Head, Mode-Tabs.
+   ============================================================ */
+
+/* LLM-LEISTE (oberste Navi) */
+.llmbar {
+  display: flex; align-items: center; gap: 16px; padding: 8px 22px; flex-shrink: 0;
+  position: relative; z-index: 48; background: var(--bg-card); border-bottom: 2.5px solid var(--ink);
+}
+html[data-structure="lines"] .llmbar, html[data-structure="emboss"] .llmbar { border-bottom: 1px solid var(--border); }
+.llm-brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 14.5px; letter-spacing: -.01em; }
+.llm-brand .lb-mark {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(150deg, var(--terra), var(--terra-d));
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px;
+  border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink-2);
+}
+html[data-structure="lines"] .lb-mark, html[data-structure="emboss"] .lb-mark { border: none; box-shadow: 0 1px 4px var(--shadow); }
+.llm-brand .lb-sub { font-size: 11px; font-weight: 700; color: var(--warm-gray); }
+.llm-divider { width: 2px; height: 26px; background: var(--border); border-radius: 2px; }
+.llm-tabs { display: flex; align-items: center; gap: 5px; background: var(--bg); padding: 4px; border-radius: 13px; border: 2px solid var(--border); }
+.llm-tab { display: flex; align-items: center; gap: 9px; padding: 7px 13px; border-radius: 9px; font-weight: 800; color: var(--warm-gray); transition: all .14s; }
+.llm-tab:hover:not(.on) { color: var(--text); }
+.llm-tab.on { background: var(--bg-card); color: var(--text); }
+html[data-structure="retro"] .llm-tab.on { box-shadow: 2px 2px 0 var(--ink-2); border: 1.5px solid var(--ink); }
+html[data-structure="lines"] .llm-tab.on, html[data-structure="emboss"] .llm-tab.on { box-shadow: 0 1px 4px var(--shadow); }
+.llm-tab .lt-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.llm-tab .lt-meta { display: flex; flex-direction: column; line-height: 1.08; text-align: left; }
+.llm-tab .lt-name { font-size: 13.5px; }
+.llm-tab .lt-sub { font-size: 10px; font-weight: 700; color: var(--warm-gray); }
+.llm-tab.coming { cursor: default; opacity: .7; }
+.llm-tab .lt-tag { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; background: var(--lisa-lt); color: var(--lisa-d); border-radius: 5px; padding: 2px 5px; }
+/* A8-1: Scan-Fehler-Chip am LLM-Tab (Familie klickbar, aber sichtbar gecrasht) */
+.llm-tab .lt-tag.err { background: color-mix(in oklab,var(--terra),transparent 78%); color: var(--terra-d); }
+
+/* Bereichs-Umschalter (Config / System / Updates) */
+.section-switch { display: flex; align-items: center; gap: 5px; background: var(--bg); padding: 4px; border-radius: 13px; border: 2px solid var(--border); }
+.sec-btn { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 9px; font-size: 13.5px; font-weight: 800; color: var(--warm-gray); transition: all .14s; }
+.sec-btn svg { width: 16px; height: 16px; }
+.sec-btn:hover:not(.on) { color: var(--text); }
+.sec-btn.on { background: var(--terra); color: #fff; }
+html[data-structure="retro"] .sec-btn.on { box-shadow: 2px 2px 0 var(--ink-2); }
+.sec-btn .sb-badge { font-size: 10.5px; font-weight: 900; background: var(--papa); color: #fff; border-radius: 999px; padding: 0 6px; }
+.sec-btn.on .sb-badge { background: rgba(255,255,255,.3); }
+
+/* TOPBAR */
+.top {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 22px; flex-shrink: 0; position: relative; z-index: 46;
+  border-bottom: 2.5px solid var(--ink); background: var(--bg-card);
+}
+html[data-structure="lines"] .top, html[data-structure="emboss"] .top { border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 12px; }
+.mark {
+  width: 44px; height: 44px; border-radius: 13px; flex-shrink: 0;
+  background: linear-gradient(150deg, var(--terra), var(--terra-d));
+  display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff;
+  box-shadow: 4px 4px 0 var(--ink-2); border: 2.5px solid var(--ink);
+}
+html[data-structure="lines"] .mark, html[data-structure="emboss"] .mark { box-shadow: 0 2px 8px var(--shadow); border: none; }
+.mark svg { width: 22px; height: 22px; }
+.brand h1 { font-size: 20px; font-weight: 900; line-height: 1.02; letter-spacing: -.01em; }
+.brand .sub { font-size: 12px; font-weight: 700; color: var(--warm-gray); margin-top: 2px; }
+.spacer { flex: 1; }
+
+/* Globale Suche */
+.search {
+  display: flex; align-items: center; gap: 9px; width: 300px;
+  padding: 9px 14px; border-radius: 12px; background: var(--bg);
+  border: 2px solid var(--border); transition: border-color .15s;
+}
+.search:focus-within { border-color: var(--terra); }
+.search svg { width: 16px; height: 16px; color: var(--warm-gray); flex-shrink: 0; }
+.search input { flex: 1; border: none; background: none; outline: none; font-size: 13.5px; font-weight: 700; color: var(--text); }
+.search input::placeholder { color: var(--warm-gray); }
+.search kbd {
+  font-family: inherit; font-size: 10.5px; font-weight: 800; color: var(--warm-gray);
+  border: 1.5px solid var(--border); border-radius: 5px; padding: 1px 5px;
+}
+
+/* HEALTH-LEISTE */
+.health {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 11px 22px; flex-shrink: 0; position: relative; z-index: 46;
+  border-bottom: 2.5px solid var(--ink); background: var(--bg-card);
+}
+html[data-structure="lines"] .health, html[data-structure="emboss"] .health { border-bottom: 1px solid var(--border); }
+.hstat {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800;
+  padding: 7px 13px; border-radius: 999px; border: 2px solid var(--border); background: var(--bg);
+}
+.hstat .n { font-size: 14px; font-weight: 900; }
+.hstat .dot { width: 9px; height: 9px; border-radius: 50%; }
+.hstat.ok    { color: var(--sage-d);  border-color: color-mix(in oklab,var(--sage),transparent 55%); }
+.hstat.ok .dot { background: var(--sage); }
+.hstat.dup   { color: var(--papa-d);  border-color: color-mix(in oklab,var(--papa),transparent 55%); }
+.hstat.dup .dot { background: var(--papa); }
+.hstat.stale { color: var(--amber-d); border-color: color-mix(in oklab,var(--amber),transparent 50%); }
+.hstat.stale .dot { background: var(--amber); }
+.hstat.conf  { color: var(--terra-d); border-color: color-mix(in oklab,var(--terra),transparent 50%); }
+.hstat.conf .dot { background: var(--terra); }
+/* A8-1: roter Scan-Fehler-Chip in der Health-Leiste (echter Scan-Crash sichtbar) */
+.hstat.scan-err { color: #fff; background: var(--terra); border-color: var(--terra-d); }
+.hstat.scan-err .dot { background: #fff; }
+.health .snap { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 800; color: var(--warm-gray); }
+.health .snap svg { width: 16px; height: 16px; flex-shrink: 0; }
+.health .snap b { color: var(--sage-d); }
+
+/* APP-SHELL: SIDEBAR + MAIN */
+.shell { flex: 1; display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
+.sidebar {
+  border-right: 2.5px solid var(--ink); background: var(--bg-card);
+  padding: 18px 14px; overflow-y: auto; position: relative; z-index: 46;
+  display: flex; flex-direction: column; gap: 4px;
+}
+html[data-structure="lines"] .sidebar, html[data-structure="emboss"] .sidebar { border-right: 1px solid var(--border); }
+.side-label { font-size: 10.5px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--warm-gray); padding: 6px 12px 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 11px 13px; border-radius: 12px; font-size: 14px; font-weight: 800; color: var(--text-lt);
+  border: 2px solid transparent; transition: all .14s;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.on { background: var(--terra-lt); color: var(--terra-d); border-color: var(--terra); }
+.nav-item .ni-ic { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-item .ni-ic svg { width: 18px; height: 18px; }
+.nav-item .ni-txt { flex: 1; }
+.nav-item .ni-count {
+  font-size: 11.5px; font-weight: 900; color: var(--warm-gray);
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 999px; padding: 1px 8px; min-width: 24px; text-align: center;
+}
+.nav-item.on .ni-count { color: var(--terra-d); background: var(--bg-card); border-color: color-mix(in oklab,var(--terra),transparent 60%); }
+.nav-item .ni-flag { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.nav-sep { height: 1px; background: var(--border); margin: 8px 12px; }
+
+.main { overflow-y: auto; padding: var(--pad) 26px 60px; min-height: 0; }
+
+/* MODE-TABS (Uebersicht / Diff) */
+.view-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.view-title h2 { font-size: 26px; font-weight: 900; letter-spacing: -.02em; line-height: 1.05; }
+.view-title p { font-size: 13.5px; font-weight: 700; color: var(--warm-gray); margin-top: 4px; }
+.mode-tabs { display: flex; gap: 6px; margin-left: auto; background: var(--bg-card); padding: 5px; border-radius: 13px; border: 2.5px solid var(--ink); box-shadow: var(--card-shadow-sm); }
+html[data-structure="lines"] .mode-tabs, html[data-structure="emboss"] .mode-tabs { border: 1px solid var(--border); box-shadow: none; }
+.mode-tab { display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border-radius: 9px; font-size: 13px; font-weight: 800; color: var(--warm-gray); transition: all .14s; }
+.mode-tab svg { width: 15px; height: 15px; }
+.mode-tab:hover { color: var(--text); }
+.mode-tab.on { background: var(--terra); color: #fff; }
+.mode-tab .mt-badge { font-size: 11px; font-weight: 900; background: color-mix(in oklab,var(--terra),#fff 25%); color:#fff; border-radius: 999px; padding: 0 6px; }
+.mode-tab:not(.on) .mt-badge { background: var(--papa-lt); color: var(--papa-d); }
+
+/* A8-6: ErrorBoundary-Fallbackseite (Stufe 2) statt weissem Fenster. */
+.error-boundary { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); z-index: 9999; }
+.error-boundary .eb-box { max-width: 460px; text-align: center; background: var(--bg-card); border: 2.5px solid var(--terra); border-radius: 16px; padding: 28px 26px; box-shadow: var(--card-shadow-sm); }
+.error-boundary .eb-title { font-size: 20px; font-weight: 900; color: var(--terra-d); margin-bottom: 10px; }
+.error-boundary .eb-text { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
+.error-boundary .eb-detail { font-size: 12px; font-weight: 700; color: var(--warm-gray); background: var(--bg); border-radius: 8px; padding: 8px 10px; margin-bottom: 16px; word-break: break-word; }
+.error-boundary .eb-reload { font-size: 14px; font-weight: 800; color: #fff; background: var(--terra); border-radius: 10px; padding: 10px 22px; cursor: pointer; }

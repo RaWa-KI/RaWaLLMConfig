@@ -1,0 +1,56 @@
+/* ExplainPanel — "Was macht das?"-Box (F5). Nutzt die Design-Tokens 1:1,
+   damit die Optik zum Prototyp passt (warmes Papier-Retro). */
+.explain-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.explain-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.explain-q {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--terra);
+  color: var(--ring);
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.explain-label {
+  font-weight: 900;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.explain-title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.explain-text {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-lt);
+  margin: 0;
+}
+
+.explain-muted {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--warm-gray);
+  margin: 0;
+}

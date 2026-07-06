@@ -1,0 +1,297 @@
+/* CoverageView — Spiegelungs-Matrix-Styles.
+   Ausschliesslich Design-Tokens — keine festen Farben.
+   Reuse: .diff-body, .dline, .diff-secret-note aus components.css.
+   HR27: CSS-Datei ≤300 Z. */
+
+/* ── Container ────────────────────────────────────────────────── */
+.cvg-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.cvg-table {
+  background: var(--bg-card);
+  border: var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow-sm);
+  overflow: hidden;
+}
+
+/* ── Tabellen-Kopf ────────────────────────────────────────────── */
+.cvg-thead {
+  display: grid;
+  grid-template-columns: 1fr 90px 90px 90px 32px;
+  gap: 0;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-bottom: 2px solid var(--ink);
+}
+
+.cvg-th {
+  font-size: 11.5px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-lt);
+}
+
+.cvg-th--name {
+  font-size: 12px;
+}
+
+.cvg-th--expand {
+  width: 32px;
+}
+
+/* ── Tbody ────────────────────────────────────────────────────── */
+.cvg-tbody {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Zeile ────────────────────────────────────────────────────── */
+.cvg-row {
+  border-bottom: 1px solid var(--border);
+}
+.cvg-row:last-child {
+  border-bottom: none;
+}
+.cvg-row--open {
+  background: color-mix(in oklab, var(--papa) 5%, var(--bg-card));
+}
+
+.cvg-row-head {
+  display: grid;
+  grid-template-columns: 1fr 90px 90px 90px 32px;
+  align-items: center;
+  gap: 0;
+  padding: 10px 16px;
+}
+
+/* ── Zellen ───────────────────────────────────────────────────── */
+.cvg-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cvg-cell--name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cvg-row-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cvg-row-path {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warm-gray);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Status-Badge ─────────────────────────────────────────────── */
+.cvg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: .02em;
+}
+
+.cvg-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Farben via Design-Tokens, kein Hardcode */
+.cvg-badge--identisch {
+  background: var(--sage-lt);
+  color: var(--sage-d);
+}
+.cvg-badge--identisch .cvg-badge-dot { background: var(--sage); }
+
+.cvg-badge--abweichend {
+  background: var(--amber-lt);
+  color: var(--amber-d);
+}
+.cvg-badge--abweichend .cvg-badge-dot { background: var(--amber); }
+
+.cvg-badge--fehlt {
+  background: var(--terra-lt);
+  color: var(--terra-d);
+}
+.cvg-badge--fehlt .cvg-badge-dot { background: var(--terra); }
+
+.cvg-badge--via-plugin {
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+.cvg-badge--via-plugin .cvg-badge-dot { background: var(--papa); }
+
+.cvg-badge--na {
+  background: var(--bg);
+  color: var(--warm-gray);
+  border: 1.5px solid var(--border);
+}
+.cvg-badge--na .cvg-badge-dot { background: var(--warm-gray); }
+
+.cvg-badge--vorhanden {
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  opacity: .75;
+}
+.cvg-badge--vorhanden .cvg-badge-dot { background: var(--sage); }
+
+/* ── Aufklapp-Button ──────────────────────────────────────────── */
+.cvg-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-lt);
+  cursor: pointer;
+  transition: all .13s;
+}
+.cvg-expand-btn:hover {
+  border-color: var(--papa);
+  color: var(--papa-d);
+}
+.cvg-expand-btn.open {
+  background: var(--papa-lt);
+  border-color: var(--papa);
+  color: var(--papa-d);
+}
+.cvg-expand-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cvg-expand-placeholder {
+  width: 28px;
+}
+
+/* ── Diff-Bereich (aufgeklappt) ───────────────────────────────── */
+.cvg-row-diff {
+  margin: 0 16px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.cvg-row-diff--empty {
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--warm-gray);
+}
+
+/* ── Auswirkungs-Hinweis ──────────────────────────────────────── */
+.cvg-row-impact {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 0 16px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-lt);
+  line-height: 1.5;
+}
+
+.cvg-impact-label {
+  font-size: 11.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--warm-gray);
+  flex-shrink: 0;
+}
+
+.cvg-impact-text {
+  flex: 1;
+  color: var(--text-lt);
+}
+
+.cvg-impact-src {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--warm-gray);
+  opacity: .75;
+  white-space: nowrap;
+}
+
+/* ── Explizite Spiegel-Aktion ────────────────────────────────── */
+.cvg-mirror-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 10px;
+}
+
+.cvg-mirror-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-lt);
+  font-size: 11.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cvg-mirror-btn:hover:not(:disabled) {
+  border-color: var(--papa);
+  color: var(--papa-d);
+  background: var(--papa-lt);
+}
+
+.cvg-mirror-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.cvg-mirror-btn svg { width: 13px; height: 13px; }
+
+/* ── Leer-Zustand ─────────────────────────────────────────────── */
+.cvg-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: var(--warm-gray);
+  font-size: 14px;
+  font-weight: 700;
+}
+.cvg-empty svg {
+  width: 32px;
+  height: 32px;
+  color: var(--sage);
+  opacity: .7;
+}

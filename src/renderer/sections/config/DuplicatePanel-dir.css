@@ -1,0 +1,114 @@
+/* DuplicatePanel — Ordner-Reconcile + Diff-/Badge-Regeln (ausgelagert fuer HR27).
+   Wird per @import AM ANFANG von DuplicatePanel.css eingebunden. */
+
+/* ── Ordner-Reconcile-Aktionen (DirReconcileActions) ── */
+
+.dup-dir-actions {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Zielort-Eingabe beim Verschieben */
+.dir-move-target {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Pro-Datei-Entscheidungstabelle (Merge) */
+.dir-file-dec-list {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.dir-file-dec-head {
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--bg);
+  color: var(--text-lt);
+  border-bottom: 1.5px solid var(--border);
+}
+
+.dir-file-dec-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.dir-file-dec-row:last-child { border-bottom: 0; }
+
+.dir-file-dec-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--amber-lt);
+  color: var(--amber-d);
+  white-space: nowrap;
+}
+
+.dir-file-dec-btns {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dir-dec-btn {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dir-dec-btn.active {
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  border-color: var(--sage-d);
+}
+
+.dir-file-dec-empty {
+  font-size: 12.5px;
+  color: var(--warm-gray);
+  margin: 0;
+}
+
+/* ── Maskiert-Badge + Oversize-Hinweis (WP-D2; gilt für Einzeldatei- und
+   Ordner-Drilldown). Sichtbarer Hinweis statt stillem Schnitt/Klartext. ── */
+.diff-masked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--terra-lt);
+  color: var(--terra-d);
+  white-space: nowrap;
+}
+
+.diff-oversize {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber-d);
+}
+
+/* Icon-Größen für Badge/Oversize */
+.diff-masked-badge svg,
+.diff-oversize svg { width: 14px; height: 14px; flex-shrink: 0; }

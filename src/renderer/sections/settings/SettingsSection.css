@@ -1,0 +1,14 @@
+/* SettingsSection — Untertabs fuer Tweaks, App-Update und Quellen. */
+
+.settings-tabs {
+  margin: 14px 26px 0 auto;
+  align-items: flex-start;
+  align-self: flex-start;
+}
+
+.settings-tabs .mode-tab {
+  height: 40px;
+  max-height: 40px;
+  align-self: flex-start;
+  flex: 0 0 auto;
+}

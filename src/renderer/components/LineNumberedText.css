@@ -1,0 +1,94 @@
+.line-pre {
+  overflow: auto;
+  white-space: normal;
+}
+
+.line-pre-row {
+  display: grid;
+  grid-template-columns: minmax(3.8ch, auto) minmax(0, 1fr);
+  min-width: 100%;
+}
+
+.line-num {
+  color: var(--warm-gray);
+  user-select: none;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.line-pre .line-num {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg), var(--bg-card) 40%);
+}
+
+.line-pre-code {
+  min-width: 0;
+  padding: 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.line-pre.codeblock,
+.line-pre.cl-fulltext,
+.line-pre.ef-code,
+.line-pre.ove-code {
+  padding: 8px 0;
+}
+
+.line-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  overflow: hidden;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.line-editor.ef-code,
+.line-editor.ove-code {
+  padding: 0;
+}
+
+.line-editor-gutter {
+  overflow: hidden;
+  min-width: 4.8ch;
+  border-right: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg), var(--bg-card) 40%);
+}
+
+.line-editor-gutter > div {
+  padding: 12px 10px;
+  line-height: 1.6;
+}
+
+.line-editor-gutter .line-num {
+  display: block;
+}
+
+.line-editor-text {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  resize: none;
+  border: 0;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  overflow: auto;
+  white-space: pre;
+}
+
+.line-editor.ef-code .line-editor-text {
+  min-height: 220px;
+}
+
+.line-editor:focus-within {
+  border-color: var(--terra);
+}

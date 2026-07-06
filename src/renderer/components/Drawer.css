@@ -1,0 +1,159 @@
+/* Drawer.css — Stile fuer Detail-Drawer (read-only, Phase 1). */
+
+/* Schliessen-Button: rechtsseitig ausrichten ohne Inline-Style. */
+.drawer-close {
+  margin-left: auto;
+}
+
+/* Uebersicht-Reiter: Pills-Zeile. */
+.drawer-pills-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Platzhalter wenn keine Rohkonfiguration vorhanden. */
+.codeblock-empty {
+  padding: 30px;
+}
+
+/* Vollinhalt-Codeblock: scrollbar, begrenzte Hoehe. */
+.codeblock-full {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Bereich unterhalb des Codeblocks fuer Vollinhalt-Button/Fehler. */
+.codeblock-actions {
+  margin-top: 8px;
+}
+
+/* Fehlermeldung Vollinhalt-Laden: Terra-Farbe ueber CSS-Variable. */
+.codeblock-err {
+  color: var(--terra);
+}
+
+/* Konflikt-Banner: reiterunabhaengig im Drawer, Stil aus .edp-conflict. */
+.drawer-conflict {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 18px 12px;
+  padding: 10px 13px;
+  border-radius: 11px;
+  background: var(--terra-lt);
+  border: 2px solid color-mix(in oklab, var(--terra), transparent 55%);
+  color: var(--terra-d);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.drawer-conflict-main {
+  flex: 1;
+  min-width: 0;
+}
+.drawer-conflict-summary,
+.drawer-conflict-reason {
+  display: block;
+}
+.drawer-conflict-reason {
+  margin-top: 2px;
+  font-weight: 600;
+}
+.drawer-conflict-action {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1.5px solid color-mix(in oklab, var(--terra), transparent 40%);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--terra-d);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.drawer-conflict-action:hover {
+  transform: translateY(-1px);
+}
+.drawer-conflict .dc-ic {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--terra);
+}
+.drawer-conflict .dc-ic svg {
+  width: 17px;
+  height: 17px;
+}
+
+.conflict-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px;
+  border: 2px solid color-mix(in oklab, var(--terra), transparent 45%);
+  border-radius: var(--radius);
+  background: var(--terra-lt);
+  color: var(--text);
+}
+.conflict-guide-head,
+.conflict-guide-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.conflict-guide-head h4 {
+  margin: 2px 0 0;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--terra-d);
+}
+.conflict-guide p {
+  margin: 0;
+  line-height: 1.5;
+}
+.conflict-guide-ic {
+  display: inline-flex;
+  color: var(--terra);
+}
+.conflict-guide-ic svg,
+.conflict-edit-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.conflict-guide-reason {
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--bg-card), transparent 18%);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.conflict-guide-actions {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-lt);
+}
+.conflict-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.conflict-guide-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 10px;
+}
+.conflict-guide-options > div {
+  padding: 10px;
+  border: 1.5px solid color-mix(in oklab, var(--terra), transparent 58%);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+.conflict-guide-options b {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--terra-d);
+}
+.conflict-guide-options p {
+  font-size: 12.5px;
+}

@@ -1,0 +1,84 @@
+/* CompareSummary — Tokenspar-Auswertung (Q3): Zaehler + Konsolidierungs-Empfehlung.
+   Sitzt im Slot .cmp-summary-slot (CompareView.css). Eigene cmp-sum-Klassen,
+   kollidiert nicht mit dup-/diff-/cmp-col-Set. Reine Anzeige (kein Aktions-Button). */
+
+.cmp-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Zaehler-Zeile (gemeinsam · abweichend). */
+.cmp-sum-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-lt);
+}
+
+.cmp-sum-counts strong { color: var(--text); }
+.cmp-sum-counts svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Konsolidierungs-Empfehlung (Dedup-Kandidat → Tokenspar). Sage = positiv/Tipp. */
+.cmp-sum-reco {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 2px solid var(--sage);
+  border-radius: var(--radius);
+  background: var(--sage-lt);
+  color: var(--sage-d);
+}
+
+.cmp-sum-reco-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+
+.cmp-sum-reco-head svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.cmp-sum-reco-text {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.cmp-sum-reco-text strong { font-weight: 900; }
+
+/* Variante ohne Potenzial (neutral, kein Tipp-Rahmen). */
+.cmp-sum-reco-none {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text-lt);
+}
+
+.cmp-sum-reco-none .cmp-sum-reco-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+}
+
+.cmp-sum-reco-none svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Secret-/Masken-Hinweis: maskierte Zeilen werden NICHT als Klartext vorgeschlagen. */
+.cmp-sum-masked {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--amber-d);
+}
+
+.cmp-sum-masked svg { width: 14px; height: 14px; flex-shrink: 0; }

@@ -1,0 +1,61 @@
+/* DirOrphanActions.css — Stile fuer die selbsterklaerenden Ganzer-Ordner-Aktionen
+ * eines nur-einseitig vorhandenen Eintrags (v4 §Mehr…-Block). Die Datei-Zeilen-
+ * knoepfe nutzen bestehende .dir-drill-btn-Stile (DirDiffView.css); hier nur der
+ * neue gestapelte Ordner-Aktions-Button (Haupttext + selbsterklaerende Unterzeile).
+ * Reine Praesentation, Design-Tokens aus dem globalen Theme. */
+
+/* „Mehr …"-Ordnerblock: Aktionen umbrechen bei wenig Platz. */
+.orf-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 14px 12px 14px;
+}
+
+/* Gestapelter Ordner-Aktions-Button (analog v4 .btn-stack ghost sm). */
+.orf-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  padding: 8px 13px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--ink);
+  background: var(--bg-card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.orf-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Archivieren visuell abgesetzt (warm), wie die Behalten-/Archiv-Aktionen. */
+.orf-btn.archive {
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+
+.orf-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.orf-main svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Selbsterklaerende Unterzeile („Ordner mit allen N Dateien …"). */
+.orf-sub {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--warm-gray);
+}

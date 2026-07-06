@@ -1,0 +1,186 @@
+/* onboarding.css — Erststart-Begruessung (OSS Teil C, WP-C4).
+   Vollbild-Scrim mit zentrierter Retro-Karte; Design-Tokens der App
+   (--terra/--sage/--bg-card/--border/--ink …). BEM-artige Klassen mit
+   Praefix ob-. Eigene Huelle (keine Kopf-/Provider-Leiste). <=300 Z. */
+
+.ob-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+.ob-card {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 30px 32px;
+  background: var(--bg-card);
+  border: var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+}
+
+/* ── Kopf ── */
+.ob-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ob-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--terra-lt);
+  color: var(--terra-d);
+  border: 2px solid color-mix(in oklab, var(--terra) 30%, var(--bg-card));
+}
+.ob-logo svg { width: 22px; height: 22px; }
+.ob-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+.ob-lead {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--text-lt);
+}
+
+/* ── Lade-/Leer-Zustand ── */
+.ob-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--text-lt);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+.ob-state-ic, .ob-spin {
+  display: inline-flex;
+  color: var(--warm-gray);
+}
+.ob-state-ic svg, .ob-spin svg { width: 30px; height: 30px; }
+.ob-spin svg { animation: ob-rotate 1.1s linear infinite; }
+@keyframes ob-rotate { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ob-spin svg { animation: none; }
+}
+
+/* ── Trefferliste ── */
+.ob-list-wrap { display: flex; flex-direction: column; gap: 9px; }
+.ob-list-hint {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warm-gray);
+}
+.ob-hits {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ob-hit {
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  transition: border-color 0.13s, background 0.13s;
+}
+.ob-hit--on {
+  border-color: color-mix(in oklab, var(--sage) 45%, var(--border));
+  background: var(--sage-lt);
+}
+.ob-hit-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.ob-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--warm-gray);
+  background: var(--bg-card);
+  color: #fff;
+}
+.ob-check--on {
+  background: var(--sage);
+  border-color: var(--sage-d);
+}
+.ob-check svg { width: 14px; height: 14px; }
+.ob-hit-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ob-hit-label {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text);
+}
+.ob-hit-path {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--warm-gray);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Aktionen ── */
+.ob-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.ob-actions-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+@media (max-width: 520px) {
+  .ob-card { padding: 22px 18px; }
+  .ob-actions { flex-direction: column; align-items: stretch; }
+  .ob-actions-main { margin-left: 0; justify-content: flex-end; }
+}

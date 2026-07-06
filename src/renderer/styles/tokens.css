@@ -1,0 +1,107 @@
+/* ============================================================
+   Design-Tokens — RawaSuite "warmes Papier-Retro" (1:1 Prototyp)
+   Themes + Struktur- + Dichte-Achsen via [data-*] am <html>.
+   ============================================================ */
+:root {
+  /* Flaechen & Text (Default hell) */
+  --bg:        #faf8f5;
+  --bg-card:   #ffffff;
+  --text:      #3a2e26;
+  --text-lt:   #7a6e66;
+  --warm-gray: #9a8a7c;
+  --border:    #ede8e0;
+  --shadow:    rgba(224,112,64,.13);
+  --ring:      #ffffff;
+  --toast-bg:  var(--text);
+  --toast-text:#ffffff;
+
+  /* Warmer Akzent + Status-Farben */
+  --terra:     #e07040;
+  --sage:      #5a8a6a;
+  --amber:     #c79447;
+  --papa:      #4a7eb5;   /* blau — Duplikat/Info */
+  --lisa:      #c46ab0;   /* violett — Archiv */
+  --terra-lt:  color-mix(in oklab, var(--terra) 16%, var(--bg-card));
+  --terra-d:   color-mix(in oklab, var(--terra) 82%, #000);
+  --sage-lt:   color-mix(in oklab, var(--sage) 16%, var(--bg-card));
+  --sage-d:    color-mix(in oklab, var(--sage) 82%, #000);
+  --amber-lt:  color-mix(in oklab, var(--amber) 18%, var(--bg-card));
+  --amber-d:   color-mix(in oklab, var(--amber) 80%, #000);
+  --papa-lt:   color-mix(in oklab, var(--papa) 15%, var(--bg-card));
+  --papa-d:    color-mix(in oklab, var(--papa) 82%, #000);
+  --lisa-lt:   color-mix(in oklab, var(--lisa) 15%, var(--bg-card));
+  --lisa-d:    color-mix(in oklab, var(--lisa) 82%, #000);
+
+  --radius:    18px;
+  --radius-sm: 11px;
+
+  /* Ink (Retro-Raender / Schatten) */
+  --ink:   color-mix(in oklab, var(--border), #000 22%);
+  --ink-2: color-mix(in oklab, var(--border), #000 12%);
+
+  /* Karten-Form (Retro default) */
+  --card-border:    2.5px solid var(--ink);
+  --card-shadow:    5px 5px 0 var(--ink-2);
+  --card-shadow-sm: 4px 4px 0 var(--ink-2);
+
+  /* Dichte (per data-density umgeschaltet) */
+  --pad:   20px;
+  --gap:   16px;
+  --row-pad: 13px 15px;
+
+  --grain-opacity: .14;
+  --grain-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Overlay/Scrim (Dialoge, Drawer) — Basis-Textfarbe 45 % Deckkraft */
+  --overlay-bg: color-mix(in srgb, var(--text) 45%, transparent);
+}
+
+/* THEMES */
+html[data-theme="papier"] {
+  --bg:#ece3d6; --bg-card:#f6f0e6; --text:#473f37; --text-lt:#857c6f;
+  --warm-gray:#998e7e; --border:#ded4c4; --shadow:rgba(120,92,60,.10);
+  --ring:#f6f0e6; --toast-bg:#473f37; --toast-text:#f6f0e6;
+  --terra:#bd6c50; --sage:#5f886c; --amber:#bf9242; --papa:#4f7da8; --lisa:#a85f9a;
+}
+html[data-theme="greige"] {
+  --bg:#ddd6ca; --bg-card:#e8e2d7; --text:#423d35; --text-lt:#7d756a;
+  --warm-gray:#8f8675; --border:#cfc7b8; --shadow:rgba(95,72,48,.12);
+  --ring:#e8e2d7; --toast-bg:#423d35; --toast-text:#e8e2d7;
+  --terra:#b3654d; --sage:#5b8268; --amber:#b3893d; --papa:#4a76a0; --lisa:#a05c92;
+}
+html[data-theme="anthrazit"] {
+  --bg:#2a2622; --bg-card:#34302a; --text:#e8e1d5; --text-lt:#a69d8f;
+  --warm-gray:#8b8275; --border:#433d35; --shadow:rgba(0,0,0,.30);
+  --ring:#34302a; --toast-bg:#d4895f; --toast-text:#241f1a;
+  --terra:#d4895f; --sage:#7aa583; --amber:#cfa45e; --papa:#6f9ac4; --lisa:#c081b4;
+}
+html[data-theme="espresso"] {
+  --bg:#201b17; --bg-card:#2b241f; --text:#ddd3c4; --text-lt:#988e7f;
+  --warm-gray:#81786a; --border:#352d26; --shadow:rgba(0,0,0,.40);
+  --ring:#2b241f; --toast-bg:#cf9168; --toast-text:#1c1713;
+  --terra:#cf9168; --sage:#6f9d79; --amber:#c79c57; --papa:#688fb8; --lisa:#b97aac;
+}
+
+/* STRUKTUR-ACHSE */
+html[data-structure="retro"] {
+  --card-border:    2.5px solid var(--ink);
+  --card-shadow:    5px 5px 0 var(--ink-2);
+  --card-shadow-sm: 4px 4px 0 var(--ink-2);
+  --grain-opacity:  .14;
+}
+html[data-structure="lines"] {
+  --card-border:    1px solid color-mix(in oklab,var(--border),#000 16%);
+  --card-shadow:    none;
+  --card-shadow-sm: none;
+  --grain-opacity:  .05;
+}
+html[data-structure="emboss"] {
+  --card-border:    none;
+  --card-shadow:    -5px -5px 12px color-mix(in oklab,var(--bg-card),#fff 40%), 6px 6px 16px var(--shadow);
+  --card-shadow-sm: -3px -3px 8px color-mix(in oklab,var(--bg-card),#fff 40%), 4px 4px 11px var(--shadow);
+  --grain-opacity:  .05;
+}
+
+/* DICHTE */
+html[data-density="airy"]    { --pad:22px; --gap:16px; --row-pad:14px 16px; }
+html[data-density="compact"] { --pad:15px; --gap:10px; --row-pad:9px 13px;  }

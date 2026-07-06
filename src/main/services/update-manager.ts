@@ -1,0 +1,287 @@
+/**
+ * update-manager.ts — Stateful Orchestrator fuer den lokalen Update-Zyklus.
+ * SRP: check → download → install koordinieren. Electron-/Side-Effect-Zugriffe
+ * (app, backup, prefs, installer) laufen via update-manager-deps.getDeps() —
+ * das Modul ist dadurch unter dem Node-Runner importier- und testbar.
+ * Sanitisiertes Logging + History.
+ * HR27: < 300 Z, Funktionen < 50 Z.
+ * State-Struct/-Mutations: update-state.ts (§3.2 build-spec Split).
+ */
+
+import { join, basename } from 'node:path'
+import { mkdirSync } from 'node:fs'
+
+import type {
+  UpdateCheckResult,
+  UpdateDownloadRequest,
+  UpdateDownloadResult,
+  UpdateInfo,
+  UpdateInstallRequest,
+  UpdateInstallResult,
+  UpdateProgressPayload,
+} from '@shared/contract-updates'
+
+import { isPathWithin } from '../lib/path-within'
+import { resolveUpdateSource } from './update-config'
+import { buildUpdateInfo } from './update-source-local'
+import type { UpdateSourcePort } from './update-source-port'
+import { getDeps } from './update-manager-deps'
+import {
+  getUpdateState, pushHistory, setPhase, setError,
+  clearError, setSourceState, setAvailable, setStagedPath, markPreviousVersion,
+} from './update-state'
+
+export { getUpdateState }
+
+// ---------------------------------------------------------------------------
+// Konstanten
+// ---------------------------------------------------------------------------
+
+export const UPDATE_DISABLED_REASON =
+  'Update-Installation ist deaktiviert — Umgebungsvariable RAWALLM_UPDATE_ENABLED=1 setzen und App neu starten'
+
+let checkPromise: Promise<UpdateCheckResult> | null = null
+
+// ---------------------------------------------------------------------------
+// Hilfsfunktionen
+// ---------------------------------------------------------------------------
+
+function parseFlag(v: string | undefined): boolean {
+  if (!v) return false
+  const s = v.trim().toLowerCase()
+  return s === '1' || s === 'true'
+}
+
+/** Gate zur AUFRUFZEIT lesen (testbar ohne require-Cache-Tricks, §3.8 + R10). */
+function isUpdateEnabled(): boolean {
+  return parseFlag(process.env.RAWALLM_UPDATE_ENABLED)
+}
+
+// Gleichheit (base === target) zaehlt als innerhalb -> includeEqual=true.
+function isWithinBase(base: string, target: string): boolean {
+  return isPathWithin(base, target, { includeEqual: true })
+}
+
+function getUpdateSource(): UpdateSourcePort {
+  return resolveUpdateSource()
+}
+
+/** Pre-Snapshot der prefs-Datei (HR7). Gibt Fehlerstring oder null zurueck. */
+function snapshotPrefs(): string | null {
+  const snap = getDeps().exportPrefsSnapshot()
+  if (snap.error === 'archive-missing') return 'Archiv-Root fehlt'
+  if (snap.error) return 'Backup fehlgeschlagen'
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// checkForUpdates
+// ---------------------------------------------------------------------------
+
+/** Innere Pruef-Logik (extrahiert fuer HR27-Funktionslimit). */
+async function runCheck(): Promise<UpdateCheckResult> {
+  const deps = getDeps()
+  setPhase('checking')
+  clearError()
+  setSourceState(false, deps.getVersion())
+
+  const source = getUpdateSource()
+  const manifest = await source.readManifest()
+  if (!manifest.sourceConfigured) {
+    setPhase('idle')
+    return {
+      data: { hasUpdate: false, currentVersion: deps.getVersion(),
+        latestVersion: null, info: null, sourceConfigured: false },
+      error: null,
+    }
+  }
+
+  setSourceState(true, deps.getVersion())
+  if (manifest.error || !manifest.release) {
+    setPhase('idle')
+    return {
+      data: { hasUpdate: false, currentVersion: deps.getVersion(),
+        latestVersion: null, info: null, sourceConfigured: true },
+      error: null,
+    }
+  }
+
+  const { hasUpdate, info, latestVersion } = buildUpdateInfo(manifest.release, deps.getVersion())
+  setAvailable(latestVersion ?? '', info?.assetName ?? null)
+  setPhase(hasUpdate ? 'available' : 'idle')
+  pushHistory(hasUpdate ? 'update-available' : 'up-to-date')
+
+  return {
+    data: { hasUpdate, currentVersion: deps.getVersion(),
+      latestVersion: latestVersion ?? null, info: info ?? null, sourceConfigured: true },
+    error: null,
+  }
+}
+
+/** Check mit Dedup (genau ein in-flight Promise — 1:1 RawaLite). */
+export async function checkForUpdates(): Promise<UpdateCheckResult> {
+  if (checkPromise) return checkPromise
+  checkPromise = runCheck()
+    .catch(() => {
+      setError('Update-Pruefung fehlgeschlagen')
+      console.error('[update-manager] checkForUpdates fehlgeschlagen')
+      return { data: null, error: 'Update-Pruefung fehlgeschlagen' } as UpdateCheckResult
+    })
+    .finally(() => { checkPromise = null })
+  return checkPromise
+}
+
+// ---------------------------------------------------------------------------
+// downloadUpdate — Hilfsfunktionen
+// ---------------------------------------------------------------------------
+
+interface DownloadReady {
+  source: UpdateSourcePort
+  freshInfo: UpdateInfo
+  destPath: string
+}
+
+function requireReadyIntegrity(source: UpdateSourcePort, sha256Verified: boolean): string | null {
+  return source.kind === 'https' && !sha256Verified ? 'Pruefsumme nicht verifiziert' : null
+}
+
+/** Gates + Manifest-Reload + Dest-Pfad ermitteln. Null bei Fehler (Error bereits gesetzt). */
+async function prepareDownload(
+  req: UpdateDownloadRequest
+): Promise<DownloadReady | { data: null; error: string }> {
+  const st = getUpdateState()
+  if (st.phase === 'downloading') return { data: null, error: 'busy' }
+  if (!st.latestVersion || req.version !== st.latestVersion) {
+    return { data: null, error: 'version-mismatch' }
+  }
+  const source = getUpdateSource()
+  const manifest = await source.readManifest()
+  if (!manifest.sourceConfigured) return { data: null, error: 'source-not-configured' }
+  if (!manifest.release) return { data: null, error: 'Manifest nicht lesbar' }
+  const { info: freshInfo } = buildUpdateInfo(manifest.release, getDeps().getVersion())
+  if (!freshInfo) return { data: null, error: 'Manifest nicht lesbar' }
+  const updatesTempRoot = join(getDeps().getTempPath(), 'RaWaLLMConfig-Updates')
+  mkdirSync(updatesTempRoot, { recursive: true })
+  const destPath = join(updatesTempRoot, basename(freshInfo.assetName))
+  if (!isWithinBase(updatesTempRoot, destPath)) {
+    return { data: null, error: 'Ungültiger Zielpfad' }
+  }
+  return { source, freshInfo, destPath }
+}
+
+/** Pre-Snapshot + previousVersion-Persist. Gibt Fehlerstring oder null zurueck. */
+async function snapshotAndPersist(): Promise<string | null> {
+  const snapErr = snapshotPrefs()
+  if (snapErr) return snapErr
+  const deps = getDeps()
+  try {
+    await deps.resolvePrefsSet('updates.previousVersion', deps.getVersion())
+    markPreviousVersion(deps.getVersion())
+  } catch {
+    console.error('[update-manager] previousVersion-Persist fehlgeschlagen')
+    // Nicht fatal — Copy laeuft weiter.
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// downloadUpdate
+// ---------------------------------------------------------------------------
+
+export async function downloadUpdate(
+  req: UpdateDownloadRequest,
+  onProgress: (p: UpdateProgressPayload) => void
+): Promise<UpdateDownloadResult> {
+  const prep = await prepareDownload(req)
+  if ('error' in prep && prep.data === null) {
+    return prep as UpdateDownloadResult
+  }
+  const { source, freshInfo, destPath } = prep as DownloadReady
+
+  setPhase('downloading')
+
+  // Pre-Snapshot (HR7) + previousVersion-Persist.
+  const persistErr = await snapshotAndPersist()
+  if (persistErr) {
+    setError(persistErr)
+    console.error('[update-manager] archive-missing — Download abgebrochen')
+    return { data: null, error: persistErr }
+  }
+
+  const stage = await source.stageInstaller({
+    info: freshInfo, destPath,
+    onProgress: (copied, total) => {
+      const percentage = total > 0 ? Math.round((copied / total) * 100) : 0
+      onProgress({ phase: 'downloading', copied, total, percentage })
+    },
+  })
+
+  if (!stage.ok) {
+    setError(stage.error ?? 'Download fehlgeschlagen')
+    console.error('[update-manager] stageInstaller:', stage.error)
+    return { data: null, error: stage.error ?? 'Download fehlgeschlagen' }
+  }
+  const readyErr = requireReadyIntegrity(source, stage.sha256Verified)
+  if (readyErr) {
+    setError(readyErr)
+    console.error('[update-manager] HTTPS-Ready-Gate:', readyErr)
+    return { data: null, error: readyErr }
+  }
+
+  setStagedPath(destPath)
+  setPhase('ready')
+  pushHistory('download-complete')
+
+  return {
+    data: {
+      assetName: freshInfo.assetName, stagedPath: destPath,
+      fileSize: freshInfo.fileSize, sha256Verified: stage.sha256Verified,
+      previousVersion: getDeps().getVersion(),
+    },
+    error: null,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// installUpdate
+// ---------------------------------------------------------------------------
+
+export async function installUpdate(req: UpdateInstallRequest): Promise<UpdateInstallResult> {
+  // Gate: Installation nur mit RAWALLM_UPDATE_ENABLED=1 (zur Aufrufzeit gelesen).
+  if (!isUpdateEnabled()) {
+    return { data: null, error: UPDATE_DISABLED_REASON }
+  }
+
+  const st = getUpdateState()
+  if (st.phase !== 'ready' || !st.stagedPath) {
+    return { data: null, error: 'kein-Installer-bereit' }
+  }
+
+  const deps = getDeps()
+  const verify = deps.verify(st.stagedPath)
+  if (!verify.valid) {
+    setError(verify.error ?? 'Installer-Verifizierung fehlgeschlagen')
+    return { data: null, error: verify.error ?? 'Installer-Verifizierung fehlgeschlagen' }
+  }
+
+  setPhase('installing')
+  const silent = req.silent !== false
+
+  try {
+    const run = await deps.run(st.stagedPath, { silent })
+    if (!run.spawned) {
+      setError(run.error ?? 'Installer-Start fehlgeschlagen')
+      return { data: null, error: run.error ?? 'Installer-Start fehlgeschlagen' }
+    }
+
+    pushHistory('installer-spawned')
+    // R2: erst spawn bestaetigen, dann quit (Child muss Parent-Exit ueberleben).
+    setTimeout(() => { deps.quit() }, 500)
+
+    return { data: { spawned: true, willQuit: true }, error: null }
+  } catch {
+    setError('Installer-Start fehlgeschlagen')
+    console.error('[update-manager] installUpdate fehlgeschlagen')
+    return { data: null, error: 'Installer-Start fehlgeschlagen' }
+  }
+}

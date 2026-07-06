@@ -1,0 +1,38 @@
+/* ============================================================
+   Basis-Reset + Body-Grundlayout (1:1 Prototyp)
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg); color: var(--text);
+  height: 100vh; overflow: hidden;
+  background-image: radial-gradient(circle, color-mix(in oklab,var(--text),transparent 92%) 1.5px, transparent 1.7px);
+  background-size: 22px 22px;
+}
+html[data-structure="lines"] body, html[data-structure="emboss"] body { background-image: none; }
+
+body::after {
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:45;
+  background-image: var(--grain-url); background-size: 180px 180px;
+  opacity: var(--grain-opacity); mix-blend-mode: multiply;
+}
+
+#root { height: 100vh; display: flex; flex-direction: column; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--warm-gray); background-clip: content-box; }
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* Icon-Sicherheitsnetz: Icon-SVGs haben nur viewBox (kein width/height-Attribut).
+   Ohne Constraint rendert ein SVG im Browser-Default (~300x150px = Riesen-Icon).
+   Dieser globale Default haelt jedes unbeschraenkte Icon klein; spezifische
+   .kontext-svg-Regeln (layout/components/colocated css) ueberschreiben per Spezifitaet. */
+svg { width: 1.1em; height: 1.1em; }
+
+.empty { text-align: center; padding: 60px 20px; color: var(--warm-gray); }
+.empty svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: .5; }
+.empty p { font-size: 14px; font-weight: 700; }
+.empty-state { font-size: 13.5px; font-weight: 700; color: var(--warm-gray); padding: 18px 4px; }

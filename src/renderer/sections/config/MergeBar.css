@@ -1,0 +1,78 @@
+/* Speichern-Leiste unter dem editierbaren Paar-Diff (v4-Mockup §Speichern-Leiste).
+   HR27-Split aus MergeEditor.css (SRP: MergeBar.tsx besitzt diese Klassen).
+   backup-first bleibt sichtbar (sb-hint); Speichern/Verwerfen on-brand. */
+
+.merge-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Sicherungs-Hinweis links (backup-first sichtbar). */
+.merge-bar .sb-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--sage-d);
+}
+.merge-bar .sb-hint svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Schiebt Verwerfen/Speichern nach rechts. */
+.merge-bar-spacer {
+  flex: 1 1 auto;
+}
+
+/* Verwerfen-Knopf (kein Schreibvorgang; setzt auf geladenen Stand zurueck). */
+.merge-revert {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.merge-revert:not(:disabled):hover {
+  background: var(--bg);
+}
+.merge-revert:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.merge-save {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 7px 14px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  cursor: pointer;
+}
+.merge-save:not(:disabled):hover {
+  background: var(--sage);
+  color: var(--bg-card);
+}
+.merge-save:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: var(--bg);
+  color: var(--warm-gray);
+}
+
+.merge-ro-hint {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--warm-gray);
+  font-style: italic;
+}

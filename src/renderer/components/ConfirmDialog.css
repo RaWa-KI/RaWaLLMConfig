@@ -1,0 +1,148 @@
+/* ConfirmDialog — Modal-Overlay fuer Mutationsbestaetigung (Teil C).
+   RESKIN auf RawaSuite Warm-Papier-Tokens. */
+.cd-back {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in oklab, var(--text), transparent 65%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+
+.cd-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-card);
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px 24px;
+}
+html[data-structure="lines"] .cd-card,
+html[data-structure="emboss"] .cd-card { border: 1px solid var(--border); box-shadow: 0 18px 48px var(--shadow); }
+
+.cd-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 10px;
+}
+
+.cd-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.cd-ic { display: flex; }
+.cd-ic svg {
+  width: 22px;
+  height: 22px;
+  color: var(--terra);
+}
+
+.cd-detail {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--text-lt);
+}
+
+.cd-target {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+}
+
+.cd-target-k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+  color: var(--warm-gray);
+}
+
+.cd-target-v {
+  font-size: 12px;
+  font-weight: 700;
+  word-break: break-all;
+}
+.cd-target-v.mono { font-family: ui-monospace, 'SF Mono', monospace; }
+
+.cd-backup {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: var(--sage-lt);
+  border: 2px solid color-mix(in oklab, var(--sage), transparent 60%);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--sage-d);
+}
+
+.cd-backup svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.cd-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 2px solid var(--ink);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: var(--card-shadow-sm);
+  transition: all .13s;
+}
+html[data-structure="lines"] .cd-btn,
+html[data-structure="emboss"] .cd-btn { border: 1px solid var(--border); box-shadow: none; }
+
+.cd-btn:not(:disabled):hover { transform: translateY(-1px); }
+html[data-structure="retro"] .cd-btn:not(:disabled):hover { box-shadow: 5px 5px 0 var(--ink-2); }
+
+.cd-btn.ghost {
+  background: var(--bg-card);
+  color: var(--text-lt);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.cd-btn.ghost:hover { border-color: var(--terra); color: var(--terra-d); transform: none; box-shadow: none; }
+
+.cd-btn.primary {
+  background: var(--terra);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.cd-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}

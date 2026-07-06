@@ -1,0 +1,223 @@
+/* StrukturSection.css — Cluster H: Struktur-/Anomalie-Scan */
+
+/* Haupt-Layout */
+.struktur-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.struktur-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+}
+
+/* Zusammenfassung */
+.struktur-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--warm-gray);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sum-sep {
+  opacity: 0.4;
+}
+
+.sum-ok {
+  color: var(--sage);
+}
+
+.sum-warn {
+  color: var(--amber);
+  font-weight: 500;
+}
+
+/* Gruppen-Ueberschriften */
+.struktur-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.struktur-group-head {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 0.25rem 0;
+}
+
+.misplaced-head {
+  color: var(--terra);
+}
+
+.dup-head {
+  color: var(--lisa);
+}
+
+.warn-head {
+  color: var(--amber);
+}
+
+.ok-head {
+  color: var(--warm-gray);
+}
+
+.struktur-sum-detail {
+  opacity: 0.7;
+}
+
+/* Zeilen-Varianten */
+.struktur-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.struktur-row {
+  border-left: 3px solid transparent;
+  align-items: flex-start;
+}
+
+.struktur-row--ok {
+  border-left-color: var(--sage);
+}
+
+.struktur-row--warn {
+  border-left-color: var(--amber);
+}
+
+.struktur-row--misplaced {
+  border-left-color: var(--terra);
+}
+
+.struktur-row--dup {
+  border-left-color: var(--lisa);
+}
+
+/* Pfad-Darstellung
+   min-width:0 + overflow-wrap sichern Flex-Umbruch ohne Pill-Kollision */
+.struktur-path {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 0.78rem;
+  background: var(--bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Row-Meta (Pill-Seite) nie zusammengequetscht */
+.struktur-row .row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: min(380px, 44%);
+}
+
+.struktur-action,
+.struktur-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--terra-lt);
+  color: var(--terra-d);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.28rem 0.55rem;
+}
+
+.struktur-action:disabled,
+.struktur-mini:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.struktur-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  color: var(--text-lt);
+  font-size: 0.74rem;
+  max-width: 100%;
+}
+
+.struktur-mini {
+  background: var(--bg);
+  color: var(--text-lt);
+  border: 1px solid var(--border);
+}
+
+.struktur-mini.adopt {
+  background: var(--terra-lt);
+  color: var(--terra-d);
+  border-color: transparent;
+}
+
+/* Root-Label + Notiz */
+.struktur-root {
+  font-size: 0.75rem;
+  color: var(--warm-gray);
+  font-weight: 500;
+}
+
+.struktur-note {
+  font-size: 0.75rem;
+  color: var(--warm-gray);
+}
+
+/* Status-Pills — analog .dir-badge-Familie (bg=*-lt, color=*-d) */
+.struktur-pill--ok {
+  background: var(--sage-lt);
+  color: var(--sage-d);
+}
+
+.struktur-pill--warn {
+  background: var(--amber-lt);
+  color: var(--amber-d);
+}
+
+.struktur-pill--misplaced {
+  background: var(--terra-lt);
+  color: var(--terra-d);
+}
+
+.struktur-pill--dup {
+  background: var(--lisa-lt);
+  color: var(--lisa-d);
+}
+
+/* Fehler-State */
+.struktur-error {
+  color: var(--terra);
+}
+
+@media (max-width: 900px) {
+  .struktur-row {
+    flex-wrap: wrap;
+  }
+
+  .struktur-row .row-meta {
+    justify-content: flex-start;
+    max-width: none;
+    width: 100%;
+    padding-left: 52px;
+  }
+}

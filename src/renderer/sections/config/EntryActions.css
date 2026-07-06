@@ -1,0 +1,81 @@
+/* EntryActions — add/archive/move-Controls (Teil C). archive != loeschen.
+   RESKIN auf RawaSuite Warm-Papier-Tokens (1:1 zu components.css/DuplicatePanel).
+   Vorher: --line/--accent/--panel-2 (undefiniert) -> dunkle Fallbacks. */
+
+.entry-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ea-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ea-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 2px solid var(--ink);
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: var(--card-shadow-sm);
+  transition: all .13s;
+}
+html[data-structure="lines"] .ea-btn,
+html[data-structure="emboss"] .ea-btn { border: 1px solid var(--border); box-shadow: none; }
+
+.ea-btn svg { width: 15px; height: 15px; }
+
+.ea-btn:not(:disabled):hover { transform: translateY(-1px); }
+html[data-structure="retro"] .ea-btn:not(:disabled):hover { box-shadow: 5px 5px 0 var(--ink-2); }
+.ea-btn:not(:disabled):active { transform: translateY(1px); box-shadow: 2px 2px 0 var(--ink-2); }
+
+/* primary = warmer Akzent (Terra) */
+.ea-btn.primary {
+  background: var(--terra);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+/* "danger" hier = Archivieren -> Archiv-Farbe (Lisa/violett), NICHT Loeschen-Rot */
+.ea-btn.danger {
+  background: var(--lisa-lt);
+  border-color: var(--ink);
+  color: var(--lisa-d);
+}
+
+.ea-btn:disabled {
+  opacity: .5;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+.ea-target {
+  display: flex;
+  gap: 8px;
+}
+
+.ea-input {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  color: var(--text);
+  outline: none;
+}
+html[data-structure="lines"] .ea-input,
+html[data-structure="emboss"] .ea-input { border: 2px solid var(--border); }
+.ea-input.mono { font-family: ui-monospace, 'SF Mono', monospace; }
+.ea-input:focus { border-color: var(--terra); }

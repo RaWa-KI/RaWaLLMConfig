@@ -1,0 +1,171 @@
+/* OverviewEditor — einspaltiger Direkt-Editor EINER Datei in der Skills-Übersicht
+   (v4 §view-ov: .diff-col.one-col + .save-bar). Nutzt die Design-Tokens aus
+   components.css; nur die editor-spezifische Schale hier. */
+
+.ov-edit {
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+/* Kopf: Dateiname + Pfad + „direkt editierbar"-Tag (v4 .diff-col-head). */
+.ove-head {
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--border);
+  background: color-mix(in oklab, var(--bg-card), var(--bg) 35%);
+}
+
+.ove-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ove-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--sage-lt);
+  color: var(--sage-d);
+}
+
+.ove-path {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--warm-gray);
+  word-break: break-all;
+}
+
+/* Editier-Fläche (volle, frisch geladene Datei). */
+.ove-code {
+  width: 100%;
+  /* Grosszuegige Default-Hoehe (viewport-relativ): der Owner soll real Code
+     sehen, nicht ~6 Zeilen. resize: vertical bleibt -> weiter groesserziehbar. */
+  height: 48vh;
+  min-height: 320px;
+  max-height: 78vh;
+  resize: vertical;
+  border: 0;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg-card);
+  box-sizing: border-box;
+}
+
+.line-editor.ove-code { display: grid; }
+
+.ove-code:focus { outline: 2px solid var(--terra); outline-offset: -2px; }
+
+/* Lade-/Sperr-Zustände. */
+.ove-hint {
+  padding: 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--warm-gray);
+}
+
+.ove-denied {
+  padding: 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--terra-d);
+  background: var(--terra-lt);
+}
+
+.ove-warn {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--amber-d);
+  background: var(--amber-lt);
+  border-top: 2px solid var(--border);
+}
+
+/* Speichern-Leiste (v4 .save-bar). */
+.ove-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-top: 2px solid var(--border);
+  background: color-mix(in oklab, var(--bg-card), var(--bg) 35%);
+}
+
+.ove-bar-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sage-d);
+}
+
+.ove-bar-spacer { flex: 1; }
+
+.ove-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--ink);
+  background: var(--bg-card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ove-btn:disabled { opacity: 0.55; cursor: default; }
+.ove-btn.primary { background: var(--sage-lt); color: var(--sage-d); }
+
+/* Detail-Drawer-Link im Eintrags-Kopf (zweiter Weg, kein Rückbau). */
+.ove-detail-link {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--terra-d);
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ove-detail-link:hover { color: var(--terra); }
+
+/* ── Innendatei-Liste eines Ordner-Eintrags (OverviewFiles, v4 §view-ov) ──
+   Die Datei-Zeilen nutzen die bestehenden .dir-file*-Klassen (DirDiffView.css);
+   hier nur die Listen-Schale + Teilmengen-Hinweis + Editor-Einrückung. */
+.ovf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+}
+
+/* Ehrlicher Teilmengen-Hinweis, wenn die Liste am Sicherheits-Cap gekürzt ist. */
+.ovf-trunc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--amber-d);
+  background: var(--amber-lt);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.ovf-trunc svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Aufgeklappter Editor je Innendatei (readFull, gated Save). */
+.ovf-drill { padding: 0 12px 12px 12px; }
+
+/* Inventar-Hinweis im Aktions-Slot (mehrere Plugin-Eintraege teilen eine Datei). */
+.ove-inventory-note {
+  align-items: center; white-space: normal; max-width: 300px;
+  text-align: right; font-size: 11.5px; font-weight: 600;
+  color: var(--warm-gray); font-style: italic;
+}

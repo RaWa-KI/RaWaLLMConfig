@@ -1,0 +1,185 @@
+/* Ordner-Vergleich (read-only) — nutzt die globalen Diff-Klassen aus
+   components.css (.diff-cols/.diff-col/.dline.add/.del) und ergaenzt nur die
+   Ordner-spezifischen Bausteine. Farbcodierung ueber Tokens:
+   --sage (identisch), --amber (unterschiedlich), --papa (nur Trunk),
+   --lisa (nur Mirror). */
+
+.dir-diff { margin-bottom: 20px; }
+
+.dir-diff-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.dir-diff-head .ds-name { font-size: 16px; font-weight: 900; font-family: ui-monospace, monospace; }
+.dir-diff-head .dir-tag {
+  font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  padding: 4px 11px; border-radius: 999px; background: var(--papa-lt); color: var(--papa-d);
+}
+
+/* ── Zusammenfassung mit farbigen Zaehl-Badges (v4 .dir-summary) ── */
+.dir-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+
+/* N-Dateien-Zaehler (files.length) — neutraler Anker links der Zaehl-Badges. */
+.dir-count {
+  font-size: 11.5px; font-weight: 800; padding: 3px 10px; border-radius: 999px;
+  white-space: nowrap; background: var(--bg); color: var(--text-lt);
+  border: 1.5px solid var(--border);
+}
+
+.dir-badge {
+  font-size: 11.5px; font-weight: 800; padding: 3px 10px; border-radius: 999px;
+  white-space: nowrap;
+}
+.dir-badge.same { background: var(--sage-lt); color: var(--sage-d); }
+.dir-badge.diff { background: var(--amber-lt); color: var(--amber-d); }
+.dir-badge.trunk-only { background: var(--papa-lt); color: var(--papa-d); }
+.dir-badge.mirror-only { background: var(--lisa-lt); color: var(--lisa-d); }
+.dir-badge.secret { background: var(--terra-lt); color: var(--terra-d); }
+
+/* Secret-Pill mit Key-Icon + Text (Geschwister zu .dir-badge.secret) */
+.dir-secret-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 800; padding: 3px 10px; border-radius: 999px;
+  white-space: nowrap; background: var(--terra-lt); color: var(--terra-d);
+}
+.dir-secret-badge svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+.dir-truncated {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: 4px;
+  font-size: 11.5px; font-weight: 700; color: var(--amber-d);
+}
+.dir-truncated svg { width: 14px; height: 14px; }
+
+/* ── Datei-Tabelle (v4 innere Klappebene) ── */
+.dir-files { display: flex; flex-direction: column; gap: 8px; }
+
+.dir-file {
+  background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.dir-file.open { border-color: var(--amber); }
+
+/* Zeile = Toggle-Kopf + Aktions-Slots nebeneinander; Slot-Klick klappt NICHT. */
+.dir-file-row { display: flex; align-items: center; }
+
+.dir-file-head {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+  padding: 9px 14px; background: transparent; border: 0; text-align: left;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.dir-file-head:disabled { cursor: default; }
+.dir-file-head:not(:disabled):hover { background: var(--bg); }
+
+.dir-chev {
+  display: inline-flex; flex-shrink: 0; color: var(--warm-gray);
+  transition: transform .14s ease;
+}
+.dir-chev svg { width: 15px; height: 15px; }
+.dir-chev.open { transform: rotate(90deg); }
+/* Platzhalter haelt die Spaltenbreite bei nicht-aufklappbaren (secret) Zeilen. */
+.dir-chev.placeholder { width: 15px; }
+
+/* „Datei"-Ebenen-Pill (v4 .dir-file-level). */
+.dir-file-level {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: var(--warm-gray);
+  padding: 2px 7px; border-radius: 999px; background: var(--bg);
+  border: 1.5px solid var(--border); white-space: nowrap; flex-shrink: 0;
+}
+
+.dir-rel {
+  flex: 1; min-width: 0; font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Zeilen-Aktions-Slots (v4 .dfh-actions) — live verdrahtet (WP-08) ── */
+.dfh-actions { display: flex; gap: 6px; flex-shrink: 0; padding-right: 10px; position: relative; }
+.icon-act {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 7px;
+  border: 1.5px solid var(--border); background: var(--bg-card); color: var(--warm-gray);
+  cursor: pointer; transition: all .12s; flex-shrink: 0;
+}
+.icon-act:not(:disabled):hover {
+  border-color: var(--terra); color: var(--terra-d); background: var(--terra-lt);
+}
+.icon-act:disabled { opacity: .55; cursor: default; }
+.icon-act svg { width: 13px; height: 13px; }
+
+/* „Mehr …"-Mini-Menue der Zeile (Umbenennen/Verschieben — gleiche Aktionen). */
+.dfh-more-wrap { position: relative; display: inline-flex; }
+.dfh-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30;
+  min-width: 170px; padding: 5px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+}
+/* Portal-Variante (an document.body): fixed verankert an die Button-Position
+   (top/right kommen als Inline-Coords aus getBoundingClientRect), damit das Menue
+   overflow:hidden-Vorfahren (.dir-file, .dup-entry) verlaesst und sichtbar aufgeht. */
+.dfh-menu-fixed { position: fixed; top: auto; right: auto; z-index: 420; }
+.dfh-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px; border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: inherit;
+  text-align: left; cursor: pointer; white-space: nowrap;
+}
+.dfh-menu-item:hover { background: var(--terra-lt); color: var(--terra-d); }
+.dfh-menu-item svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+.dir-secret-hint {
+  padding: 0 14px 9px 14px; font-size: 11.5px; font-weight: 600; color: var(--warm-gray);
+}
+
+/* Gesperrter Aktions-Slot in .dfh-actions (kein Icon-Button, nur Label) */
+.dir-secret-locked {
+  align-items: center; font-size: 11.5px; font-weight: 600;
+  color: var(--warm-gray); font-style: italic;
+}
+
+/* ── Ordner-Aktions-Bereich ── */
+.diff-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.diff-note {
+  font-size: 12.5px;
+  color: var(--warm-gray);
+  font-style: italic;
+}
+
+/* ── Drilldown ── */
+.dir-file .diff-cols { padding: 0 12px 12px 12px; }
+.dir-drill { display: flex; flex-direction: column; }
+
+/* Aktionsleiste ueber einem Innendatei-Drilldown (masked-Badge + Edit + Orphan-Aktionen). */
+.dir-drill-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 14px 4px 14px;
+}
+
+.dir-drill-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 800;
+  padding: 5px 11px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--ink); background: var(--bg-card); color: var(--ink);
+  cursor: pointer;
+}
+.dir-drill-btn:disabled { opacity: .55; cursor: default; }
+.dir-drill-btn.adopt { background: var(--sage-lt); color: var(--sage-d); }
+.dir-drill-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Inline-Confirm fuer Uebernehmen/Archivieren einer orphan-Datei (nutzt dup-confirm-Tokens). */
+.dir-drill-confirm {
+  margin: 8px 14px 12px 14px;
+  background: var(--bg-card); border: 2px solid var(--ink); border-radius: var(--radius);
+  padding: 14px; display: flex; flex-direction: column; gap: 9px;
+}
+.dir-drill-confirm svg { width: 16px; height: 16px; flex-shrink: 0; }
+.dir-drill-confirm .dup-confirm-title svg { width: 18px; height: 18px; }
+
+/* Fehlende Gegenseite bei trunk-only/mirror-only. */
+.diff-col.missing { opacity: .85; }
+.diff-body.dir-missing {
+  padding: 18px 16px; font-size: 12.5px; font-weight: 700; color: var(--warm-gray);
+  font-style: italic;
+}

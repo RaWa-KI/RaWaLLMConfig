@@ -1,0 +1,48 @@
+.cfg-diag {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.cfg-diag-summary {
+  margin-bottom: 16px;
+}
+
+.cfg-diag-item {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 9px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  background: var(--amber-lt);
+  color: var(--ink);
+}
+
+.cfg-diag-icon {
+  color: var(--amber-d);
+  line-height: 1;
+}
+
+.cfg-diag-item strong,
+.cfg-diag-item span span,
+.cfg-diag-item em {
+  display: block;
+}
+
+.cfg-diag-item strong {
+  font-size: 12px;
+}
+
+.cfg-diag-item span span,
+.cfg-diag-item em {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.cfg-diag-item em {
+  color: var(--warm-gray);
+  font-style: normal;
+  overflow-wrap: anywhere;
+}

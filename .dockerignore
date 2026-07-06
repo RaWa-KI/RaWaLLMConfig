@@ -1,0 +1,60 @@
+# RaWaLLMConfig — Docker build context excludes
+# Determinismus: nur public Quellen, Manifest und Lockfile gehoeren in den Kontext.
+
+# Dependencies / Build-Output (im Container frisch erzeugt)
+node_modules/
+out/
+dist/
+dist-release/
+build/
+.vite/
+_entpackt/
+design-export/
+
+# VCS / IDE / OS
+.git/
+.gitignore
+.DS_Store
+Thumbs.db
+
+# Test-Artefakte
+test-results/
+playwright-report/
+tests/screenshots-verify/
+tests/audit-runtime/
+.playwright-mcp/
+
+# Graph / Compaction / lokale Runtime
+graphify-out/
+.agents/
+.claude/compaction-backups/
+.claude/
+.codex/
+.rawallmconfig/
+.remember/
+vendor/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Secrets / Production-Config (HR18 — NIE in den Build-Kontext)
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+config.php
+wp-config.php
+
+# Lokale Daten / Dumps (HR18)
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+cockpit-decisions*.json
+
+# Grosse Archive
+*.zip

@@ -1,0 +1,102 @@
+/* CompareToolbar — Auswahl-Leiste fuer den Vergleich. Nutzt die globalen
+   Design-Tokens (components.css/layout.css): Karten-Schale, Checkbox-Zeilen,
+   Footer-Button. Eigene Klassen mit cmp-Prefix, kollidiert nicht mit dup-/dir-. */
+
+.cmp-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cmp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.cmp-row:hover { background: color-mix(in oklab, var(--bg-card), var(--bg) 40%); }
+
+.cmp-row.on {
+  border-color: var(--terra);
+  background: var(--terra-lt);
+}
+
+.cmp-check {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  accent-color: var(--terra);
+  cursor: pointer;
+}
+
+.cmp-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 800;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+/* Origin-Badge (Ebene/Ursprung, z.B. „~/.claude" oder „WS: RaWaLLMConfig"). */
+.cmp-origin {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cmp-empty {
+  font-size: 12.5px;
+  color: var(--warm-gray);
+}
+
+.cmp-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cmp-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--ink);
+  background: var(--terra-lt);
+  color: var(--terra-d);
+  cursor: pointer;
+}
+
+.cmp-go:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.cmp-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--warm-gray);
+}
+
+/* Icon-Groessen begrenzen (SVGs tragen nur viewBox; sonst Default-Riesengroesse). */
+.cmp-go svg { width: 16px; height: 16px; flex-shrink: 0; }
