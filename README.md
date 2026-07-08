@@ -49,12 +49,29 @@ Schritt für Schritt ergänzt.
 
 ### Für wen ist die Alpha gedacht?
 
-Diese Version ist vor allem für technisch interessierte Nutzer, Maintainer und
-frühe Tester gedacht, die lokale KI-Konfigurationen prüfen möchten und
-Rückmeldungen zu Verständlichkeit, Sicherheit und Bedienung geben können.
+RaWaLLMConfig ist für Menschen gedacht, die mit lokalen KI-Tools arbeiten
+möchten, ohne erst alle Konfigurationsdateien, Hooks, MCPs, Modelle und
+Startregeln von Hand suchen zu müssen.
+
+Besonders hilfreich ist die Alpha für:
+
+- Menschen, die Claude, Codex, MCPs oder lokale Modelle nutzen möchten, aber
+  keine IT- oder Admin-Oberfläche im Kopf haben.
+- Menschen, die verstehen wollen, warum ihre KI-Umgebung langsam, teuer,
+  unübersichtlich oder tokenhungrig wirkt.
+- Fortgeschrittene Nutzer und ITler, die eine visuelle Oberfläche für
+  Konfigurationen, Diagnosen, Warnungen und technische Details möchten.
+
+Die App zeigt lokale Konfigurationen gesammelt an, weist auf mögliche
+Doppelungen oder Fehlkonfigurationen hin und erklärt viele technische Zustände
+verständlicher. Einige Bereiche enthalten bereits Tipps, Hinweise und passende
+Befehle, damit Probleme nicht nur sichtbar werden, sondern auch nachvollziehbar
+bleiben.
 
 Wenn du einfach nur eine vollständig fertige Endnutzer-App erwartest, ist eine
-spätere Version wahrscheinlich besser geeignet.
+spätere Version wahrscheinlich besser geeignet. Diese Version ist eine
+öffentliche Alpha: nützlich zum Prüfen, Verstehen und Rückmelden, aber noch
+nicht in allen Bereichen fertig poliert.
 
 ### Entwicklung
 
@@ -138,12 +155,27 @@ added step by step.
 
 ### Who is this alpha for?
 
-This version is mainly for technically interested users, maintainers, and early
-testers who want to inspect local AI configuration and give feedback on clarity,
-safety, and usability.
+RaWaLLMConfig is for people who want to work with local AI tools without first
+having to find every configuration file, hook, MCP, model, and startup rule by
+hand.
+
+The alpha is especially useful for:
+
+- people who want to use Claude, Codex, MCPs, or local models without thinking
+  in IT or admin interfaces,
+- people who want to understand why their AI environment feels slow, expensive,
+  hard to follow, or token-hungry,
+- advanced users and IT professionals who want a visual interface for
+  configurations, diagnostics, warnings, and technical details.
+
+The app brings local configuration surfaces into one place, points out possible
+duplication or misconfiguration, and explains many technical states in clearer
+language. Some areas already include tips, hints, and useful commands so that
+problems are not only visible, but also easier to understand.
 
 If you expect a fully finished end-user app, a later version will probably be a
-better fit.
+better fit. This version is a public alpha: useful for inspection,
+understanding, and feedback, but not fully polished in every area yet.
 
 ### Development
 
