@@ -47,8 +47,21 @@ ba76d7689d8b84e5ec067976018a3992d3c06508858dd85e64f0b556f5c0df7e
 - Lokale Anzeige wichtiger Konfigurationspfade und Zustände.
 - Geführte Einstiege für typische Prüf- und Verwaltungsaufgaben.
 - Geschützter Schreibmodus mit Bestätigung und Backup-first-Logik.
+- Toolchain-Watcher für lokale Versions-, Changelog- und Wartungshinweise.
 - Update-Unterstützung über öffentliche GitHub-Releases.
 - Tests und Smokes für zentrale App-Flows.
+
+### Toolchain-Watcher
+
+KI-Werkzeuge ändern sich schnell: Claude Code, Codex, MCPs, Hooks und lokale
+Modelle bekommen regelmäßig neue Versionen, neue Regeln oder geänderte
+Konfigurationswege. RaWaLLMConfig sammelt diese Hinweise lokal, ordnet sie ein
+und zeigt, was Aufmerksamkeit braucht.
+
+Der „Betrifft dich“-Abgleich verbindet Changelog- und Watcher-Informationen mit
+deiner echten lokalen Konfiguration. So musst du nicht jede Anbieteränderung
+lesen, sondern siehst zuerst, ob eine Änderung für deine Arbeitsumgebung
+relevant ist.
 
 ### Noch nicht vollständig enthalten
 
@@ -168,8 +181,20 @@ ba76d7689d8b84e5ec067976018a3992d3c06508858dd85e64f0b556f5c0df7e
 - Local display of important configuration paths and states.
 - Guided entry points for common inspection and management tasks.
 - Protected write mode with confirmation and backup-first behavior.
+- Toolchain watcher for local version, changelog, and maintenance notices.
 - Update support through public GitHub releases.
 - Tests and smokes for central app flows.
+
+### Toolchain watcher
+
+AI tools change quickly: Claude Code, Codex, MCPs, hooks, and local models
+regularly receive new versions, new rules, or changed configuration paths.
+RaWaLLMConfig collects these notices locally, sorts them, and shows what needs
+attention.
+
+The "Affects you" check connects changelog and watcher information with your
+real local configuration. You do not have to read every provider change first;
+you can see whether a change is relevant to your working environment.
 
 ### Not fully included yet
 
