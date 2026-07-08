@@ -22,7 +22,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname  = dirname(__filename)
 const repoRoot   = resolve(__dirname, '..')
 const publicAssetBase =
-  (process.env.RAWALLM_RELEASE_ASSET_BASE_URL ?? 'https://github.com/MonaFP/RaWaLLMConfig/releases/latest/download')
+  (process.env.RAWALLM_RELEASE_ASSET_BASE_URL ?? 'https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest/download')
     .replace(/\/+$/, '')
 
 // ---------------------------------------------------------------------------

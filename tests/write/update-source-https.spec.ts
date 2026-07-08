@@ -9,7 +9,7 @@ import { HttpsUpdateSource } from '../../src/main/services/update-source-https'
 import type { UpdateAsset, UpdateInfo, UpdateRelease } from '../../shared/contract-updates'
 
 const BASE_URL = 'https://updates.example/releases'
-const GITHUB_LATEST_URL = 'https://github.com/MonaFP/RaWaLLMConfig/releases/latest/download/latest.json'
+const GITHUB_LATEST_URL = 'https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest/download/latest.json'
 const GOOD_CONTENT = 'MZ' + 'x'.repeat(4096)
 const BAD_CONTENT = 'MZ' + 'y'.repeat(4096)
 

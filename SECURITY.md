@@ -11,7 +11,7 @@ receiving separate patch releases.
 Please report suspected vulnerabilities through GitHub's private vulnerability
 reporting for this repository:
 
-https://github.com/MonaFP/RaWaLLMConfig/security/advisories/new
+https://github.com/RaWa-KI/RaWaLLMConfig/security/advisories/new
 
 Do not open a public issue for a vulnerability before it has been reviewed.
 Please include:

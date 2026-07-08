@@ -29,15 +29,15 @@ brauchen vor dem Merge eine Contributor License Agreement.
 ### Installation für Endnutzer
 
 Die aktuelle Windows-Version liegt auf der
-[GitHub-Releases-Seite](https://github.com/MonaFP/RaWaLLMConfig/releases/latest).
-Lade dort `RaWaLLMConfig-Setup-0.1.3.exe` herunter und starte den Installer.
+[GitHub-Releases-Seite](https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest).
+Lade dort `RaWaLLMConfig-Setup-0.1.4.exe` herunter und starte den Installer.
 
 Windows SmartScreen kann bei einem noch unsignierten Alpha-Installer einen
 Hinweis anzeigen. Das ist bei neuen, nicht signierten Open-Source-Installern
 nicht ungewöhnlich. Prüfe bei Bedarf vor dem Start den SHA256-Hash:
 
 ```text
-ba76d7689d8b84e5ec067976018a3992d3c06508858dd85e64f0b556f5c0df7e
+f081ef5294439106042fd5e67cca78e757722a466997be78b8952a1b8a8f1b6a
 ```
 
 ### Was aktuell enthalten ist
@@ -163,15 +163,15 @@ contributions require a Contributor License Agreement before merge.
 ### Installation for end users
 
 The current Windows version is available on the
-[GitHub Releases page](https://github.com/MonaFP/RaWaLLMConfig/releases/latest).
-Download `RaWaLLMConfig-Setup-0.1.3.exe` and run the installer.
+[GitHub Releases page](https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest).
+Download `RaWaLLMConfig-Setup-0.1.4.exe` and run the installer.
 
 Windows SmartScreen may show a notice for this unsigned alpha installer. That
 is not unusual for new, unsigned open-source installers. If you want to verify
 the download before running it, check this SHA256 hash:
 
 ```text
-ba76d7689d8b84e5ec067976018a3992d3c06508858dd85e64f0b556f5c0df7e
+f081ef5294439106042fd5e67cca78e757722a466997be78b8952a1b8a8f1b6a
 ```
 
 ### What is included now

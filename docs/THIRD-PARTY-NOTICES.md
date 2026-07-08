@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Generated: 2026-07-08T13:40:38.476Z
+Generated: 2026-07-08T15:47:07.875Z
 
 Source: package.json direct dependencies plus pnpm-lock.yaml importer versions.
 License source: installed package metadata when node_modules is present; otherwise unknown.

@@ -1,18 +1,18 @@
 {
   "name": "rawallmconfig",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Local desktop app for inspecting and safely managing Claude, Codex, MCP, hooks, local models, and AI workspace configuration.",
   "author": "RaWaLLMConfig contributors",
   "packageManager": "pnpm@10.33.4",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MonaFP/RaWaLLMConfig.git"
+    "url": "https://github.com/RaWa-KI/RaWaLLMConfig.git"
   },
   "bugs": {
-    "url": "https://github.com/MonaFP/RaWaLLMConfig/issues"
+    "url": "https://github.com/RaWa-KI/RaWaLLMConfig/issues"
   },
-  "homepage": "https://github.com/MonaFP/RaWaLLMConfig",
+  "homepage": "https://github.com/RaWa-KI/RaWaLLMConfig",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

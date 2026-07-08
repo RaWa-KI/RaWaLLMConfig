@@ -22,7 +22,7 @@ test.describe('resolveUpdateSource', () => {
   })
 
   test('ohne Env nutzt die oeffentliche GitHub-Release-Quelle', () => {
-    expect(DEFAULT_RELEASE_URL).toBe('https://github.com/MonaFP/RaWaLLMConfig/releases/latest/download/latest.json')
+    expect(DEFAULT_RELEASE_URL).toBe('https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest/download/latest.json')
     const source = resolveUpdateSource({})
     expect(source.describe()).toEqual({ kind: 'https', configured: true })
   })
