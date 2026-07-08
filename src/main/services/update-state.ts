@@ -108,6 +108,13 @@ export function setAvailable(
   state.lastCheckedAt = new Date().toISOString()
 }
 
+/** Loescht bekannten Manifeststand ohne den letzten erfolgreichen Check zu ueberschreiben. */
+export function clearKnownRelease(): void {
+  state.latestVersion = null
+  state.assetName = null
+  state.releaseNotes = null
+}
+
 /** Setzt stagedPath nach erfolgreichem Download. */
 export function setStagedPath(p: string | null): void {
   state.stagedPath = p

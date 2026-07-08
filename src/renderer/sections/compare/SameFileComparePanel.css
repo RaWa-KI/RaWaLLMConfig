@@ -1,0 +1,127 @@
+.cmp-same {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+
+.cmp-same-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cmp-same-head div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cmp-same-head strong { font-size: 13px; font-weight: 900; color: var(--text); }
+.cmp-same-head span { font-size: 12px; font-weight: 700; color: var(--text-lt); }
+
+.cmp-same-quick,
+.cmp-same-go,
+.cmp-same-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cmp-same-quick,
+.cmp-same-go {
+  flex-shrink: 0;
+  padding: 8px 11px;
+  border: 0;
+  background: var(--papa);
+  color: white;
+}
+
+.cmp-same-quick svg,
+.cmp-same-go svg,
+.cmp-same-status svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.cmp-same-go:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.cmp-same-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cmp-same-choice {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.cmp-same-choice.on {
+  border-color: var(--papa);
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+
+.cmp-same-choice small {
+  font-size: 11px;
+  color: var(--text-lt);
+}
+
+.cmp-same-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 900;
+}
+
+.cmp-same-status.ready { color: var(--sage-d); }
+.cmp-same-status.partial { color: var(--amber-d); }
+.cmp-same-status.ambiguous { color: var(--terra-d); }
+
+.cmp-same-places {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cmp-same-place {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+}
+
+.cmp-same-place strong,
+.cmp-same-place span,
+.cmp-same-empty {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.cmp-same-place span,
+.cmp-same-empty { color: var(--text-lt); }
+
+@media (max-width: 720px) {
+  .cmp-same-head,
+  .cmp-same-places { grid-template-columns: 1fr; }
+  .cmp-same-head { flex-direction: column; }
+}

@@ -35,6 +35,11 @@
   font-size: 12px;
 }
 
+.cfg-diag-item b {
+  margin-right: 4px;
+  font-weight: 700;
+}
+
 .cfg-diag-item span span,
 .cfg-diag-item em {
   margin-top: 3px;

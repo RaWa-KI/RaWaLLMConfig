@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
+import { registerIntegrationsIpc } from './ipc-integrations'
 import { registerWrite } from './register-write'
 import { registerUpdatesIpc } from './ipc-updates'
 import { endPool } from './services/mariadb-pool'
@@ -37,8 +38,8 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1320,
     height: 880,
-    minWidth: 960,
-    minHeight: 640,
+    minWidth: 390,
+    minHeight: 560,
     show: false,
     title: 'RaWaLLMConfig',
     backgroundColor: '#ece3d6',
@@ -94,6 +95,11 @@ app
       registerIpc()
     } catch (err) {
       console.error('[main] registerIpc fehlgeschlagen', err)
+    }
+    try {
+      registerIntegrationsIpc()
+    } catch (err) {
+      console.error('[main] registerIntegrationsIpc fehlgeschlagen', err)
     }
     // Phase 2 (Welle 3): kompletten Write-/neuen-Read-Layer registrieren —
     // Basis (apply + config:readFull) + Reconcile + Prefs/Explain ueber den

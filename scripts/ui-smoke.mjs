@@ -17,16 +17,30 @@ async function runSmoke() {
   app = launched.app
   const win = launched.win
   await assertNotBlank(win, result)
-  await assertReady(win, result, 'Config', '.nav-item, .rows, .empty')
+  if (await onboardingVisible(win)) {
+    await assertReady(win, result, 'Onboarding', '.ob-card')
+    await assertReady(win, result, 'Model setup', '.ob-hits, .ob-state button')
+    await finishSmoke(win, result)
+    return
+  }
+  await assertReady(win, result, 'App shell', '.sec-btn, .settings-tabs, .nav-item, .rows, .empty')
   await clickSection(win, result, 'System', 'text=System-Umgebung')
-  await clickSection(win, result, 'Updates', '.upd-full, .daemon-card, .empty-state')
+  await clickSection(win, result, 'Prüfen', '.upd-full, .daemon-card, .empty-state')
   await clickSection(win, result, 'Einstellungen', '.settings-tabs')
-  await clickMode(win, result, 'App-Update', '.ump-wrap')
+  await clickMode(win, result, 'Updates', '.ump-wrap')
+  await finishSmoke(win, result)
+}
+
+async function finishSmoke(win, result) {
   result.title = await win.title().catch(() => '')
   result.url = typeof win.url === 'function' ? win.url() : ''
   await win.screenshot({ path: screenshotPath })
   result.screenshot = screenshotPath
   writeJson(reportPath, result)
+}
+
+async function onboardingVisible(win) {
+  return (await win.locator('.ob-card').count().catch(() => 0)) > 0
 }
 
 async function assertNotBlank(win, result) {
@@ -58,7 +72,12 @@ async function clickControl(win, selector, label) {
   await withDeadline(
     win.evaluate(({ selector, label }) => {
       const controls = [...document.querySelectorAll(selector)]
-      const found = controls.find((el) => el.textContent?.includes(label))
+      const found = controls.find((el) => {
+        const visible = el.textContent ?? ''
+        const title = el.getAttribute('title') ?? ''
+        const aria = el.getAttribute('aria-label') ?? ''
+        return [visible, title, aria].some((text) => text.includes(label))
+      })
       if (!(found instanceof HTMLElement)) throw new Error(`control not found: ${label}`)
       found.click()
     }, { selector, label }),

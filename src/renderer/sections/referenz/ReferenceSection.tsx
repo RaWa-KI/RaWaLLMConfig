@@ -4,16 +4,22 @@
 // DriftBanner (Versionen live aus dem Watcher), FieldCards, Events/Vars/Notes,
 // Geruest-Kopierblock und PortPanel (nur Claude). Ableitungen liegen in ref-logic.ts
 // (HR27). Watcher/Config sind READ-ONLY; keine echten Secret-Werte.
-import { useMemo, useState, type ReactElement } from 'react'
-import type { RefArtifact, RefDataset } from '@shared/contract-referenz'
+import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import type { RefArtifact } from '@shared/contract-referenz'
 import { useStore } from '../../state/store'
+import { msg } from '../../lib/messages'
 import { Icon } from '../../components/Icon'
 import { FieldCard } from './FieldCard'
 import { CopyChip } from './CopyChip'
 import { DriftBanner } from './DriftBanner'
 import { PortPanel } from './PortPanel'
-import { refdataClaude } from './refdata'
-import { refdataCodex } from './refdata-codex'
+import { RefSidebar } from './ReferenceSidebar'
+import {
+  datasetForModel,
+  firstArtifactId,
+  referenceModels,
+  type ReferenceMode
+} from './reference-datasets'
 import {
   countsByArtifact,
   driftItems,
@@ -24,84 +30,43 @@ import {
 } from './ref-logic'
 import './ReferenceSection.css'
 
-const DATASETS: Record<string, RefDataset> = { claude: refdataClaude, codex: refdataCodex }
-const LLM_IDS = ['claude', 'codex']
-
-// Sidebar: LLM-Switch + Artefakt-Liste mit Treffer-Zaehlern (gedimmt bei 0 Treffern).
-function RefSidebar({
-  dataset,
-  arts,
-  llm,
-  artId,
-  counts,
-  query,
-  onLlm,
-  onArt,
-}: {
-  dataset: RefDataset
-  arts: RefArtifact[]
-  llm: string
-  artId: string
-  counts: Record<string, number>
-  query: string
-  onLlm(id: string): void
-  onArt(id: string): void
-}) {
-  const ql = query.trim()
-  return (
-    <aside className="sidebar">
-      <div className="ref-llm-switch">
-        {LLM_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={'rls' + (llm === id ? ' on' : '')}
-            onClick={() => onLlm(id)}
-          >
-            <span className={'rls-dot ' + (id === 'codex' ? 'codex' : 'claude')} />
-            {DATASETS[id].label}
-          </button>
-        ))}
-      </div>
-      <div className="side-label">Artefakte</div>
-      {arts.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          className={
-            'nav-item' +
-            (artId === a.id ? ' on' : '') +
-            (ql && counts[a.id] === 0 ? ' faded' : '')
-          }
-          onClick={() => onArt(a.id)}
-        >
-          <span className="ni-ic">{a.icon ? Icon[a.icon] : Icon.box}</span>
-          <span className="ni-txt">{a.label}</span>
-          {ql && counts[a.id] > 0 && <span className="ni-flag ni-flag-hit" />}
-          <span className="ni-count">{counts[a.id]}</span>
-        </button>
-      ))}
-      <div className="nav-sep" />
-      <div className="ref-side-note">
-        Alles, was man selbst anpassen kann. Stand {dataset.updated} · {dataset.source}.
-      </div>
-    </aside>
-  )
-}
-
 // Surface-Kurzlabels (Richtwert) fuer die Artefakt-Kopfzeile.
 const SURF: Record<string, string> = { cli: 'CLI', ide: 'IDE', desktop: 'Desktop', web: 'Web' }
 const SURF_ORDER = ['cli', 'ide', 'desktop', 'web'] as const
+
+// Kompakter Expert-Hinweis: nutzt vorhandene Artefaktdaten statt neuer IA.
+function ExpertReferenceDetails({ art }: { art: RefArtifact }) {
+  const events = art.events?.length ?? 0
+  const vars = art.vars?.length ?? 0
+  return (
+    <div className="ref-expert-details" aria-label="Expert-Details">
+      <span>
+        <b>Pfad</b>
+        <code>{art.file}</code>
+      </span>
+      <span>
+        <b>Quelle</b>
+        <span>{art.tag}</span>
+      </span>
+      <span>
+        <b>Rohdaten</b>
+        <span>{art.fields.length} Felder · {events + vars} Fundstellen</span>
+      </span>
+    </div>
+  )
+}
 
 // Kopfzeile des aktiven Artefakts + Suchfeld (durchsucht alle Bereiche).
 function RefHead({
   art,
   query,
   onQuery,
+  expertMode,
 }: {
   art: RefArtifact
   query: string
   onQuery(v: string): void
+  expertMode: boolean
 }) {
   return (
     <div className="view-head">
@@ -123,6 +88,8 @@ function RefHead({
             ))}
           </div>
         )}
+        <p className="ref-intro">{msg(expertMode ? 'help.mode.expert' : 'help.mode.simple')}</p>
+        {expertMode && <ExpertReferenceDetails art={art} />}
       </div>
       <div className="ref-search">
         {Icon.search}
@@ -162,7 +129,7 @@ function ArtBody({ art, query }: { art: RefArtifact; query: string }) {
       ) : (
         <div className="empty ref-empty">
           {Icon.search}
-          <p>Kein Feld-Treffer hier — siehe Zähler links für andere Bereiche.</p>
+          <p>{ql ? 'Kein Treffer hier — siehe Zähler links für andere Bereiche.' : 'Für diese Auswahl liegen noch keine Einträge vor.'}</p>
         </div>
       )}
       <ArtExtras art={art} query={ql} />
@@ -228,12 +195,21 @@ function ArtExtras({ art, query }: { art: RefArtifact; query: string }) {
   )
 }
 
-export function ReferenceSection() {
-  const { watcher, config } = useStore()
-  const [llm, setLlm] = useState('claude')
-  const dataset = DATASETS[llm]
+export function ReferenceSection({ mode: initialMode = 'commands' }: { mode?: ReferenceMode }) {
+  const { watcher, config, ui } = useStore()
+  const [mode, setMode] = useState<ReferenceMode>(initialMode)
+  const models = useMemo(() => referenceModels(config.data), [config.data])
+  const [llm, setLlm] = useState(models[0]?.id ?? 'claude')
+  useEffect(() => {
+    if (!models.some((model) => model.id === llm)) setLlm(models[0]?.id ?? 'claude')
+  }, [llm, models])
+  const dataset = useMemo(() => datasetForModel(config.data, llm, mode), [config.data, llm, mode])
   const arts = dataset.artifacts
-  const [artId, setArtId] = useState(arts[0].id)
+  const preferredArt = firstArtifactId(dataset, mode)
+  const [artId, setArtId] = useState(preferredArt)
+  useEffect(() => {
+    if (!arts.some((artifact) => artifact.id === artId)) setArtId(preferredArt)
+  }, [artId, arts, preferredArt])
   const [query, setQuery] = useState('')
 
   const ver = useMemo(() => versionsFromWatcher(watcher.data?.sources, llm), [watcher.data, llm])
@@ -252,7 +228,6 @@ export function ReferenceSection() {
   const switchLlm = (id: string) => {
     setLlm(id)
     setQuery('')
-    setArtId(DATASETS[id].artifacts[0].id)
   }
   const art = arts.find((a) => a.id === artId) ?? arts[0]
 
@@ -261,18 +236,24 @@ export function ReferenceSection() {
       <RefSidebar
         dataset={dataset}
         arts={arts}
+        models={models}
         llm={llm}
         artId={art.id}
         counts={counts}
         query={query}
+        mode={mode}
+        onMode={(nextMode) => {
+          setMode(nextMode)
+          setQuery('')
+        }}
         onLlm={switchLlm}
         onArt={(id) => setArtId(id)}
       />
       <main className="main refwrap">
-        <RefHead art={art} query={query} onQuery={setQuery} />
+        <RefHead art={art} query={query} onQuery={setQuery} expertMode={ui.displayMode === 'expert'} />
         <DriftBanner items={drift} installed={ver?.installed} latest={ver?.latest} stale={stale} />
         {art.intro && <p className="ref-intro">{art.intro}</p>}
-        {llm === 'claude' && <PortPanel artifactId={art.id} />}
+        {mode === 'environment' && llm === 'claude' && <PortPanel artifactId={art.id} />}
         <ArtBody art={art} query={query} />
       </main>
     </>

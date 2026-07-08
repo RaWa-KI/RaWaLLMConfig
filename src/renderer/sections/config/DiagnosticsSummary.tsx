@@ -1,4 +1,5 @@
 import type { LlmConfig, ConfigEntry } from '@shared/contract'
+import { msg } from '../../lib/messages'
 import { Icon } from '../../components/Icon'
 import './ConfigDiagnostics.css'
 
@@ -46,11 +47,11 @@ export function DiagnosticsSummary({ ad }: { ad: LlmConfig }) {
         <div className="cfg-diag-item">
           <span className="cfg-diag-icon">{Icon.warn}</span>
           <span>
-            <strong>Startkontext geschätzt</strong>
-            <span>
-              Always-on Quellen: ca. {alwaysTotal} Tokens
-              {alwaysTotal > START_TOKEN_LIMIT ? ' — über dem Warnwert.' : '.'}
-            </span>
+            <strong>{msg('configWarnings.title.startLoad')}</strong>
+            <span><b>{msg('configWarnings.label.meaning')}</b>{msg('configWarnings.meaning.startLoad')}</span>
+            <span><b>{msg('configWarnings.label.importance')}</b>{msg('configWarnings.importance.startLoad')}</span>
+            <span><b>{msg('configWarnings.label.action')}</b>{alwaysTotal > START_TOKEN_LIMIT ? msg('configWarnings.action.startLoadHigh') : msg('configWarnings.action.startLoadObserve')}</span>
+            <em><b>{msg('configWarnings.label.details')}</b>Always-on Quellen: ca. {alwaysTotal} Tokens.</em>
           </span>
         </div>
       )}
@@ -58,8 +59,11 @@ export function DiagnosticsSummary({ ad }: { ad: LlmConfig }) {
         <div className="cfg-diag-item">
           <span className="cfg-diag-icon">{Icon.warn}</span>
           <span>
-            <strong>Top-Tokenfresser</strong>
-            <span>{topTokenNames(heavy)}</span>
+            <strong>{msg('configWarnings.title.heavyEntries')}</strong>
+            <span><b>{msg('configWarnings.label.meaning')}</b>{msg('configWarnings.meaning.heavyEntries')}</span>
+            <span><b>{msg('configWarnings.label.importance')}</b>{msg('configWarnings.importance.heavyEntries')}</span>
+            <span><b>{msg('configWarnings.label.action')}</b>{msg('configWarnings.action.heavyEntries')}</span>
+            <em><b>{msg('configWarnings.label.details')}</b>{topTokenNames(heavy)}</em>
           </span>
         </div>
       )}
@@ -67,8 +71,11 @@ export function DiagnosticsSummary({ ad }: { ad: LlmConfig }) {
         <div className="cfg-diag-item">
           <span className="cfg-diag-icon">{Icon.warn}</span>
           <span>
-            <strong>Routing-Metadaten fehlen</strong>
-            <span>{missing.slice(0, 5).join(', ')}</span>
+            <strong>{msg('configWarnings.title.missingDescriptions')}</strong>
+            <span><b>{msg('configWarnings.label.meaning')}</b>{msg('configWarnings.meaning.missingDescriptions')}</span>
+            <span><b>{msg('configWarnings.label.importance')}</b>{msg('configWarnings.importance.missingDescriptions')}</span>
+            <span><b>{msg('configWarnings.label.action')}</b>{msg('configWarnings.action.missingDescriptions')}</span>
+            <em><b>{msg('configWarnings.label.details')}</b>{missing.slice(0, 5).join(', ')}</em>
           </span>
         </div>
       )}

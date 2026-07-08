@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { requireReleaseNotesGate } from './release/changelog-gate.mjs'
 
 // ---------------------------------------------------------------------------
 // Pfade
@@ -53,10 +54,16 @@ const size   = exeBuf.length
 const sha256 = createHash('sha256').update(exeBuf).digest('hex')  // lowercase
 
 // ---------------------------------------------------------------------------
-// 4. Release-Notes (optional)
+// 4. Release-Notes (Pflicht: Deutsch + Chat-Freigabe vor Manifest/Upload)
 // ---------------------------------------------------------------------------
 const notesPath = join(repoRoot, 'RELEASE_NOTES.md')
-const body      = existsSync(notesPath) ? readFileSync(notesPath, 'utf8') : ''
+let body = ''
+try {
+  body = requireReleaseNotesGate({ notesPath, version })
+} catch (error) {
+  console.error(`[generate-update-manifest] ${error.message}`)
+  process.exit(1)
+}
 
 // ---------------------------------------------------------------------------
 // 5. RAWALLM_UPDATE_DIR pruefen + Ordner anlegen

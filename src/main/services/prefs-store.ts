@@ -20,7 +20,8 @@ export type PrefsMap = Record<string, PrefValue>
 export const DEFAULT_PREFS: PrefsMap = {
   theme: 'hell',
   structure: 'retro',
-  density: 'airy'
+  density: 'airy',
+  locale: 'de'
 }
 
 // Default-Prefs-Datei (Produktivlauf). In Tests immer via Option ueberschrieben.

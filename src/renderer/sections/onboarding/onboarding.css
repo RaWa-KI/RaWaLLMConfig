@@ -73,6 +73,9 @@
   font-weight: 600;
   line-height: 1.55;
 }
+.ob-state--compact {
+  padding: 18px 12px;
+}
 .ob-state-ic, .ob-spin {
   display: inline-flex;
   color: var(--warm-gray);
@@ -86,6 +89,16 @@
 
 /* ── Trefferliste ── */
 .ob-list-wrap { display: flex; flex-direction: column; gap: 9px; }
+.ob-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ob-section-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+}
 .ob-list-hint {
   font-size: 11px;
   font-weight: 900;
@@ -160,6 +173,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.ob-model-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+}
+.ob-model-icon {
+  display: inline-flex;
+  color: var(--sage-d);
+}
+.ob-model-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.ob-endpoint-line {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--sage-d);
 }
 
 /* ── Aktionen ── */

@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import type { ConfigEntry } from '@shared/contract'
 import { useWriteConfig } from '../../state/store-write-config'
+import { msgText } from '../../lib/messages'
+import { useStore } from '../../state/store'
+import type { DisplayMode } from '../../state/types'
 import { LineNumberedTextarea } from '../../components/LineNumberedText'
-import { fetchFull } from './use-fetch-full'
+import { useEditorFullContent } from './use-editor-full-content'
 import './EditForm.css'
 
 // Feld-Editor (Teil C, WP-04). KRITISCH: Der Code-Editor laedt den VOLLEN Datei-
@@ -11,44 +14,10 @@ import './EditForm.css'
 // bekommt den rohen Vollinhalt ohne Reveal-/Maskier-Gate; Daten-Sicherheit bleibt
 // beim Speichern ueber Schreibmodus, Confirm und backup-first.
 
-interface FullState {
-  loading: boolean
-  content: string
-  error: string | null
-  // true, sobald readFull rohen Vollinhalt geliefert hat.
-  ready: boolean
-}
-
-const EMPTY: FullState = {
-  loading: true,
-  content: '',
-  error: null,
-  ready: false
-}
-
 export function EditForm({ entry, onDone }: { entry: ConfigEntry; onDone(): void }) {
   const wc = useWriteConfig()
-  const [full, setFull] = useState<FullState>(EMPTY)
-
-  // Beim Mount/Entry-Wechsel: rohen Vollinhalt frisch laden (nie entry.code).
-  useEffect(() => {
-    let alive = true
-    setFull(EMPTY)
-    void fetchFull(entry.path, false).then((r) => {
-      if (!alive) return
-      setFull((s) => ({
-        ...s,
-        loading: false,
-        content: r.content,
-        error: r.error,
-        ready: r.error === null
-      }))
-    })
-    return () => {
-      alive = false
-    }
-  }, [entry.path])
-
+  const { ui } = useStore()
+  const { full, setFull } = useEditorFullContent(entry.path)
   const saveBlocked = !wc.writeEnabled || !full.ready
 
   // Speichern: Confirm-Flow ueber store-write (edit auf Vollinhalt).
@@ -81,6 +50,7 @@ export function EditForm({ entry, onDone }: { entry: ConfigEntry; onDone(): void
         <EditFormEditor
           content={full.content}
           busy={wc.busy}
+          displayMode={ui.displayMode}
           saveBlocked={saveBlocked}
           gateTitle={wc.writeEnabled ? undefined : (wc.writeReason ?? undefined)}
           onChange={(v) => setFull((s) => ({ ...s, content: v }))}
@@ -96,6 +66,7 @@ export function EditForm({ entry, onDone }: { entry: ConfigEntry; onDone(): void
 function EditFormEditor({
   content,
   busy,
+  displayMode,
   saveBlocked,
   gateTitle,
   onChange,
@@ -104,6 +75,7 @@ function EditFormEditor({
 }: {
   content: string
   busy: boolean
+  displayMode: DisplayMode
   saveBlocked: boolean
   gateTitle: string | undefined
   onChange(v: string): void
@@ -112,6 +84,7 @@ function EditFormEditor({
 }) {
   return (
     <>
+      <ModeNote displayMode={displayMode} />
       <LineNumberedTextarea
         className="ef-code mono"
         ariaLabel="Inhalt bearbeiten"
@@ -128,4 +101,9 @@ function EditFormEditor({
       </div>
     </>
   )
+}
+
+function ModeNote({ displayMode }: { displayMode: DisplayMode }) {
+  const text = displayMode === 'expert' ? msgText('expertDetails.rawDetails') : msgText('simpleMode.riskHint')
+  return <div className={'ef-mode-note ' + displayMode}>{text}</div>
 }

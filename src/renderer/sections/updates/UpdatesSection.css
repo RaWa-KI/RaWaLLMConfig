@@ -11,6 +11,19 @@
   color: var(--warm-gray);
 }
 
+.watcher-help {
+  margin: -4px 0 16px;
+  max-width: 980px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--bg-card), var(--bg) 32%);
+  color: var(--text-lt);
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
 /* Daemon-Card innere Flex-Box */
 .dc-body {
   flex: 1;

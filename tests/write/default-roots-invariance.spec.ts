@@ -7,7 +7,7 @@
 // aendert sich staendig. Stattdessen prueft der Spec STRUKTURELLE Invarianten, die
 // Scan-Regressionen weiter fangen, ohne Live-Zahlen festzunageln:
 //   (a) Determinismus: zwei Scans im selben Lauf liefern identische Zahlen.
-//   (b) Vollstaendigkeit: alle erwarteten Familien (claude/codex/shared/local) mit >0 Kat.
+//   (b) Vollstaendigkeit: alle aktiven Core-Familien mit >0 Kat.
 //   (c) Kern-Kategorien je Familie nicht leer (Read-Regression-Fang).
 //   (d) Secret-Hygiene: settings/hooks-code traegt KEINE rohen Secret-Werte (•••-Maske).
 //
@@ -25,8 +25,10 @@ import { GGUF_ROOT } from '../../src/main/scan/llm-scan'
 
 type App = ReturnType<typeof scanAll>
 
-// Erwartete Familien (Sidebar/Datenmodell). Alle muessen real befuellt sein.
+// Erwartete Familien (Sidebar/Datenmodell). Optionale Familien duerfen core-first
+// leer bleiben; aktive Core-Familien muessen real befuellt sein.
 const FAMILIES = ['claude', 'codex', 'shared', 'userglobal', 'local'] as const
+const REQUIRED_FAMILIES = ['claude', 'codex', 'userglobal', 'local'] as const
 
 // Kern-Kategorien je Familie, die bei intakter realer Config NICHT leer sein duerfen.
 // Kategorie-IDs sind familien-praefixiert (claude: bloss, codex/shared: <fam>-<name>).
@@ -67,10 +69,10 @@ test('Determinismus: zwei Default-Scans liefern identische Zahlen', async () => 
   expect((await scanSystem()).areas.length).toBe((await scanSystem()).areas.length)
 })
 
-// (b) Vollstaendigkeit: jede erwartete Familie hat >0 Kategorien und >0 Eintraege.
-test('Vollstaendigkeit: alle Familien real befuellt (>0 Kategorien/Eintraege)', async () => {
+// (b) Vollstaendigkeit: jede aktive Core-Familie hat >0 Kategorien und >0 Eintraege.
+test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintraege)', async () => {
   const app = scanAll()
-  for (const fam of FAMILIES) {
+  for (const fam of REQUIRED_FAMILIES) {
     // 'local' braucht Wechsellaufwerk E: — ohne Mount ist comingSoon
     // (0 Kategorien) legitim; Abdeckung dann via eigenem Skip-Test unten.
     if (fam === 'local' && !hasGguf) continue
@@ -89,6 +91,7 @@ test('Vollstaendigkeit: alle Familien real befuellt (>0 Kategorien/Eintraege)', 
 test('Kern-Kategorien je Familie nicht leer (Read-Regression-Fang)', () => {
   const app = scanAll()
   for (const [fam, ids] of Object.entries(CORE_CATEGORIES)) {
+    if (fam === 'shared' && famCount(app, fam) === 0) continue
     // 'local' nur mit gemountetem E: pruefen (sonst eigener Skip-Test unten).
     if (fam === 'local' && !hasGguf) continue
     for (const id of ids) {

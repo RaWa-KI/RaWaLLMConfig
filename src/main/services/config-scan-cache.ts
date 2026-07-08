@@ -26,6 +26,14 @@ export interface ConfigScanCache {
 
 const DEFAULT_REASON = 'readConfig'
 
+interface ConfigScanCacheState {
+  cached: AppData | null
+  stale: boolean
+  staleReason: string
+  inFlight: Promise<AppData> | null
+  meta: ConfigScanCacheMeta | null
+}
+
 function nowMs(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now()
 }
@@ -39,62 +47,66 @@ function pendingMeta(status: ConfigScanCacheMeta['status'], reason: string, stal
   return { status, reason, startedAt: at, finishedAt: at, durationMs: 0, stale }
 }
 
-export function createConfigScanCache(scan: ConfigScanner = scanAll): ConfigScanCache {
-  let cached: AppData | null = null
-  let stale = true
-  let staleReason = 'cold-start'
-  let inFlight: Promise<AppData> | null = null
-  let meta: ConfigScanCacheMeta | null = null
+function createInitialState(): ConfigScanCacheState {
+  return { cached: null, stale: true, staleReason: 'cold-start', inFlight: null, meta: null }
+}
 
-  async function runScan(reason: string): Promise<AppData> {
-    const startedAt = isoNow()
-    const start = nowMs()
-    try {
-      const data = await scan()
-      cached = data
-      stale = false
-      staleReason = ''
-      meta = {
-        status: 'scan',
-        reason,
-        startedAt,
-        finishedAt: isoNow(),
-        durationMs: Math.max(0, Math.round(nowMs() - start)),
-        stale: false
-      }
-      return data
-    } finally {
-      inFlight = null
+function setStatusMeta(state: ConfigScanCacheState, status: 'hit' | 'join', reason: string): void {
+  const stale = status === 'hit' ? false : state.stale
+  state.meta = { ...(state.meta ?? pendingMeta(status, reason, stale)), status, reason, stale }
+}
+
+async function runScan(scan: ConfigScanner, state: ConfigScanCacheState, reason: string): Promise<AppData> {
+  const startedAt = isoNow()
+  const start = nowMs()
+  try {
+    const data = await scan()
+    state.cached = data
+    state.stale = false
+    state.staleReason = ''
+    state.meta = {
+      status: 'scan',
+      reason,
+      startedAt,
+      finishedAt: isoNow(),
+      durationMs: Math.max(0, Math.round(nowMs() - start)),
+      stale: false
     }
+    return data
+  } finally {
+    state.inFlight = null
   }
+}
 
+function getCachedSnapshot(state: ConfigScanCacheState, reason: string): Promise<AppData> | null {
+  if (!state.cached || state.stale) return null
+  setStatusMeta(state, 'hit', reason)
+  return Promise.resolve(state.cached)
+}
+
+export function createConfigScanCache(scan: ConfigScanner = scanAll): ConfigScanCache {
+  const state = createInitialState()
   return {
     getSnapshot(options: ConfigSnapshotOptions = {}): Promise<AppData> {
-      const reason = options.reason ?? (staleReason || DEFAULT_REASON)
-      if (!options.force && cached && !stale) {
-        meta = { ...(meta ?? pendingMeta('hit', reason, false)), status: 'hit', reason, stale: false }
-        return Promise.resolve(cached)
+      const reason = options.reason ?? (state.staleReason || DEFAULT_REASON)
+      const cachedSnapshot = options.force ? null : getCachedSnapshot(state, reason)
+      if (cachedSnapshot) return cachedSnapshot
+      if (state.inFlight) {
+        setStatusMeta(state, 'join', reason)
+        return state.inFlight
       }
-      if (inFlight) {
-        meta = { ...(meta ?? pendingMeta('join', reason, stale)), status: 'join', reason, stale }
-        return inFlight
-      }
-      inFlight = runScan(reason)
-      return inFlight
+      state.inFlight = runScan(scan, state, reason)
+      return state.inFlight
     },
     markStale(reason = 'stale'): void {
-      stale = true
-      staleReason = reason
+      state.stale = true
+      state.staleReason = reason
     },
     getMeta(): ConfigScanCacheMeta | null {
-      return meta
+      return state.meta
     },
     reset(): void {
-      cached = null
-      stale = true
-      staleReason = 'cold-start'
-      inFlight = null
-      meta = null
+      Object.assign(state, createInitialState())
     }
   }
 }

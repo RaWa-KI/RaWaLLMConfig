@@ -14,6 +14,7 @@ const GITHUB_ASSET_HOSTS = new Set([
   'github.com',
   'raw.githubusercontent.com',
   'objects.githubusercontent.com',
+  'release-assets.githubusercontent.com',
 ])
 
 export interface HttpsFetchPolicy {

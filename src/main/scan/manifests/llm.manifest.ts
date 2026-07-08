@@ -10,16 +10,15 @@
 //    (KEIN manifest.endpoints, sonst entstuende eine abweichende ${id}-endpoints-
 //    Kategorie zusaetzlich).
 // Beide Customs bauen die Category-Huelle EXAKT wie scanLocalLlm (gleiche id/
-// label/icon/path/blurb). GGUF_ROOT liegt fest auf E: (fixedRoot), nicht unter
-// HOME -> die Root ist config-roots-unabhaengig; base wird bewusst ignoriert,
-// scanGgufFiles liest GGUF_ROOT selbst (wie der Bestands-Scanner).
+// label/icon/path/blurb). Die GGUF-Suche kommt aus llm-scan: Env-/Home-Root,
+// leichte externe Kandidaten und aktive lokale Nutzerquellen.
 //
 // HINWEIS B-5: scanLocalLlm hat einen comingSoon-Frueh-Return, wenn E: fehlt
 // (leere categories). Das ist eine LlmConfig-Ebene (nicht Kategorie-Ebene) und
 // bleibt buildData-/B-5-Sache; das Manifest deckt nur die Kategorien ab.
 import type { Category } from '@shared/contract'
 import type { CustomCategory, ProviderManifest } from '@shared/contract-provider'
-import { GGUF_ROOT, scanGgufFiles, endpointEntries, LOCAL_DIFF_LABELS } from '../llm-scan'
+import { GGUF_ROOT, scanGgufFiles, endpointEntries, LOCAL_DIFF_LABELS, ggufRoots } from '../llm-scan'
 
 // gguf-models-Kategorie exakt wie scanLocalLlm (id/label/icon/path/blurb).
 const ggufCategory: CustomCategory = {
@@ -27,7 +26,7 @@ const ggufCategory: CustomCategory = {
     id: 'gguf-models',
     label: 'GGUF-Modelle',
     icon: 'list',
-    path: GGUF_ROOT,
+    path: ggufRoots().filter((root) => scanGgufFiles([root]).length > 0)[0] ?? GGUF_ROOT,
     blurb: 'Lokale Modelle fuer llama-server (read-only, nur Datei-Metadaten)',
     entries: scanGgufFiles(),
   }),

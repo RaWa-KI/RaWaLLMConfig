@@ -5,6 +5,9 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
 }
 
 .struktur-body {
@@ -12,6 +15,9 @@
   flex-direction: column;
   gap: 1.5rem;
   padding: 1.25rem 1.5rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Zusammenfassung */
@@ -44,6 +50,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .struktur-group-head {
@@ -79,11 +87,26 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .struktur-row {
   border-left: 3px solid transparent;
   align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.struktur-row .row-main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.struktur-row .row-name {
+  width: 100%;
+  min-width: 0;
 }
 
 .struktur-row--ok {
@@ -102,17 +125,20 @@
   border-left-color: var(--lisa);
 }
 
-/* Pfad-Darstellung
-   min-width:0 + overflow-wrap sichern Flex-Umbruch ohne Pill-Kollision */
+/* Pfad-Darstellung: lange Windows-Pfade bleiben horizontal lesbar. */
 .struktur-path {
+  display: block;
   font-family: ui-monospace, 'SF Mono', monospace;
   font-size: 0.78rem;
   background: var(--bg);
   padding: 0.1em 0.35em;
   border-radius: 3px;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  overflow-x: auto;
   min-width: 0;
+  max-width: 100%;
   flex: 1;
 }
 
@@ -124,7 +150,7 @@
   justify-content: flex-end;
   flex-shrink: 0;
   flex-wrap: wrap;
-  max-width: min(380px, 44%);
+  max-width: min(320px, 34%);
 }
 
 .struktur-action,
@@ -210,6 +236,10 @@
 }
 
 @media (max-width: 900px) {
+  .struktur-body {
+    padding: 1rem;
+  }
+
   .struktur-row {
     flex-wrap: wrap;
   }
@@ -219,5 +249,50 @@
     max-width: none;
     width: 100%;
     padding-left: 52px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .struktur-row {
+    flex-wrap: wrap;
+  }
+
+  .struktur-row .row-main {
+    flex: 1 1 calc(100% - 62px);
+  }
+
+  .struktur-row .row-meta {
+    justify-content: flex-start;
+    max-width: none;
+    width: 100%;
+    padding-left: 52px;
+  }
+}
+
+@media (max-width: 560px) {
+  .struktur-body {
+    padding: 0.75rem 0;
+  }
+
+  .struktur-summary {
+    align-items: flex-start;
+  }
+
+  .struktur-row {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .struktur-row .row-ic {
+    width: 32px;
+    height: 32px;
+  }
+
+  .struktur-row .row-main {
+    flex-basis: calc(100% - 46px);
+  }
+
+  .struktur-row .row-meta {
+    padding-left: 42px;
   }
 }

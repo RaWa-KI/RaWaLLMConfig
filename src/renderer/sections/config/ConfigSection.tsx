@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
-import type { Category, DuplicateSet, LlmConfig } from '@shared/contract'
+import { useEffect, useMemo, useRef } from 'react'
+import type { AppData, Category, DuplicateSet, LlmConfig } from '@shared/contract'
 import type { CoverageRow } from '@shared/contract-coverage'
 import { normalizeCat } from '@shared/cat-key'
 import { useStore } from '../../state/store'
 import { Icon } from '../../components/Icon'
+import { FocusNotice } from '../../components/FocusNotice'
+import { readOverviewFocus } from '../overview/overview-navigation'
 import { OverviewView, SearchView, type SearchHit } from './config-parts'
 import { DuplicatePanel } from './DuplicatePanel'
 import { ConfigWriteConfirm } from './ConfigWriteConfirm'
@@ -12,6 +14,7 @@ import { CoverageView } from '../coverage/CoverageView'
 import { ConfigDiagnostics } from './ConfigDiagnostics'
 import { DiagnosticsSummary } from './DiagnosticsSummary'
 import { buildHits } from './config-filter'
+import { resolveConfigFocus } from './config-focus'
 
 // Config-Sektion: Kategorie-Sidebar + Anzeige (Uebersicht / Duplikate) oder
 // Suchtreffer. WP-D-a: EntryDetailPanel als Overlay entfernt (dual-drawer-overlay-
@@ -19,6 +22,7 @@ import { buildHits } from './config-filter'
 // EntryDetailPanel-Import entfernt — Komponente bleibt im Codebase (HR7).
 export function ConfigSection() {
   const { config, ui, actions } = useStore()
+  useConfigOverviewFocus(config.data)
   const ad = config.data?.data[ui.llm]
   if (!ad) {
     return (
@@ -46,6 +50,7 @@ export function ConfigSection() {
         }}
       />
       <main className="main">
+        <FocusNotice section="config" />
         {config.error && (
           <div className="card flat" style={{ marginBottom: 12 }}>
             <div className="empty" style={{ padding: 20 }}>{config.error}</div>
@@ -58,6 +63,30 @@ export function ConfigSection() {
       <ConfigWriteConfirm />
     </>
   )
+}
+
+function useConfigOverviewFocus(data: AppData | null) {
+  const { ui, actions } = useStore()
+  const applied = useRef('')
+  useEffect(() => {
+    const focus = readOverviewFocus('config')
+    const target = resolveConfigFocus(data, focus?.focusId)
+    if (!focus?.focusId || !target) return
+    const key = `${focus.focusId}:${target.llm}:${target.catId}:${target.entryId}`
+    if (applied.current === key) return
+    if (ui.llm !== target.llm) {
+      actions.setLlm(target.llm)
+      return
+    }
+    if (ui.search.trim()) actions.setSearch('')
+    if (ui.statusFilter !== null) actions.toggleStatusFilter(ui.statusFilter)
+    if (ui.catId !== target.catId) actions.setCatId(target.catId)
+    if (ui.mode !== 'overview') actions.setMode('overview')
+    if (ui.sel?.catId !== target.catId || ui.sel.entryId !== target.entryId) {
+      actions.openEntry(target.catId, target.entryId)
+    }
+    applied.current = key
+  }, [actions, data, ui.catId, ui.llm, ui.mode, ui.search, ui.sel, ui.statusFilter])
 }
 
 function categoryFlag(cat: Category) {

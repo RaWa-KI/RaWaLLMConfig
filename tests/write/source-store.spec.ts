@@ -4,9 +4,10 @@
 // enabled roots, injizierter Pfad -> KEIN app.getPath). Reine temp-Sandbox, NIE
 // reale Config; kein Electron-app-Aufruf (storePath stets injiziert).
 import { test, expect } from '@playwright/test'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  CURRENT_ONBOARDING_VERSION,
   createSourceStore,
   readEnabledSourceRootsByProviderSync,
   readEnabledSourceRootsSync
@@ -66,11 +67,32 @@ test('setEnabled schaltet eine Quelle aus', async () => {
 })
 
 test('onboardingDone toggelt + persistiert', async () => {
-  const store = createSourceStore(storeOpts(makeSandbox()))
+  const opts = storeOpts(makeSandbox())
+  const store = createSourceStore(opts)
   expect(await store.getOnboardingDone()).toBe(false)
   const out = await store.setOnboardingDone(true)
   expect(out.ok).toBe(true)
   expect(await store.getOnboardingDone()).toBe(true)
+  const raw = JSON.parse(readFileSync(opts.storePath, 'utf8')) as { onboardingVersion?: number }
+  expect(raw.onboardingVersion).toBe(CURRENT_ONBOARDING_VERSION)
+})
+
+test('Legacy-Store version 1 mit onboardingDone:true gilt nicht als aktuelles Onboarding', async () => {
+  const opts = storeOpts(makeSandbox())
+  writeFileSync(opts.storePath, JSON.stringify({ version: 1, sources: [], onboardingDone: true }), 'utf8')
+  const store = createSourceStore(opts)
+  expect(await store.getOnboardingDone()).toBe(false)
+})
+
+test('setOnboardingDone(false) setzt Version zurueck, damit Onboarding erscheint', async () => {
+  const opts = storeOpts(makeSandbox())
+  const store = createSourceStore(opts)
+  await store.setOnboardingDone(true)
+  const out = await store.setOnboardingDone(false)
+  expect(out.ok).toBe(true)
+  expect(await store.getOnboardingDone()).toBe(false)
+  const raw = JSON.parse(readFileSync(opts.storePath, 'utf8')) as { onboardingVersion?: number }
+  expect(raw.onboardingVersion).toBe(0)
 })
 
 test('zweite Mutation macht backup-first (Pre-Snapshot der alten Datei)', async () => {

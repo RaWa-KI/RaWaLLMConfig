@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { StoreProvider } from './state/store'
+import { LocaleProvider } from './state/store-locale'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './styles/global.css'
@@ -21,9 +22,11 @@ if (el) {
   createRoot(el).render(
     <StrictMode>
       <StoreProvider>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
+        <LocaleProvider>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </LocaleProvider>
       </StoreProvider>
     </StrictMode>
   )

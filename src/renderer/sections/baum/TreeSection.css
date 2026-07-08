@@ -25,6 +25,11 @@
 .tl-chip.warn  { background: var(--terra-lt); color: var(--terra-d); border: 1.5px solid color-mix(in oklab, var(--terra) 32%, var(--bg-card)); }
 .tl-chip.stale { background: var(--amber-lt); color: var(--amber-d); border: 1.5px solid color-mix(in oklab, var(--amber) 32%, var(--bg-card)); }
 
+.tree-scope-hint {
+  margin: 0 0 12px;
+  color: var(--text-lt);
+}
+
 /* Ebenen-Stapel */
 .tree { display: flex; flex-direction: column; gap: 15px; }
 .scope-card {

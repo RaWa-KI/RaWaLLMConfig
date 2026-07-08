@@ -1,0 +1,142 @@
+.ov-diagnostics {
+  display: grid;
+  gap: 12px;
+}
+
+.ov-diagnostics-head {
+  display: grid;
+  gap: 4px;
+}
+
+.ov-diagnostics-head h2,
+.ov-diagnosis h3 {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.ov-diagnostics-head h2 {
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.ov-diagnostics-head p,
+.ov-diagnostics-more,
+.ov-diagnosis p {
+  color: var(--warm-gray);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.ov-diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ov-diagnosis {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ov-diagnosis.warning {
+  border-color: color-mix(in oklab, var(--amber), transparent 35%);
+}
+
+.ov-diagnosis.error {
+  border-color: color-mix(in oklab, var(--terra), transparent 25%);
+}
+
+.ov-diagnosis-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ov-diagnosis-icon,
+.ov-diagnosis-severity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ov-diagnosis-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--amber-lt);
+  color: var(--amber-d);
+}
+
+.ov-diagnosis-severity {
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--papa-lt);
+  color: var(--papa-d);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ov-diagnosis h3 {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.ov-diagnosis-next {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--bg), #fff 28%);
+}
+
+.ov-diagnosis-next div {
+  display: grid;
+  gap: 2px;
+}
+
+.ov-diagnosis-next dt {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ov-diagnosis-next dd {
+  color: var(--warm-gray);
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.ov-diagnosis .btn {
+  align-self: flex-start;
+}
+
+.ov-diagnosis-details {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--warm-gray);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .ov-diagnostics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .ov-diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+}

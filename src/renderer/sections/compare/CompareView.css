@@ -10,6 +10,33 @@
   gap: 18px;
 }
 
+.cmp-mode-switch {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+}
+
+.cmp-mode-switch button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-lt);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cmp-mode-switch button.on {
+  background: var(--bg-card);
+  color: var(--papa-d);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
 /* ── Coverage-Preset aus der Spiegelung. Bleibt Pruefkontext, kein Reconcile. ── */
 .cmp-preset {
   display: flex;

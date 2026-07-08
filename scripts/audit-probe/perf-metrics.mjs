@@ -6,7 +6,12 @@ export async function navByText(win, selector, text, waitMs = 350) {
   const started = Date.now()
   await win.evaluate(({ selector, text }) => {
     const controls = [...document.querySelectorAll(selector)]
-    const found = controls.find((el) => el.textContent?.includes(text))
+    const found = controls.find((el) => {
+      const visibleText = el.textContent ?? ''
+      const label = el.getAttribute('aria-label') ?? ''
+      const title = el.getAttribute('title') ?? ''
+      return [visibleText, label, title].some((value) => value.includes(text))
+    })
     if (!(found instanceof HTMLElement)) throw new Error(`control not found: ${text}`)
     found.click()
   }, { selector, text })

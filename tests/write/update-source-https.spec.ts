@@ -9,6 +9,7 @@ import { HttpsUpdateSource } from '../../src/main/services/update-source-https'
 import type { UpdateAsset, UpdateInfo, UpdateRelease } from '../../shared/contract-updates'
 
 const BASE_URL = 'https://updates.example/releases'
+const GITHUB_LATEST_URL = 'https://github.com/MonaFP/RaWaLLMConfig/releases/latest/download/latest.json'
 const GOOD_CONTENT = 'MZ' + 'x'.repeat(4096)
 const BAD_CONTENT = 'MZ' + 'y'.repeat(4096)
 
@@ -103,6 +104,16 @@ test.describe('HttpsUpdateSource readManifest', () => {
     expect(result.release?.tag_name).toBe('v2.0.0')
     expect(mock.calls[0].url).toBe(`${BASE_URL}/latest.json`)
     expect(mock.calls[0].init?.redirect).toBe('manual')
+  })
+
+  test('liest GitHub latest/download latest.json ueber Release-Asset-Redirect', async () => {
+    const cdnUrl = 'https://release-assets.githubusercontent.com/github-production-release-asset/latest.json'
+    const mock = queueFetch([redirectResponse(cdnUrl), jsonResponse(makeRelease())])
+    const result = await new HttpsUpdateSource(GITHUB_LATEST_URL, mock.fetchImpl).readManifest()
+    expect(result.error).toBe(null)
+    expect(result.release?.tag_name).toBe('v2.0.0')
+    expect(mock.calls.map((call) => call.url)).toEqual([GITHUB_LATEST_URL, cdnUrl])
+    expect(mock.calls.every((call) => call.init?.redirect === 'manual')).toBe(true)
   })
 
   test('http-Release-URL wird nicht als konfigurierte HTTPS-Quelle akzeptiert', async () => {

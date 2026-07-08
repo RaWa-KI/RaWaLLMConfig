@@ -10,6 +10,7 @@ export interface Slice<T> {
 }
 
 export type Section =
+  | 'overview'
   | 'config'
   | 'baum'
   | 'referenz'
@@ -22,6 +23,7 @@ export type Section =
   | 'archiv'
   | 'quellen'
 export type Mode = 'overview' | 'diff' | 'compare'
+export type DisplayMode = 'simple' | 'expert'
 
 export interface Selection {
   catId: string
@@ -77,6 +79,7 @@ export interface UiState {
   llm: string
   catId: string | null
   mode: Mode
+  displayMode: DisplayMode
   search: string
   statusFilter: EntryStatus | null
   sysArea: string
@@ -98,6 +101,7 @@ export interface StoreActions {
   setLlm(id: string): void
   setCatId(id: string | null): void
   setMode(m: Mode): void
+  setDisplayMode(m: DisplayMode): void
   setSearch(q: string): void
   toggleStatusFilter(s: EntryStatus): void
   setSysArea(id: string): void

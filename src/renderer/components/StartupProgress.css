@@ -1,0 +1,105 @@
+.startup-progress {
+  width: min(1120px, calc(100% - 40px));
+  margin: 10px auto 0;
+  padding: 12px 14px;
+  display: grid;
+  gap: 9px;
+  background: var(--bg-card);
+  border: 1px solid color-mix(in oklab, var(--border), #000 12%);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--card-shadow-sm);
+}
+
+.startup-progress-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 850;
+}
+
+.startup-progress-copy span {
+  color: var(--text-lt);
+  font-weight: 750;
+  text-align: right;
+}
+
+.startup-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--border), var(--bg-card) 35%);
+  border-radius: 999px;
+}
+
+.startup-progress-track span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--sage), var(--papa));
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.startup-progress-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--warm-gray);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.startup-progress-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.startup-progress-steps span {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.startup-progress-steps .done {
+  color: var(--sage-d);
+}
+
+.startup-progress-steps .done span {
+  background: var(--sage);
+}
+
+.startup-progress-steps .active {
+  color: var(--papa-d);
+}
+
+.startup-progress-steps .active span {
+  background: var(--papa);
+}
+
+@media (max-width: 760px) {
+  .startup-progress {
+    width: calc(100% - 24px);
+    margin-top: 8px;
+  }
+
+  .startup-progress-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .startup-progress-copy span {
+    text-align: left;
+  }
+
+  .startup-progress-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

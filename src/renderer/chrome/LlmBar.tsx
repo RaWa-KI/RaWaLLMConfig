@@ -1,26 +1,25 @@
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../state/store'
 import { Icon } from '../components/Icon'
-import { exportBundle, exportConflictBundle } from '../lib/export'
-import { parseImportSource, applyImportItems } from '../lib/import'
-import { knownRootsFromConfig } from '../lib/known-roots'
-import { ImportTargetDialog } from '../components/ImportTargetDialog'
 import type { Section } from '../state/types'
+import { msgText, type MessageKey } from '../lib/messages'
 
-// Zeile-1-Leiste: Bereichs-Umschalter (Config/System/Updates) + Export/Import.
-// Import: .json-Bundle ODER rohe .md -> Ziel-Dialog -> Owner-Confirm -> Write
-// (guard + backup-first via applyImportItems). Secret-/Fremdpfade werden sichtbar
-// uebersprungen und NIE geschrieben. Cancel schliesst ohne jeden Disk-Write.
+type NavItem = { id: Section; icon: string } & ({ label: string } | { labelKey: MessageKey })
 
-const SECTIONS: ReadonlyArray<{ id: Section; label: string; icon: string }> = [
-  { id: 'config', label: 'Config', icon: 'gear' },
-  { id: 'baum', label: 'Baum', icon: 'map' },
-  { id: 'referenz', label: 'Referenz', icon: 'book' },
-  { id: 'graph', label: 'Graph', icon: 'net' },
-  { id: 'system', label: 'System', icon: 'cpu' },
-  { id: 'updates', label: 'Updates', icon: 'refresh' },
-  { id: 'settings', label: 'Einstellungen', icon: 'edit' },
-  { id: 'struktur', label: 'Struktur', icon: 'layers' },
-  { id: 'archiv', label: 'Archiv', icon: 'snap' }
+const TASK_SECTIONS: ReadonlyArray<NavItem> = [
+  { id: 'overview', labelKey: 'overview.title', icon: 'sparkle' },
+  { id: 'updates', labelKey: 'tasks.check.title', icon: 'refresh' },
+  { id: 'config', labelKey: 'tasks.change.title', icon: 'edit' },
+  { id: 'archiv', labelKey: 'tasks.restore.title', icon: 'snap' },
+  { id: 'referenz', labelKey: 'help.nav.title', icon: 'book' }
+]
+
+const DETAIL_SECTIONS: ReadonlyArray<NavItem> = [
+  { id: 'baum', labelKey: 'chrome.detail.baum', icon: 'map' },
+  { id: 'graph', labelKey: 'chrome.detail.graph', icon: 'net' },
+  { id: 'system', labelKey: 'chrome.detail.system', icon: 'cpu' },
+  { id: 'struktur', labelKey: 'chrome.detail.struktur', icon: 'layers' },
+  { id: 'settings', labelKey: 'chrome.detail.prefs', icon: 'gear' }
 ]
 
 function alertCount(sources: readonly { state: string }[] | undefined): number {
@@ -35,110 +34,132 @@ interface SwitchProps {
 }
 
 function SectionSwitch({ active, updAlerts, onSelect }: SwitchProps) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const activeItem = [...TASK_SECTIONS, ...DETAIL_SECTIONS].find((s) => s.id === active)
+  const closeMenu = () => setOpen(false)
+  const choose = (id: Section) => {
+    onSelect(id)
+    closeMenu()
+  }
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) closeMenu()
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenu()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
   return (
-    <div className="section-switch">
-      {SECTIONS.map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          className={'sec-btn' + (active === s.id ? ' on' : '')}
-          onClick={() => onSelect(s.id)}
-        >
-          {Icon[s.icon]}
-          {s.label}
-          {s.id === 'updates' && updAlerts > 0 && <span className="sb-badge">{updAlerts}</span>}
-        </button>
+    <div className="section-switch" ref={menuRef}>
+      <div className="active-section-pill" aria-live="polite">
+        {activeItem && Icon[activeItem.icon]}
+        <span>{activeItem ? itemLabel(activeItem) : msgText('overview.title')}</span>
+      </div>
+      {TASK_SECTIONS.map((s) => (
+        <SectionButton key={s.id} item={s} active={active} updAlerts={updAlerts} onSelect={choose} />
       ))}
+      <span className="llm-divider mini" />
+      {DETAIL_SECTIONS.map((s) => (
+        <SectionButton key={s.id} item={s} active={active} updAlerts={updAlerts} onSelect={choose} compact />
+      ))}
+      <button
+        type="button"
+        className={'sec-btn nav-more' + (open ? ' on' : '')}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={open ? 'Menü schließen' : 'Weitere Bereiche öffnen'}
+        title={open ? 'Menü schließen' : 'Weitere Bereiche'}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {Icon.list}
+        <span>Mehr</span>
+      </button>
+      {open && (
+        <div className="nav-overflow-menu" role="menu" aria-label="Weitere Bereiche">
+          {TASK_SECTIONS.slice(0, 3).map((s) => (
+            <SectionButton
+              key={s.id}
+              item={s}
+              active={active}
+              updAlerts={updAlerts}
+              onSelect={choose}
+              menuItem
+              mobileMenuItem
+            />
+          ))}
+          {[...TASK_SECTIONS.slice(3), ...DETAIL_SECTIONS].map((s) => (
+            <SectionButton
+              key={s.id}
+              item={s}
+              active={active}
+              updAlerts={updAlerts}
+              onSelect={choose}
+              menuItem
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
+interface SectionButtonProps {
+  item: NavItem
+  active: Section
+  updAlerts: number
+  compact?: boolean
+  menuItem?: boolean
+  mobileMenuItem?: boolean
+  onSelect(id: Section): void
+}
+
+function SectionButton({ item, active, updAlerts, compact, menuItem, mobileMenuItem, onSelect }: SectionButtonProps) {
+  const label = itemLabel(item)
+  return (
+    <button
+      type="button"
+      className={'sec-btn' + (active === item.id ? ' on' : '') + (compact ? ' compact' : '') + (menuItem ? ' menu-item' : '') + (mobileMenuItem ? ' menu-mobile' : '')}
+      onClick={() => onSelect(item.id)}
+      role={menuItem ? 'menuitem' : undefined}
+      title={compact ? `${label} öffnen` : undefined}
+      aria-label={compact ? `${label} öffnen` : undefined}
+    >
+      {Icon[item.icon]}
+      {(!compact || menuItem) && label}
+      {item.id === 'updates' && updAlerts > 0 && <span className="sb-badge">{updAlerts}</span>}
+    </button>
+  )
+}
+
+function itemLabel(item: NavItem): string {
+  return 'labelKey' in item ? msgText(item.labelKey) : item.label
+}
+
 export function LlmBar() {
-  const { config, system, watcher, ui, actions } = useStore()
+  const { watcher, ui, actions } = useStore()
   const updAlerts = alertCount(watcher.data?.sources)
 
-  const onExport = () => {
-    exportBundle({ config: config.data, system: system.data, watcher: watcher.data })
-    actions.showToast('Export erstellt', 'save')
-  }
-  const onConflictExport = () => {
-    const count = exportConflictBundle({ config: config.data, system: system.data, watcher: watcher.data })
-    actions.showToast(count > 0 ? `${count} Konflikte exportiert` : 'Keine Konflikte im Snapshot', count > 0 ? 'save' : 'check')
-  }
-
-  // Datei waehlen -> klassifizieren (Secret/Fremd/leer sichtbar markiert) ->
-  // Ziel-Dialog oeffnen. Hier wird NICHT geschrieben (erst nach Owner-Confirm).
-  const onImport = async (file: File) => {
-    const knownRoots = knownRootsFromConfig(config.data)
-    if (knownRoots.length === 0) {
-      actions.showToast('Import nicht möglich — keine schreibbaren Config-Wurzeln gefunden (Config geladen?)', 'warn')
-      return
-    }
-    const res = await parseImportSource(file, knownRoots)
-    if (!res.valid) {
-      actions.showToast(res.message, 'warn')
-      return
-    }
-    actions.openImportDialog({ items: res.items, knownRoots })
-  }
-
-  // Owner-Confirm: nur ready-Picks (index->item) mit gewaehlter Wurzel an die
-  // Write-API (guard + backup-first). Dialog schliessen, Ergebnis als Toast.
-  const onImportConfirm = async (picks: Array<{ index: number; chosenRoot: string }>) => {
-    const dlg = ui.importDialog
-    actions.closeImportDialog()
-    if (!dlg) return
-    const built = picks.map((p) => ({
-      name: dlg.items[p.index].name,
-      content: dlg.items[p.index].content,
-      chosenRoot: p.chosenRoot
-    }))
-    const res = await applyImportItems(built)
-    actions.showToast(res.message, res.ok ? 'check' : 'warn')
-  }
-
   return (
-    <>
     <div className="llmbar">
       <div className="llm-brand">
         <div className="lb-mark">{Icon.gear}</div>
         <div>
-          Config<div className="lb-sub">LLM- &amp; System-Übersicht</div>
+          {msgText('chrome.brand.title')}<div className="lb-sub">{msgText('chrome.brand.subtitle')}</div>
         </div>
       </div>
       <div className="llm-divider" />
       <SectionSwitch active={ui.section} updAlerts={updAlerts} onSelect={actions.setSection} />
       <div className="spacer" />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" className="btn ghost sm" onClick={onExport} title="Gesamte Config als JSON exportieren">
-          {Icon.save}Export
-        </button>
-        <button type="button" className="btn ghost sm" onClick={onConflictExport} title="Nur Konflikte als JSON exportieren">
-          {Icon.warn}Konflikte
-        </button>
-        <label className="btn ghost sm" style={{ cursor: 'pointer' }} title="Export-Bundle (.json) oder Markdown (.md) importieren — Ziel-Wahl + Owner-Confirm">
-          {Icon.up}Import
-          <input
-            type="file"
-            accept=".json,.md,application/json"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) void onImport(f)
-              e.target.value = ''
-            }}
-          />
-        </label>
-      </div>
     </div>
-    {ui.importDialog && (
-      <ImportTargetDialog
-        items={ui.importDialog.items}
-        knownRoots={ui.importDialog.knownRoots}
-        onConfirm={(picks) => void onImportConfirm(picks)}
-        onCancel={actions.closeImportDialog}
-      />
-    )}
-    </>
   )
 }

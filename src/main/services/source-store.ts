@@ -19,6 +19,14 @@ import type {
 import { exportSnapshot, DEFAULT_ARCHIVE_ROOT } from './backup'
 import { appendAudit, makeAuditEntry, DEFAULT_AUDIT_PATH } from './audit-log'
 
+export const CURRENT_ONBOARDING_VERSION = 2
+
+interface SourceStoreContext {
+  storePath: string
+  archiveRoot: string
+  auditPath: string
+}
+
 // Default-Store-Datei (Produktivlauf). app.getPath NUR hier, lazy (kein Top-Level).
 export function defaultSourcesPath(): string {
   return join(app.getPath('userData'), 'sources.json')
@@ -26,7 +34,7 @@ export function defaultSourcesPath(): string {
 
 // Frische/Default-Store-Struktur (graceful bei fehlender/korrupter Datei).
 function emptyState(): SourcesFile {
-  return { version: 1, sources: [], onboardingDone: false }
+  return { version: 2, sources: [], onboardingVersion: 0 }
 }
 
 // Injizierbare Optionen (Test = temp).
@@ -52,9 +60,9 @@ function readState(storePath: string): SourcesFile {
     if (!existsSync(storePath)) return emptyState()
     const parsed = JSON.parse(readFileSync(storePath, 'utf8')) as Partial<SourcesFile>
     return {
-      version: 1,
+      version: 2,
       sources: Array.isArray(parsed.sources) ? parsed.sources : [],
-      onboardingDone: parsed.onboardingDone === true
+      onboardingVersion: typeof parsed.onboardingVersion === 'number' ? parsed.onboardingVersion : 0
     }
   } catch {
     return emptyState()
@@ -72,82 +80,101 @@ function makeId(root: string, taken: Set<string>): string {
   return `${base}-${Date.now()}`
 }
 
+// Gemeinsamer Schreibpfad: backup-first, dann atomarer Write, dann Audit.
+function persist(ctx: SourceStoreContext, next: SourcesFile): SourceMutateResult {
+  try {
+    let backupPath: string | null = null
+    if (existsSync(ctx.storePath)) {
+      const snap = exportSnapshot(ctx.storePath, ctx.archiveRoot)
+      if (snap.error) return { ok: false, error: snap.error, backupPath: null, sources: readState(ctx.storePath).sources }
+      backupPath = snap.data?.snapshotPath || null
+    }
+    atomicWriteJson(ctx.storePath, next)
+    appendAudit(makeAuditEntry('source-mutate', ctx.storePath, 'ok'), ctx.auditPath)
+    return { ok: true, error: null, backupPath, sources: next.sources }
+  } catch (err) {
+    console.error('[sources]', err instanceof Error ? err.message : 'source-write-failed')
+    return { ok: false, error: 'source-write-failed', backupPath: null, sources: readState(ctx.storePath).sources }
+  }
+}
+
+async function addSource(ctx: SourceStoreContext, req: AddSourceRequest): Promise<SourceMutateResult> {
+  const state = readState(ctx.storePath)
+  const exists = state.sources.some((s) => s.root.toLowerCase() === req.root.toLowerCase())
+  if (exists) return { ok: true, error: null, backupPath: null, sources: state.sources }
+  const taken = new Set(state.sources.map((s) => s.id))
+  const entry: UserSource = {
+    id: makeId(req.root, taken),
+    root: req.root,
+    providerId: req.providerId,
+    label: req.label ?? basename(req.root),
+    enabled: req.enabled ?? true
+  }
+  return persist(ctx, { ...state, sources: [...state.sources, entry] })
+}
+
+async function removeSource(ctx: SourceStoreContext, id: string): Promise<SourceMutateResult> {
+  const state = readState(ctx.storePath)
+  const next = state.sources.filter((s) => s.id !== id)
+  if (next.length === state.sources.length) {
+    return { ok: true, error: null, backupPath: null, sources: state.sources }
+  }
+  return persist(ctx, { ...state, sources: next })
+}
+
+async function setSourceEnabled(
+  ctx: SourceStoreContext,
+  req: SetSourceEnabledRequest
+): Promise<SourceMutateResult> {
+  const state = readState(ctx.storePath)
+  let changed = false
+  const next = state.sources.map((s) => {
+    if (s.id !== req.id || s.enabled === req.enabled) return s
+    changed = true
+    return { ...s, enabled: req.enabled }
+  })
+  if (!changed) return { ok: true, error: null, backupPath: null, sources: state.sources }
+  return persist(ctx, { ...state, sources: next })
+}
+
+async function setOnboardingDone(ctx: SourceStoreContext, done: boolean): Promise<SourceMutateResult> {
+  const state = readState(ctx.storePath)
+  const onboardingVersion = done ? CURRENT_ONBOARDING_VERSION : 0
+  if (state.onboardingVersion === onboardingVersion) {
+    return { ok: true, error: null, backupPath: null, sources: state.sources }
+  }
+  return persist(ctx, { ...state, onboardingVersion })
+}
+
 // Store-Objekt mit injiziertem Pfad. Sync-Persistenz in async gewrappt (Datei klein).
 export function createSourceStore(opts?: SourceStoreOptions) {
-  const storePath = opts?.storePath ?? defaultSourcesPath()
-  const archiveRoot = opts?.archiveRoot ?? DEFAULT_ARCHIVE_ROOT
-  const auditPath = opts?.auditPath ?? DEFAULT_AUDIT_PATH
-
-  // Gemeinsamer Schreibpfad: backup-first, dann atomarer Write, dann Audit.
-  // Bei Snapshot-Fehler Abbruch OHNE Write (No-Data-Loss, HR7/HR20).
-  function persist(next: SourcesFile): SourceMutateResult {
-    try {
-      let backupPath: string | null = null
-      if (existsSync(storePath)) {
-        const snap = exportSnapshot(storePath, archiveRoot)
-        if (snap.error) return { ok: false, error: snap.error, backupPath: null, sources: readState(storePath).sources }
-        backupPath = snap.data?.snapshotPath || null
-      }
-      atomicWriteJson(storePath, next)
-      appendAudit(makeAuditEntry('source-mutate', storePath, 'ok'), auditPath)
-      return { ok: true, error: null, backupPath, sources: next.sources }
-    } catch (err) {
-      console.error('[sources]', err instanceof Error ? err.message : 'source-write-failed')
-      return { ok: false, error: 'source-write-failed', backupPath: null, sources: readState(storePath).sources }
-    }
+  const ctx: SourceStoreContext = {
+    storePath: opts?.storePath ?? defaultSourcesPath(),
+    archiveRoot: opts?.archiveRoot ?? DEFAULT_ARCHIVE_ROOT,
+    auditPath: opts?.auditPath ?? DEFAULT_AUDIT_PATH
   }
 
   return {
     async getState(): Promise<SourcesFile> {
-      return readState(storePath)
+      return readState(ctx.storePath)
     },
     async listSources(): Promise<UserSource[]> {
-      return readState(storePath).sources
+      return readState(ctx.storePath).sources
     },
-    async addSource(req: AddSourceRequest): Promise<SourceMutateResult> {
-      const state = readState(storePath)
-      // Duplikat-root (case-insensitiv) -> kein Zweit-Eintrag, ok:true mit Bestand.
-      const exists = state.sources.some((s) => s.root.toLowerCase() === req.root.toLowerCase())
-      if (exists) return { ok: true, error: null, backupPath: null, sources: state.sources }
-      const taken = new Set(state.sources.map((s) => s.id))
-      const entry: UserSource = {
-        id: makeId(req.root, taken),
-        root: req.root,
-        providerId: req.providerId,
-        label: req.label ?? basename(req.root),
-        enabled: req.enabled ?? true
-      }
-      return persist({ ...state, sources: [...state.sources, entry] })
+    addSource(req: AddSourceRequest): Promise<SourceMutateResult> {
+      return addSource(ctx, req)
     },
-    async removeSource(id: string): Promise<SourceMutateResult> {
-      const state = readState(storePath)
-      const next = state.sources.filter((s) => s.id !== id)
-      // Unbekannte id -> kein Write noetig, ok:true mit Bestand.
-      if (next.length === state.sources.length) {
-        return { ok: true, error: null, backupPath: null, sources: state.sources }
-      }
-      return persist({ ...state, sources: next })
+    removeSource(id: string): Promise<SourceMutateResult> {
+      return removeSource(ctx, id)
     },
-    async setSourceEnabled(req: SetSourceEnabledRequest): Promise<SourceMutateResult> {
-      const state = readState(storePath)
-      let changed = false
-      const next = state.sources.map((s) => {
-        if (s.id !== req.id || s.enabled === req.enabled) return s
-        changed = true
-        return { ...s, enabled: req.enabled }
-      })
-      if (!changed) return { ok: true, error: null, backupPath: null, sources: state.sources }
-      return persist({ ...state, sources: next })
+    setSourceEnabled(req: SetSourceEnabledRequest): Promise<SourceMutateResult> {
+      return setSourceEnabled(ctx, req)
     },
     async getOnboardingDone(): Promise<boolean> {
-      return readState(storePath).onboardingDone
+      return readState(ctx.storePath).onboardingVersion >= CURRENT_ONBOARDING_VERSION
     },
-    async setOnboardingDone(done: boolean): Promise<SourceMutateResult> {
-      const state = readState(storePath)
-      if (state.onboardingDone === done) {
-        return { ok: true, error: null, backupPath: null, sources: state.sources }
-      }
-      return persist({ ...state, onboardingDone: done })
+    setOnboardingDone(done: boolean): Promise<SourceMutateResult> {
+      return setOnboardingDone(ctx, done)
     }
   }
 }

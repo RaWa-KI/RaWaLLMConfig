@@ -12,7 +12,8 @@ export type PrefsMap = Record<string, PrefValue>
 export const PREFS_DEFAULTS: PrefsMap = {
   theme: 'hell',
   structure: 'retro',
-  density: 'airy'
+  density: 'airy',
+  locale: 'de'
 }
 
 export interface PrefsSlice {
@@ -76,7 +77,7 @@ export function usePrefs(): PrefsSlice {
       actions.showToast(res.error ?? 'Speichern fehlgeschlagen', 'warn')
       return
     }
-    actions.showToast('Tweak gespeichert (Backup angelegt)', 'check')
+    actions.showToast('Einstellung gespeichert (Backup angelegt)', 'check')
   }, [actions])
 
   return { prefs, loading, loadError, setPref }

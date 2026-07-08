@@ -13,18 +13,22 @@ import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, openSyn
 import { join, dirname } from 'node:path'
 import { IPC_WRITE } from '@shared/channels-write'
 import type { IpcResult } from '@shared/contract'
+import type { ResolvedIntegration } from '@shared/contract-integrations'
 import type {
   IgnoreScope,
   GraphIgnores,
   IgnoreScopeState,
   GraphWriteIgnoreRequest,
-  GraphWriteIgnoreData
+  GraphWriteIgnoreData,
+  GraphModuleState,
+  GraphOptionalModuleId
 } from '@shared/contract-graph'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { assertInScope } from './services/path-scope'
 import { backup } from './services/backup'
 import { appendAudit, makeAuditEntry } from './services/audit-log'
 import { workspaceRoots } from './services/config-roots'
+import { resolveIntegrations } from './services/integration-resolve'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { guarded } from './lib/guarded'
 
@@ -74,21 +78,38 @@ function readObsidianFilters(raw: string): string {
 // Einen Scope lesen: exists + Roh-Inhalt (obsidian: extrahierte Filter-Zeilen).
 function readScope(wsRoot: string, scope: IgnoreScope): IgnoreScopeState {
   const fp = scopePath(wsRoot, scope)
-  if (!existsSync(fp)) return { exists: false, content: '' }
+  if (!existsSync(fp)) return { exists: false, content: '', availability: 'notConfigured' }
   const raw = readFileSync(fp, 'utf8')
   const content = scope === 'obsidian' ? readObsidianFilters(raw) : raw
-  return { exists: true, content }
+  return { exists: true, content, availability: 'found' }
+}
+
+function defaultGraphModuleState(id: GraphOptionalModuleId): GraphModuleState {
+  return { id, availability: 'notConfigured', root: null, detail: 'Nicht eingerichtet' }
+}
+
+function graphModuleState(id: GraphOptionalModuleId, integrations: ResolvedIntegration[]): GraphModuleState {
+  const resolved = integrations.find((item) => item.id === id)
+  if (!resolved) return defaultGraphModuleState(id)
+  return { id, availability: resolved.availability, root: resolved.root, detail: resolved.detail }
 }
 
 // READ-Handler (read-only, KEIN Gate): aktueller Stand aller drei Scopes.
-function handleReadIgnores(wsRoot: string): IpcResult<GraphIgnores> {
+export function handleReadIgnores(
+  wsRoot: string,
+  integrations = resolveIntegrations()
+): IpcResult<GraphIgnores> {
   if (!wsRoot || typeof wsRoot !== 'string') return { data: null, error: 'invalid-request' }
   if (!isKnownWorkspace(wsRoot)) return { data: null, error: 'Workspace nicht erlaubt' }
   return {
     data: {
       obsidian: readScope(wsRoot, 'obsidian'),
       graphify: readScope(wsRoot, 'graphify'),
-      gitignore: readScope(wsRoot, 'gitignore')
+      gitignore: readScope(wsRoot, 'gitignore'),
+      modules: {
+        graphify: graphModuleState('graphify', integrations),
+        obsidian: graphModuleState('obsidian', integrations)
+      }
     },
     error: null
   }

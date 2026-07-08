@@ -25,13 +25,13 @@ export interface UserSource {
 }
 
 /**
- * Persistierte Store-Datei. Versioniert fuer kuenftige Migrationen. `onboardingDone`
- * ist das First-Run-Flag (true nach Skip ODER Abschluss des Onboardings).
+ * Persistierte Store-Datei. `onboardingVersion` ersetzt das alte boolesche
+ * `onboardingDone`: abgeschlossen ist nur die aktuelle Onboarding-Version.
  */
 export interface SourcesFile {
-  version: 1
+  version: 2
   sources: UserSource[]
-  onboardingDone: boolean
+  onboardingVersion: number
 }
 
 // ── Auto-Discovery (Standard-Homes, read-only) ───────────────────────────────
@@ -45,6 +45,15 @@ export interface DiscoveryHit {
   root: string // gefundener absoluter Standard-Pfad
   providerId: string // erkannter Provider (providerRegistry-id)
   label: string // sprechendes Label, z.B. "Claude (~/.claude)"
+}
+
+/** Ein read-only erkannter lokaler Modellfund fuer das Onboarding. */
+export interface ModelDiscoveryHit {
+  id: string
+  kind: 'gguf' | 'endpoint'
+  label: string
+  path: string
+  detail: string
 }
 
 // ── Provider-Auswahl (aus providerRegistry(), nur id + label) ────────────────
@@ -79,6 +88,7 @@ export interface SetSourceEnabledRequest {
 
 export type SourceListResult = IpcResult<UserSource[]>
 export type DiscoveryResult = IpcResult<DiscoveryHit[]>
+export type ModelDiscoveryResult = IpcResult<ModelDiscoveryHit[]>
 export type ProviderChoiceResult = IpcResult<ProviderChoice[]>
 export type OnboardingDoneResult = IpcResult<boolean>
 
@@ -111,6 +121,7 @@ export interface SourcesApi {
   // read-only
   listSources(): Promise<SourceListResult>
   discoverSources(): Promise<DiscoveryResult>
+  discoverModels(): Promise<ModelDiscoveryResult>
   listProviders(): Promise<ProviderChoiceResult>
   pickFolder(): Promise<PickFolderResult>
   getOnboardingDone(): Promise<OnboardingDoneResult>

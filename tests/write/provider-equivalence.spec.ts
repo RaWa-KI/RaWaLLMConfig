@@ -185,24 +185,23 @@ test('shared: Engine-Manifest == scanShared (deep-equal categories)', () => {
 })
 
 // ── LLM (lokal) ─────────────────────────────────────────────────────────────
-// GGUF_ROOT liegt fest auf E: (nicht sandbox-aware). Alt-Scanner und Manifest
-// rufen DIESELBEN Funktionen (scanGgufFiles/endpointEntries) gegen GGUF_ROOT —
-// strukturell identisch. Bei vorhandenem E: liefert scanLocalLlm 2 Kategorien
-// (deep-equal). Fehlt E:, macht scanLocalLlm einen comingSoon-Frueh-Return mit
-// LEEREN categories (LlmConfig-Ebene, B-5/buildData-Sache); dann wird die
-// Kategorie-Gleichheit gegen die direkten Bestands-Funktionen geprueft.
-test('llm: Engine-Manifest == scanLocalLlm (deep-equal categories, E:-aware)', () => {
+// Modellroots sind Env/Home, leichte externe Kandidaten und aktive local-
+// Nutzerquellen. Alt-Scanner und Manifest rufen DIESELBEN Funktionen
+// (scanGgufFiles/endpointEntries) gegen diese Roots — strukturell identisch.
+// Fehlen alle Roots, macht scanLocalLlm einen comingSoon-Frueh-Return mit
+// LEEREN categories (LlmConfig-Ebene, B-5/buildData-Sache).
+test('llm: Engine-Manifest == scanLocalLlm (deep-equal categories, root-aware)', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { existsSync } = require('node:fs') as typeof import('node:fs')
   const { alt, manifest, scanProvider } = loadFresh('llm-scan', 'scanLocalLlm', 'llm.manifest', 'llmManifest')
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const llm = require('../../src/main/scan/llm-scan') as typeof import('../../src/main/scan/llm-scan')
   const engineCats = scanProvider(manifest).categories
-  if (existsSync(llm.GGUF_ROOT)) {
-    // E: vorhanden -> Alt liefert exakt die beiden Kategorien.
+  if (llm.ggufRoots().some((root) => existsSync(root))) {
+    // Modellroot vorhanden -> Alt liefert exakt die beiden Kategorien.
     expectSameCategories(alt().categories, engineCats)
   } else {
-    // E: fehlt -> Alt macht comingSoon-Frueh-Return (leere categories). Die
+    // Kein Root -> Alt macht comingSoon-Frueh-Return (leere categories). Die
     // Kategorie-Identitaet wird gegen die direkten Bestands-Funktionen bewiesen.
     expect(alt().categories).toEqual([])
     expect(engineCats.map((c) => c.id)).toEqual(['gguf-models', 'llm-endpoints'])

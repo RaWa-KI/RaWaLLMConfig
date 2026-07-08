@@ -6,7 +6,7 @@
 // andere Specs/Invarianz-Tests). Reine Env/Provider-Funktion, kein FS, kein App-Code.
 import { test, expect } from '@playwright/test'
 import {
-  configRootList, configRoots,
+  configRootList, configRoots, configWatchRootList,
   resolveRoots,
   setUserSourceProviderRootsProvider,
   setUserSourceRootsProvider,
@@ -44,6 +44,14 @@ test('(b) mit Provider -> Quellen additiv HINTEN angehaengt', () => {
   expect(list).toContain('D:\\Extra\\One')
   expect(list).toContain('D:\\Extra\\Two')
   expect(list[list.length - 1]).toBe('D:\\Extra\\Two')
+})
+
+test('(b2) Live-Watcher bleibt auf Basis-Wurzeln begrenzt', () => {
+  clearEnv()
+  setUserSourceRootsProvider(() => ['D:\\Extra\\WideRoot'])
+  expect(configRootList()).toContain('D:\\Extra\\WideRoot')
+  expect(configWatchRootList()).toEqual(baseRoots())
+  expect(configWatchRootList()).not.toContain('D:\\Extra\\WideRoot')
 })
 
 test('(c) Quelle die schon Basis ist wird dedupliziert (case-insensitiv)', () => {

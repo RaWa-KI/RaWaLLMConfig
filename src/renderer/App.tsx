@@ -14,9 +14,11 @@ import { GraphSection } from './sections/graph/GraphSection'
 import { TreeSection } from './sections/baum/TreeSection'
 import { ArchivSection } from './sections/archiv/ArchivSection'
 import { SourcesSection } from './sections/quellen/SourcesSection'
+import { OverviewSection } from './sections/overview/OverviewSection'
 import { OnboardingFlow } from './sections/onboarding/OnboardingFlow'
 import { Drawer } from './components/Drawer'
 import { Toast } from './components/Toast'
+import { StartupProgress } from './components/StartupProgress'
 import { WriteModeBanner } from './components/WriteModeBanner'
 import { useSources } from './state/useSources'
 
@@ -31,11 +33,11 @@ import { useSources } from './state/useSources'
 // unterdrueckt — dort haengt eine eigene Instanz im Section-Header (WP-S: kein
 // Doppel-Indikator "Bearbeiten aktiv").
 export function App() {
-  const { ui, config } = useStore()
+  const { ui, config, system, watcher } = useStore()
   // First-Run-Gate (OSS Teil C): Beim Erststart (Onboarding noch nicht
   // abgeschlossen/uebersprungen) zeigt die App das Vollbild-Onboarding statt der
-  // normalen Oberflaeche. `onboardingDone` ist einbahnig — nach Skip/Abschluss
-  // erscheint die Begruessung nie wieder. Waehrend des Ladens (loading) zeigt der
+  // normalen Oberflaeche. Intern ist der Abschluss versioniert; Settings kann den
+  // Flow erneut oeffnen. Waehrend des Ladens (loading) zeigt der
   // Gate nichts, damit kein Onboarding-Aufblitzen entsteht.
   const sources = useSources()
   if (!sources.loading && !sources.onboardingDone) {
@@ -45,12 +47,18 @@ export function App() {
     <WriteConfigProvider>
       {ui.section !== 'system' && <WriteModeBanner />}
       <LlmBar />
-      <TopBar />
+      <StartupProgress loading={{
+        sources: sources.loading,
+        config: config.loading,
+        system: system.loading,
+        watcher: watcher.loading
+      }} />
+      {ui.section !== 'overview' && <TopBar />}
       {ui.section === 'config' && <HealthBar />}
       <div className="shell">
         {config.loading && ui.section === 'config'
           ? <div className="empty">Config wird geladen…</div>
-          : <SectionBody section={ui.section} />
+          : <SectionBody section={ui.section} onReopenOnboarding={() => void sources.reopenOnboarding()} />
         }
       </div>
       <Drawer />
@@ -61,13 +69,14 @@ export function App() {
 
 // Sektions-Weiche: Baum / Referenz / Graph / System / Updates / Tweaks / Struktur /
 // (Default) Config. Erweiterungs-Zweige (WP-H0) stehen VOR dem Default-Return.
-function SectionBody({ section }: { section: string }) {
+function SectionBody({ section, onReopenOnboarding }: { section: string; onReopenOnboarding: () => void }) {
+  if (section === 'overview') return <OverviewSection />
   if (section === 'baum') return <TreeSection />
   if (section === 'referenz') return <ReferenceSection />
   if (section === 'graph') return <GraphSection />
   if (section === 'system') return <SystemSection />
   if (section === 'updates') return <UpdatesSection />
-  if (section === 'settings') return <SettingsSection />
+  if (section === 'settings') return <SettingsSection onReopenOnboarding={onReopenOnboarding} />
   if (section === 'prefs') return <PrefsSection />
   if (section === 'struktur') return <StrukturSection />
   if (section === 'archiv') return <ArchivSection />

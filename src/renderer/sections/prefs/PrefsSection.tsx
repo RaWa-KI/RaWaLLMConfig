@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import './PrefsSection.css'
 import type { PrefValue } from '@shared/contract-write'
+import { SUPPORTED_LOCALES } from '@shared/messages'
+import { languagePackHint, prefsStoreHint, settingsExpertList } from '@shared/messages/ux-copy'
 import { Icon } from '../../components/Icon'
+import { msg, msgText } from '../../lib/messages'
+import { useLocale } from '../../state/store-locale'
+import { useStore } from '../../state/store'
 import { usePrefs } from '../../state/store-write-prefs'
 
 // PrefsSection — Tweaks/App-Prefs (F-Tweaks). Zeigt die Tweaks an und speichert
@@ -76,6 +81,58 @@ function TweakRow({ def, value, onPick }: {
   )
 }
 
+function LanguageRow() {
+  const { locale, setAppLocale } = useLocale()
+  return (
+    <div className="tweak-row">
+      <div className="tweak-label">{msg('settings.language.label')}</div>
+      <div className="tweak-opts">
+        {SUPPORTED_LOCALES.map((option) => (
+          <button
+            key={option.code}
+            type="button"
+            className={'pill ' + (locale === option.code ? 'active' : 'ghost')}
+            onClick={() => void setAppLocale(option.code)}
+          >
+            {locale === option.code && <span className="pd" />}
+            {msgText(option.labelKey)}
+          </button>
+        ))}
+      </div>
+      <p className="tweak-help">{languagePackHint()}</p>
+    </div>
+  )
+}
+
+function StoreHintCard({ reason, expert }: { reason: string; expert: boolean }) {
+  const hint = prefsStoreHint()
+  return (
+    <div className="card flat prefs-store-hint">
+      <b>{hint.title}</b>
+      <p>{hint.body}</p>
+      <p>{hint.action}</p>
+      {expert && (
+        <div className="prefs-technical-reason">
+          <b>Technischer Grund</b>
+          <code>{reason}</code>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettingsExpertCard() {
+  const items = settingsExpertList()
+  return (
+    <div className="card flat prefs-expert-details">
+      <b>{msg('expertDetails.rawDetails')}</b>
+      <ul>
+        {items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+    </div>
+  )
+}
+
 function BackupPathRow({ value, onPick, onReset }: {
   value: string
   onPick: () => void
@@ -114,6 +171,7 @@ function usePrefsStoreHint(): string | null {
 export function PrefsSection() {
   const { prefs, loading, loadError, setPref } = usePrefs()
   const storeHint = usePrefsStoreHint()
+  const { ui } = useStore()
 
   // Persistierten Zustand sichtbar machen (Live-Vorschau), sobald Prefs da sind.
   useEffect(() => { applyToHtml(prefs) }, [prefs])
@@ -128,8 +186,8 @@ export function PrefsSection() {
     <main className="main" style={{ gridColumn: '1 / -1' }}>
       <div className="view-head">
         <div className="view-title">
-          <h2>Tweaks &amp; Einstellungen</h2>
-          <p>Optik-Tweaks der App · jede Änderung wird mit Backup gespeichert.</p>
+          <h2>Darstellung</h2>
+          <p>Optik, Sprache und Backup-Ordner der App · jede Änderung wird mit Backup gespeichert.</p>
         </div>
       </div>
 
@@ -139,10 +197,9 @@ export function PrefsSection() {
         </div>
       )}
       {storeHint && (
-        <div className="card flat">
-          <div className="empty" style={{ padding: 20 }}>{storeHint}</div>
-        </div>
+        <StoreHintCard reason={storeHint} expert={ui.displayMode === 'expert'} />
       )}
+      {ui.displayMode === 'expert' && <SettingsExpertCard />}
 
       <div className="card prefs-card">
         <div className="prefs-head">
@@ -158,6 +215,7 @@ export function PrefsSection() {
             onPick={(v) => void setPref(def.key, v)}
           />
         ))}
+        <LanguageRow />
         <BackupPathRow
           value={String(prefs.archiveRoot ?? '')}
           onPick={() => void pickArchiveRoot()}

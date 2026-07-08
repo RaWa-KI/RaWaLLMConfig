@@ -14,14 +14,14 @@ export function TopBar() {
   if (ui.section === 'prefs') {
     return (
       <header className="top">
-        <BrandHead variant="prefs" sub="Optik-Tweaks · jede Änderung mit Backup" />
+        <BrandHead variant="prefs" sub="Darstellung · jede Änderung mit Backup" />
       </header>
     )
   }
   if (ui.section === 'settings') {
     return (
       <header className="top">
-        <BrandHead variant="settings" sub="Tweaks · App-Update · Quellen" />
+        <BrandHead variant="settings" sub="Darstellung · Dateien · Updates · Quellen · Module" />
       </header>
     )
   }
@@ -35,7 +35,7 @@ export function TopBar() {
   if (ui.section === 'referenz') {
     return (
       <header className="top">
-        <BrandHead variant="referenz" sub="Alles Anpassbare — Claude & Codex" />
+        <BrandHead variant="referenz" sub="Befehle, Regeln und technische Landkarte" />
       </header>
     )
   }
@@ -63,7 +63,7 @@ export function TopBar() {
   if (ui.section === 'quellen') {
     return (
       <header className="top">
-        <BrandHead variant="quellen" sub="Welche Config-Ordner die App einliest — hinzufügen & verwalten" />
+        <BrandHead variant="quellen" sub="Zusätzliche Ordner hinzufügen und verwalten" />
       </header>
     )
   }
@@ -94,13 +94,13 @@ const BRAND: Record<BrandVariant, { tone: string; icon: string; title: string }>
   system: { tone: 'var(--sage)', icon: 'cpu', title: 'System-Umgebung' },
   updates: { tone: 'var(--papa)', icon: 'refresh', title: 'Toolchain-Watcher' },
   settings: { tone: 'var(--terra)', icon: 'edit', title: 'Einstellungen' },
-  prefs: { tone: 'var(--terra)', icon: 'edit', title: 'Tweaks & Einstellungen' },
+  prefs: { tone: 'var(--terra)', icon: 'edit', title: 'Darstellung' },
   baum: { tone: 'var(--terra)', icon: 'map', title: 'Pfad-Baum' },
-  referenz: { tone: 'var(--terra)', icon: 'book', title: 'Referenz · Landkarte' },
+  referenz: { tone: 'var(--terra)', icon: 'book', title: 'Hilfe & Arbeitsumgebung' },
   graph: { tone: 'var(--sage)', icon: 'net', title: 'Graph · Wissen' },
   archiv: { tone: 'var(--papa)', icon: 'snap', title: 'Archiv · Wiederherstellen' },
   struktur: { tone: 'var(--sage)', icon: 'layers', title: 'Struktur-Scan' },
-  quellen: { tone: 'var(--terra)', icon: 'folder', title: 'Config-Quellen' }
+  quellen: { tone: 'var(--terra)', icon: 'folder', title: 'Zusätzliche Ordner' }
 }
 
 function BrandHead({ variant, sub }: { variant: BrandVariant; sub: string }) {
@@ -162,21 +162,15 @@ function ConfigTop({ llms, active, search, llm, actions }: ConfigTopProps) {
 }
 
 function LlmTab({ def, active, onPick }: { def: LlmDef; active: boolean; onPick: () => void }) {
-  const cls = 'llm-tab' + (active ? ' on' : '') + (def.coming ? ' coming' : '')
+  const cls = 'llm-tab' + (active ? ' on' : '')
   return (
-    <button
-      className={cls}
-      onClick={() => {
-        if (!def.coming) onPick()
-      }}
-    >
+    <button className={cls} onClick={onPick}>
       <span className="lt-dot" style={{ background: def.color }}></span>
       <span className="lt-meta">
         <span className="lt-name">{def.name}</span>
         <span className="lt-sub">{def.sub}</span>
       </span>
       {def.scanError && <span className="lt-tag err" title={def.scanError}>Fehler</span>}
-      {def.coming && <span className="lt-tag">bald</span>}
     </button>
   )
 }

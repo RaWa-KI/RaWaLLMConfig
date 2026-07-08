@@ -18,6 +18,20 @@ html[data-structure="retro"] .row { border: 2px solid var(--ink); box-shadow: va
 .row:hover { transform: translateY(-1px); border-color: var(--terra); }
 html[data-structure="retro"] .row:hover { box-shadow: 5px 6px 0 var(--ink-2); }
 .row.sel { border-color: var(--terra); background: var(--terra-lt); }
+.focus-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 2px solid var(--terra);
+  border-radius: var(--radius-sm);
+  background: var(--terra-lt);
+  color: var(--terra-d);
+}
+.focus-notice b { font-size: 13px; font-weight: 900; }
+.focus-notice span { font-size: 12.5px; font-weight: 700; line-height: 1.45; }
+.focus-notice small { font-size: 11.5px; font-weight: 800; color: var(--text-lt); }
 .row-ic { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); border: 2px solid var(--border); font-size: 17px; }
 .row-ic svg { width: 18px; height: 18px; color: var(--text-lt); }
 .row-main { flex: 1; min-width: 0; }

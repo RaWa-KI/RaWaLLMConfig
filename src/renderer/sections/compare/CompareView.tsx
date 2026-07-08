@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Category } from '@shared/contract'
 import type { CompareCandidate, MultiCompareResult } from '@shared/contract-compare'
 import { Icon } from '../../components/Icon'
+import { msg } from '../../lib/messages'
 import { useStore } from '../../state/store'
 import type { CoverageComparePreset } from '../../state/types'
 import { CompareToolbar } from './CompareToolbar'
 import { CompareSummary } from './CompareSummary'
 import { CompareVirtualRows } from './CompareVirtualRows'
 import { alignColumns } from './compare-logic'
+import { SameFileComparePanel } from './SameFileComparePanel'
+import { buildSameFileGroups, type SameFileGroup } from './same-file-candidates'
 import './CompareView.css'
 
 // CompareView — Container der N-Spalten-Side-by-side-Vergleichsansicht (WP-5).
@@ -26,15 +29,45 @@ interface CompareState {
 
 const INITIAL: CompareState = { result: null, loading: false, error: null, candidates: [] }
 type SummaryMode = 'default' | 'coverage'
+type CompareMode = 'list' | 'same-file'
 
 export function CompareView({ cat }: { cat: Category }) {
-  const { ui } = useStore()
+  const { config, ui } = useStore()
+  const [compareMode, setCompareMode] = useState<CompareMode>('list')
   const { st, preset, summaryMode, handleCompare } = useCompareState(ui.comparePreset)
+  const sameFileGroups = useMemo(() => buildSameFileGroups(config.data), [config.data])
+  const handleSameFileCompare = useCallback((group: SameFileGroup) => {
+    void handleCompare(group.candidates)
+  }, [handleCompare])
   return (
     <div className="cmp-view">
       {preset && <CoveragePresetPanel preset={preset} onStart={() => handleCompare(preset.candidates)} />}
-      <CompareToolbar cat={cat} onCompare={handleCompare} />
+      <CompareModeSwitch mode={compareMode} onModeChange={setCompareMode} />
+      {compareMode === 'list' ? (
+        <CompareToolbar cat={cat} onCompare={handleCompare} />
+      ) : (
+        <SameFileComparePanel groups={sameFileGroups} onCompare={handleSameFileCompare} />
+      )}
       <CompareBody st={st} summaryMode={summaryMode} />
+    </div>
+  )
+}
+
+function CompareModeSwitch({
+  mode,
+  onModeChange,
+}: {
+  mode: CompareMode
+  onModeChange(mode: CompareMode): void
+}) {
+  return (
+    <div className="cmp-mode-switch" role="tablist" aria-label="Vergleichsart">
+      <button type="button" className={mode === 'list' ? 'on' : ''} onClick={() => onModeChange('list')}>
+        {msg('compare.mode.list')}
+      </button>
+      <button type="button" className={mode === 'same-file' ? 'on' : ''} onClick={() => onModeChange('same-file')}>
+        {msg('compare.mode.sameFile')}
+      </button>
     </div>
   )
 }

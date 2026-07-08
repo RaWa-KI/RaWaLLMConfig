@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, IPC_EVENTS } from '@shared/channels'
+import type { IntegrationsApi } from '@shared/channels-integrations'
 import { IPC_WRITE } from '@shared/channels-write'
 import { IPC_UPDATES, IPC_UPDATES_EVENTS } from '@shared/channels-updates'
+import { createIntegrationsApi } from './integrations-api'
 import type {
   AppData,
   System,
@@ -83,6 +85,7 @@ import type {
   SetSourceEnabledRequest,
   SourceListResult,
   DiscoveryResult,
+  ModelDiscoveryResult,
   ProviderChoiceResult,
   PickFolderResult,
   OnboardingDoneResult,
@@ -179,6 +182,8 @@ const sources: SourcesApi = {
     ipcRenderer.invoke(IPC.sourcesList),
   discoverSources: (): Promise<DiscoveryResult> =>
     ipcRenderer.invoke(IPC.sourcesDiscover),
+  discoverModels: (): Promise<ModelDiscoveryResult> =>
+    ipcRenderer.invoke(IPC.sourcesDiscoverModels),
   listProviders: (): Promise<ProviderChoiceResult> =>
     ipcRenderer.invoke(IPC.providersList),
   pickFolder: (): Promise<PickFolderResult> =>
@@ -275,7 +280,9 @@ const integrity: IntegrityApi = {
     ipcRenderer.invoke(IPC_WRITE.integrityApply, req)
 }
 
-const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi = {
+const integrations = createIntegrationsApi(ipcRenderer)
+
+const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & { integrations: IntegrationsApi } = {
   ...read,
   ...write,
   ...updates,
@@ -286,7 +293,8 @@ const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & Graph
   ...compare,
   ...archive,
   ...sources,
-  ...integrity
+  ...integrity,
+  integrations
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

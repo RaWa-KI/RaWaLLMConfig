@@ -3,8 +3,8 @@
 // ununterscheidbar von "nichts konfiguriert" waere. Zwei Ebenen:
 //  (1) scanProvider() setzt scanError, wenn eine Kategorie (hier eine
 //      CustomCategory) wirft — categories bleibt leer, scanError traegt die msg.
-//  (2) buildLlms() entkoppelt coming von scanError: eine Familie mit scanError
-//      ist NICHT 'coming' (bleibt klickbar) und reicht scanError durch.
+//  (2) buildLlms() blendet leere Familien aus, laesst echte scanError-Familien
+//      aber sichtbar und reicht scanError durch.
 // Runner: Playwright (test/expect) als reiner Node-Test-Runner (kein Browser).
 // Secret-frei: nur eine synthetische 'boom'-Fehlermeldung.
 import { test, expect } from '@playwright/test'
@@ -38,22 +38,19 @@ test('scanProvider: crashende Kategorie -> leere categories + sichtbarer scanErr
   expect(res.scanError).toContain('boom')
 })
 
-test('buildLlms: Familie mit scanError ist nicht coming und reicht scanError durch', () => {
+test('buildLlms: Familie mit scanError bleibt sichtbar und reicht scanError durch', () => {
   const data: Record<string, LlmConfig> = {
     claude: { categories: [], duplicates: [], scanError: 'x' },
   }
   const defs = buildLlms(data)
   const claude = defs.find((d) => d.id === 'claude')!
   expect(claude.scanError).toBe('x')
-  // Entkoppelt: trotz leerer Familie NICHT 'coming' (bleibt klickbar).
-  expect(claude.coming).toBe(false)
+  expect(claude.coming).toBeUndefined()
 })
 
-test('buildLlms: leere Familie OHNE scanError bleibt coming (Regression)', () => {
+test('buildLlms: leere Familie OHNE scanError wird ausgeblendet', () => {
   const data: Record<string, LlmConfig> = {
     claude: { categories: [], duplicates: [] },
   }
-  const claude = buildLlms(data).find((d) => d.id === 'claude')!
-  expect(claude.coming).toBe(true)
-  expect(claude.scanError).toBeUndefined()
+  expect(buildLlms(data).find((d) => d.id === 'claude')).toBeUndefined()
 })

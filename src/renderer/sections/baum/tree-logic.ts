@@ -11,7 +11,7 @@ export interface ScopeDef {
 }
 export const SCOPES: ReadonlyArray<ScopeDef> = [
   { id: 'managed', label: 'Managed', icon: 'rule' },
-  { id: 'global', label: 'User · Global', icon: 'globe' },
+  { id: 'global', label: 'Persönlich · Claude/Codex/Agents', icon: 'globe' },
   { id: 'project', label: 'Projekt', icon: 'box' },
   { id: 'local', label: 'Lokal', icon: 'monitor' },
   { id: 'shared', label: 'Geteilt · Cross-WS', icon: 'team' }

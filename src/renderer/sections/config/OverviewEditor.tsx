@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { useWriteConfig } from '../../state/store-write-config'
 import { SICHERUNG, SPEICHERN, WRITE_AUS } from '@shared/dup-labels'
-import { fetchFull } from './use-fetch-full'
+import { msgText } from '../../lib/messages'
+import { useStore } from '../../state/store'
+import type { DisplayMode } from '../../state/types'
+import { useEditorFullContent, type FullState } from './use-editor-full-content'
 import { LineNumberedTextarea } from '../../components/LineNumberedText'
 import './OverviewEditor.css'
 
@@ -11,21 +14,6 @@ import './OverviewEditor.css'
 // Owner-Sicht bekommt den rohen Vollinhalt ohne Reveal-/Maskier-Gate. Mutation
 // läuft weiter über requestWrite -> Confirm -> backup-first; Scanner, Logs und
 // Agentenausgaben bleiben getrennte Sanitizing-Pfade.
-
-interface FullState {
-  loading: boolean
-  content: string
-  error: string | null
-  // true, sobald readFull rohen Vollinhalt geliefert hat.
-  ready: boolean
-}
-
-const EMPTY: FullState = {
-  loading: true,
-  content: '',
-  error: null,
-  ready: false
-}
 
 export function OverviewEditor({
   path,
@@ -37,27 +25,8 @@ export function OverviewEditor({
   onDone(): void
 }) {
   const wc = useWriteConfig()
-  const [full, setFull] = useState<FullState>(EMPTY)
-
-  // Beim Mount/Pfad-Wechsel: rohen Vollinhalt frisch laden (nie entry.code).
-  useEffect(() => {
-    let alive = true
-    setFull(EMPTY)
-    void fetchFull(path, false).then((r) => {
-      if (!alive) return
-      setFull((s) => ({
-        ...s,
-        loading: false,
-        content: r.content,
-        error: r.error,
-        ready: r.error === null
-      }))
-    })
-    return () => {
-      alive = false
-    }
-  }, [path])
-
+  const { ui } = useStore()
+  const { full, setFull } = useEditorFullContent(path)
   const saveBlocked = !full.ready
 
   // Speichern: Confirm-Flow über store-write (edit auf Vollinhalt).
@@ -78,6 +47,7 @@ export function OverviewEditor({
   return (
     <div className="ov-edit">
       <OverviewEditorHead name={name} path={path} />
+      <OverviewEditorModeNote displayMode={ui.displayMode} />
       <OverviewEditorBody
         full={full}
         onChange={(v) => setFull((s) => ({ ...s, content: v }))}
@@ -93,6 +63,11 @@ export function OverviewEditor({
       )}
     </div>
   )
+}
+
+function OverviewEditorModeNote({ displayMode }: { displayMode: DisplayMode }) {
+  const text = displayMode === 'expert' ? msgText('expertDetails.rawDetails') : msgText('simpleMode.riskHint')
+  return <div className={'ove-mode-note ' + displayMode}>{text}</div>
 }
 
 // Kopf: Dateiname + Pfad + „direkt editierbar"-Tag (v4 .diff-col-head).

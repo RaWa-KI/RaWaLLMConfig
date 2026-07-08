@@ -13,7 +13,7 @@ import type {
   StrukturFinding,
   StrukturFindingStatus
 } from '@shared/contract-write'
-import { configRoots } from '../services/config-roots'
+import { configRoots, workspaceRoots } from '../services/config-roots'
 
 // Standard-Config-Ordner, die in bestimmten Roots ERWARTET werden.
 // .claude und .codex = Tool-Home-Ordner; die Sub-Ordner darin sind ihre Kinder.
@@ -55,6 +55,8 @@ interface RootDef {
   allowedTopLevel: ReadonlySet<string>
   // Ordner-Namen, die auf TOP-LEVEL dieses Roots als misplaced gelten.
   warnTopLevel: ReadonlySet<string>
+  // Erwartete Tool-Home-Kontexte unterhalb eines Parent-Roots.
+  knownNestedToolHomes: ReadonlySet<string>
 }
 
 // Roots aus configRoots() beziehen (Single Source, respektiert RAWALLM_SANDBOX_ROOT).
@@ -63,27 +65,40 @@ interface RootDef {
 function buildRootDefs(): Record<string, RootDef> {
   const roots = configRoots()
   const projekte = path.dirname(roots.projectRoot)
+  const knownNestedToolHomes = new Set([
+    roots.sharedClaude,
+    path.join(roots.projectRoot, '.claude'),
+    path.join(roots.projectRoot, '.codex'),
+    ...workspaceRoots().flatMap(({ root }) => [
+      path.join(root, '.claude'),
+      path.join(root, '.codex')
+    ])
+  ].map((p) => p.toLowerCase()))
 
   return {
     [projekte]: {
       label: 'Projekte',
       allowedTopLevel: new Set<string>(),
-      warnTopLevel: new Set([...TOOL_HOME_DIRS, ...CONFIG_SUBDIRS])
+      warnTopLevel: new Set([...TOOL_HOME_DIRS, ...CONFIG_SUBDIRS]),
+      knownNestedToolHomes
     },
     [roots.claudeHome]: {
       label: '~/.claude',
       allowedTopLevel: new Set([...CONFIG_SUBDIRS]),
-      warnTopLevel: new Set<string>()
+      warnTopLevel: new Set<string>(),
+      knownNestedToolHomes: new Set<string>()
     },
     [roots.codexHome]: {
       label: '~/.codex',
       allowedTopLevel: new Set([...CONFIG_SUBDIRS, 'instructions']),
-      warnTopLevel: new Set<string>()
+      warnTopLevel: new Set<string>(),
+      knownNestedToolHomes: new Set<string>()
     },
     [roots.sharedClaude]: {
       label: '.shared/.claude',
       allowedTopLevel: new Set([...CONFIG_SUBDIRS, 'coordination', 'references', 'tools']),
-      warnTopLevel: new Set<string>()
+      warnTopLevel: new Set<string>(),
+      knownNestedToolHomes: new Set<string>()
     }
   }
 }
@@ -137,8 +152,10 @@ function classifyTopLevel(
   let note: string | undefined
 
   if (def.warnTopLevel.has(nameLower)) {
-    status = 'misplaced'
-    note = `"${name}" in ${def.label} — erwartet nicht hier (fehlplatziert)`
+    status = def.label === 'Projekte' && TOOL_HOME_DIRS.has(nameLower) ? 'warn' : 'misplaced'
+    note = status === 'warn'
+      ? `"${name}" in ${def.label} — bekannter PC-/Legacy-Kontext, prüfen statt verschieben`
+      : `"${name}" in ${def.label} — erwartet nicht hier (fehlplatziert)`
   } else if (def.allowedTopLevel.has(nameLower)) {
     const seenKey = `${def.label}::${nameLower}`
     const prevRoot = seen.get(seenKey)
@@ -190,6 +207,7 @@ function walkStep(dir: string, depth: number, ctx: WalkCtx): void {
     // Tiefer als depth 1: nach versteckten Config-Ordnern suchen.
     const isConfigDir = TOOL_HOME_DIRS.has(nameLower) || CONFIG_SUBDIRS.has(nameLower)
     if (isConfigDir) {
+      if (ctx.def.knownNestedToolHomes.has(childPath.toLowerCase())) continue
       ctx.findings.push({
         path: childPath,
         status: 'warn',
@@ -244,7 +262,7 @@ function markDuplicates(findings: StrukturFinding[]): void {
 }
 
 // Handler-Logik (rein, kein ipcMain-Coupling — leicht testbar).
-function handleStrukturScan(_req: StrukturScanRequest | undefined): IpcResult<StrukturScanResultData> {
+export function handleStrukturScan(_req: StrukturScanRequest | undefined): IpcResult<StrukturScanResultData> {
   try {
     const defs = buildRootDefs()
     const findings: StrukturFinding[] = []

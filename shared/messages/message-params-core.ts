@@ -1,0 +1,32 @@
+export type CoreMessageParamsMap = {
+  "settings.language.label": undefined
+  "settings.language.de": undefined
+  "settings.language.en": undefined
+  "settings.tab.tweaks": undefined
+  "settings.tab.updates": undefined
+  "settings.tab.sources": undefined
+  "settings.tab.modules": undefined
+  "settings.reopenOnboarding": undefined
+  "onboarding.modelDiscovery.title": undefined
+  "onboarding.modelDiscovery.empty": undefined
+  "onboarding.modelDiscovery.chooseFolder": undefined
+  "integrations.title": undefined
+  "integrations.aria.modules": undefined
+  "integrations.module.core": undefined
+  "integrations.module.userSources": undefined
+  "integrations.module.sharedTrunk": undefined
+  "integrations.module.workspaceRegistry": undefined
+  "integrations.module.graphify": undefined
+  "integrations.module.obsidian": undefined
+  "integrations.module.watcherGovernance": undefined
+  "integrations.status.notConfigured": undefined
+  "integrations.status.found": undefined
+  "integrations.status.active": undefined
+  "integrations.status.paused": undefined
+  "integrations.status.unavailable": undefined
+  "integrations.action.activate": undefined
+  "integrations.action.pause": undefined
+  "integrations.action.chooseFolder": undefined
+  "integrations.error.loadFailed": undefined
+  "integrations.error.unavailable": undefined
+}

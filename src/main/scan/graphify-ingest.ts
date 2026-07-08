@@ -9,14 +9,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { IPC_WRITE } from '@shared/channels-write'
 import type { IpcResult } from '@shared/contract'
+import type { ResolvedIntegration } from '@shared/contract-integrations'
 import type {
   GraphNode,
   GraphLink,
   GraphWsMetrics,
   GraphIngestResult,
-  GraphIngestAll
+  GraphIngestAll,
+  GraphModuleState,
+  GraphOptionalModuleId
 } from '@shared/contract-graph'
 import { workspaceRoots } from '../services/config-roots'
+import { resolveIntegrations } from '../services/integration-resolve'
 
 // Roh-Form der graphify-out/graph.json. Tolerant: Kanten als `links` ODER (Alt-
 // Shape, caudex) `edges`; zusaetzliche Felder wie `status` werden ignoriert.
@@ -136,11 +140,49 @@ function ingestWs(root: string, label: string): GraphIngestResult {
   }
 }
 
+function defaultGraphModuleState(id: GraphOptionalModuleId): GraphModuleState {
+  return { id, availability: 'notConfigured', root: null, detail: 'Nicht eingerichtet' }
+}
+
+function toGraphModuleState(
+  id: GraphOptionalModuleId,
+  integrations: ResolvedIntegration[]
+): GraphModuleState {
+  const resolved = integrations.find((item) => item.id === id)
+  if (!resolved) return defaultGraphModuleState(id)
+  return {
+    id,
+    availability: resolved.availability,
+    root: resolved.root,
+    detail: resolved.detail
+  }
+}
+
+function graphModuleStates(
+  integrations: ResolvedIntegration[]
+): Record<GraphOptionalModuleId, GraphModuleState> {
+  return {
+    graphify: toGraphModuleState('graphify', integrations),
+    obsidian: toGraphModuleState('obsidian', integrations)
+  }
+}
+
+export function buildGraphIngestAll(
+  roots = workspaceRoots(),
+  integrations = resolveIntegrations()
+): GraphIngestAll {
+  const modules = graphModuleStates(integrations)
+  if (modules.graphify.availability !== 'active') return { workspaces: [], modules }
+  return {
+    workspaces: roots.map((w) => ingestWs(w.root, w.label)),
+    modules
+  }
+}
+
 // Handler-Logik (rein, kein ipcMain-Coupling — leicht testbar).
 function handleGraphIngest(): IpcResult<GraphIngestAll> {
   try {
-    const workspaces = workspaceRoots().map((w) => ingestWs(w.root, w.label))
-    return { data: { workspaces }, error: null }
+    return { data: buildGraphIngestAll(), error: null }
   } catch (err) {
     console.error('[scan:graph]', err instanceof Error ? err.message.slice(0, 60) : 'fail')
     return { data: null, error: 'graph-ingest-fehlgeschlagen' }

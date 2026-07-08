@@ -4,6 +4,30 @@
    bestehende CSS-Variablen (--terra/--papa/--sage/--amber/--lisa/--ink/--warm-gray …).
    Restliche Regeln (Port/Drift) in ReferenceSection-extra.css (HR27-Split). */
 
+.ref-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ref-mode-btn {
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-weight: 850;
+  text-align: left;
+}
+
+.ref-mode-btn.on {
+  border-color: color-mix(in oklab, var(--terra), #000 15%);
+  background: var(--terra-lt);
+  color: var(--terra-d);
+}
+
 /* ── Referenz-Grundgeruest ── */
 .refwrap { display: flex; flex-direction: column; }
 .nav-item.faded { opacity: .4; }
@@ -16,6 +40,10 @@ html[data-structure="lines"] .ref-search, html[data-structure="emboss"] .ref-sea
 .ref-x { display: flex; color: var(--warm-gray); }
 .ref-x svg { width: 14px; height: 14px; }
 .ref-intro { font-size: 14px; font-weight: 600; color: var(--text-lt); line-height: 1.55; max-width: 860px; margin-bottom: 18px; }
+.ref-expert-details { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 18px; }
+.ref-expert-details > span { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 6px 9px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-lt); font-size: 11.5px; font-weight: 750; line-height: 1.35; }
+.ref-expert-details b { color: var(--warm-gray); font-size: 10px; font-weight: 900; letter-spacing: 0; text-transform: uppercase; }
+.ref-expert-details code { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; color: var(--text); font-size: 11.5px; font-weight: 800; }
 
 /* Sidebar-Fusszeile (Stand/Quelle) ohne Inline-Style */
 .ref-side-note { font-size: 11px; font-weight: 700; color: var(--warm-gray); line-height: 1.5; padding: 4px 12px; text-transform: none; letter-spacing: 0; }
@@ -74,6 +102,7 @@ html[data-structure="lines"] .ref-search, html[data-structure="emboss"] .ref-sea
 @media (max-width: 720px) {
   .rf-line { grid-template-columns: 1fr; gap: 2px; }
   .ref-row { grid-template-columns: 1fr; gap: 5px; }
+  .ref-expert-details code { max-width: 220px; }
 }
 
 /* ── Slash-Katalog: Alias, Surface-Badges, Gruppen ── */
@@ -90,16 +119,12 @@ html[data-structure="lines"] .ref-search, html[data-structure="emboss"] .ref-sea
 .rf-group { font-size: 11.5px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; color: var(--warm-gray); padding: 14px 2px 4px; }
 .rf-group:first-child { padding-top: 0; }
 
-/* ── LLM-Switch (Claude/Codex) ── */
-.ref-llm-switch { display: flex; gap: 4px; background: var(--bg); border: 2px solid var(--ink); border-radius: 11px; padding: 4px; margin-bottom: 12px; }
-html[data-structure="lines"] .ref-llm-switch, html[data-structure="emboss"] .ref-llm-switch { border: 1.5px solid var(--border); }
-.rls { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: 800; color: var(--warm-gray); transition: all .14s; }
-.rls:hover:not(.on) { color: var(--text); }
-.rls.on { background: var(--bg-card); color: var(--text); }
-html[data-structure="retro"] .rls.on { box-shadow: 2px 2px 0 var(--ink-2); border: 1.5px solid var(--ink); }
-.rls-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
-.rls-dot.claude { background: var(--terra); }
-.rls-dot.codex { background: var(--papa); }
+/* ── Arbeitsumgebung-Auswahl ── */
+.ref-model-picker { display: grid; gap: 6px; margin-bottom: 12px; }
+.ref-model-picker label { color: var(--warm-gray); font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.ref-model-picker select { width: 100%; min-height: 40px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; background: var(--bg-card); color: var(--text); font: inherit; font-size: 13px; font-weight: 850; }
+html[data-structure="lines"] .ref-model-picker select, html[data-structure="emboss"] .ref-model-picker select { border: 1.5px solid var(--border); }
+.ref-model-picker select:focus { outline: 2px solid color-mix(in oklab, var(--papa) 40%, transparent); outline-offset: 2px; }
 
 /* ── Artefakt-Kopf: Surface-Zeile ── */
 .art-surf { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 9px; }

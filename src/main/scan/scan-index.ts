@@ -8,6 +8,7 @@ import os from 'node:os'
 import type { AppData, Category, ConfigEntry, LlmConfig, LlmDef, Machine, Snapshot } from '@shared/contract'
 import { scanMcp, mcpNames } from './mcp-scan'
 import { scanRegistry } from './engine/build-data'
+import { isProviderScanEnabled } from './integration-filter'
 import { buildAuditConfig } from './scan-audit-categories'
 import { findDuplicates } from '../services/dedupe'
 import { buildCoverage } from '../services/coverage'
@@ -177,7 +178,7 @@ function buildData(): Record<string, LlmConfig> {
     const mcp = scanMcp()
     mergeMcp(data.claude, mcp, 'claude')
     mergeMcp(data.codex, mcp, 'codex')
-    mergeMcp(data.shared, mcp, 'shared')
+    if (isProviderScanEnabled('shared')) mergeMcp(data.shared, mcp, 'shared')
   } catch (err) {
     console.error('[scan:mcp]', err instanceof Error ? err.message : 'scan-error')
   }
@@ -191,33 +192,28 @@ function buildData(): Record<string, LlmConfig> {
 // KEINE Logikaenderung. scanMcp wird im Test direkt aus mcp-scan importiert.
 export { mergeMcp, buildUserglobal, buildData, buildLlms }
 
-// Eine Familie gilt als "befuellt", wenn sie mindestens einen Eintrag hat.
-// Guard gegen fehlende Familie (z.B. data.cloud bei Scan-Fehler) -> nicht crashen.
 function hasEntries(cfg: LlmConfig | undefined): boolean {
   return !!cfg && cfg.categories.some((c) => c.entries.length > 0)
 }
 
-// LlmDef-Liste (Sidebar). Glyph/Name/Sub/Color/Path wie im Bauplan; coming
-// abhaengig davon, ob die jeweilige Familie reale Eintraege geliefert hat.
-// Teil D: 'cloud' (OpenAI/Anthropic/Gemini) als feste Familie; nutzerdefinierte
-// Manifest-Familien (D6) generisch angehaengt (jede data-Familie ausserhalb der
-// bekannten Liste). Farben/Glyphen der neuen Familien sind v1-Defaults (Teil C UI).
+function visible(def: LlmDef, cfg: LlmConfig | undefined): boolean {
+  return hasEntries(cfg) || !!cfg?.scanError
+}
+
 function buildLlms(data: Record<string, LlmConfig>): LlmDef[] {
-  // A8-1: coming-Logik von Scan-Fehlern entkoppelt — eine gecrashte Familie
-  // (data.X.scanError gesetzt) ist NICHT 'coming' (bleibt klickbar) und traegt
-  // scanError durch. So wird ein Scan-Crash nicht als "bald" getarnt/deaktiviert.
   const known: LlmDef[] = [
-    { id: 'shared', glyph: '⊕', name: 'Shared', sub: 'Cross-Workspace', color: 'var(--sage)', path: '.shared', coming: !hasEntries(data.shared) && !data.shared?.scanError, scanError: data.shared?.scanError },
-    { id: 'userglobal', glyph: '◎', name: 'Userglobal', sub: '~/.claude + ~/.codex', color: 'var(--amber)', path: '~', coming: !hasEntries(data.userglobal) && !data.userglobal?.scanError, scanError: data.userglobal?.scanError },
-    { id: 'claude', glyph: '✳', name: 'Claude', sub: 'Anthropic', color: 'var(--terra)', path: '~/.claude', coming: !hasEntries(data.claude) && !data.claude?.scanError, scanError: data.claude?.scanError },
-    { id: 'codex', glyph: '◇', name: 'Codex', sub: 'OpenAI', color: 'var(--papa)', path: '~/.codex', coming: !hasEntries(data.codex) && !data.codex?.scanError, scanError: data.codex?.scanError },
-    { id: 'local', glyph: '▢', name: 'Lokal', sub: 'llama.cpp', color: 'var(--lisa)', path: '~/.ollama', coming: !hasEntries(data.local) && !data.local?.scanError, scanError: data.local?.scanError },
-    { id: 'cloud', glyph: '✦', name: 'Cloud-APIs', sub: 'OpenAI · Anthropic · Gemini', color: 'var(--sage)', path: 'API', coming: !hasEntries(data.cloud) && !data.cloud?.scanError, scanError: data.cloud?.scanError }
-  ]
+    { id: 'shared', glyph: '⊕', name: 'Shared', sub: 'Cross-Workspace', color: 'var(--sage)', path: '.shared', scanError: data.shared?.scanError },
+    { id: 'userglobal', glyph: '◎', name: 'Userglobal', sub: '~/.claude + ~/.codex', color: 'var(--amber)', path: '~', scanError: data.userglobal?.scanError },
+    { id: 'claude', glyph: '✳', name: 'Claude', sub: 'Anthropic', color: 'var(--terra)', path: '~/.claude', scanError: data.claude?.scanError },
+    { id: 'codex', glyph: '◇', name: 'Codex', sub: 'OpenAI', color: 'var(--papa)', path: '~/.codex', scanError: data.codex?.scanError },
+    { id: 'local', glyph: '▢', name: 'Lokal', sub: 'llama.cpp', color: 'var(--lisa)', path: '~/.ollama', scanError: data.local?.scanError },
+    { id: 'cloud', glyph: '✦', name: 'Cloud-APIs', sub: 'OpenAI · Anthropic · Gemini', color: 'var(--sage)', path: 'API', scanError: data.cloud?.scanError }
+  ].filter((def) => visible(def, data[def.id]))
   const knownIds = new Set(known.map((l) => l.id))
   const extras: LlmDef[] = Object.keys(data)
     .filter((id) => !knownIds.has(id))
-    .map((id) => ({ id, glyph: '◆', name: id, sub: 'Nutzerdefiniert', color: 'var(--amber)', path: id, coming: !hasEntries(data[id]) && !data[id]?.scanError, scanError: data[id]?.scanError }))
+    .filter((id) => visible({ id, glyph: '', name: '', sub: '', color: '', path: '' }, data[id]))
+    .map((id) => ({ id, glyph: '◆', name: id, sub: 'Nutzerdefiniert', color: 'var(--amber)', path: id, scanError: data[id]?.scanError }))
   return [...known, ...extras]
 }
 

@@ -57,6 +57,20 @@ html[data-structure="emboss"] .ef-code { border: 2px solid var(--border); }
   color: var(--amber-d);
 }
 
+.ef-mode-note {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ef-mode-note.expert {
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+
 .ef-actions {
   display: flex;
   justify-content: flex-end;

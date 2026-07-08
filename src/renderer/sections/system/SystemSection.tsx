@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { SystemArea, SystemEntry } from '@shared/contract'
 import { useStore } from '../../state/store'
 import { Icon } from '../../components/Icon'
+import { FocusNotice } from '../../components/FocusNotice'
 import { Pill } from '../../components/Pill'
 import { WriteModeBanner } from '../../components/WriteModeBanner'
+import { readOverviewFocus } from '../overview/overview-navigation'
 import { SystemEntryDetail } from './SystemEntryDetail'
 import './SystemSection.css'
 
@@ -17,6 +19,13 @@ export function SystemSection() {
 
   const areas = data.areas
   const area = areas.find((a) => a.id === ui.sysArea) ?? areas[0]
+  useEffect(() => {
+    const focusArea = readOverviewFocus('system')?.focusId?.match(/^system-entry-([^-]+)-/)?.[1]
+    if (focusArea && focusArea !== ui.sysArea && areas.some((a) => a.id === focusArea)) {
+      actions.setSysArea(focusArea)
+    }
+  }, [actions, areas, ui.sysArea])
+
   if (!area) return <SystemEmpty error={null} loading={false} />
 
   return (
@@ -30,6 +39,7 @@ export function SystemSection() {
           </div>
           <RefreshVersionsButton onReload={actions.reload} />
         </div>
+        <FocusNotice section="system" />
         {/* WP-S: schlanker Schreibmodus-Indikator direkt in der System-Ansicht
             (der globale Indikator ist hier in App.tsx unterdrueckt, kein
             Doppel-Indikator). Owner-Entscheid 14:33: kein Aktivieren-Schalter
@@ -128,9 +138,10 @@ function AreaEntries({ area }: { area: SystemArea }) {
 function EntryRow({ icon, entry, areaId }: { icon: string; entry: SystemEntry; areaId: string }) {
   const [open, setOpen] = useState(false)
   const hasFields = entry.fields && Object.keys(entry.fields).length > 0
+  const rowId = `system-entry-${areaId}-${entry.id ?? entry.name}`
 
   return (
-    <div className={'row' + (open ? ' row-open' : '')}>
+    <div id={rowId} className={'row' + (open ? ' row-open' : '')}>
       <div
         onClick={() => hasFields && setOpen((o) => !o)}
         className={'row-summary' + (hasFields ? ' row-summary-clickable' : '')}

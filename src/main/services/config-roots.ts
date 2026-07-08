@@ -10,6 +10,7 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import fs from 'node:fs'
 import type { ProviderRoot } from '@shared/contract-provider'
+import { filterProviderRoots } from '../scan/integration-filter'
 
 // Die vier kanonischen Config-Wurzeln. claudeHome/codexHome sind die Tool-Home-
 // Verzeichnisse; sharedClaude ist der Trunk; projectRoot ist dieser WS.
@@ -107,8 +108,7 @@ export function userSourceRootsForProvider(providerId: string): string[] {
  * vier Basis-Wurzeln (Invarianz).
  */
 export function configRootList(): string[] {
-  const r = configRoots()
-  const base = [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot]
+  const base = configWatchRootList()
   const seen = new Set(base.map((p) => p.toLowerCase()))
   const out = [...base]
   for (const extra of userSourceRoots()) {
@@ -141,6 +141,16 @@ function appendUserRoots(baseRoots: string[], providerId?: string): string[] {
   return out
 }
 
+/**
+ * Schmale Root-Liste fuer den Live-Dateiwatcher. Nutzerquellen koennen sehr breit
+ * sein (z.B. ein kompletter Projekte-Parent oder Modellordner) und duerfen den
+ * App-Start nicht durch rekursives Beobachten blockieren.
+ */
+export function configWatchRootList(): string[] {
+  const r = configRoots()
+  return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot]
+}
+
 export function resolveRoots(roots: ProviderRoot[], providerId?: string): string[] {
   const r = configRoots()
   const baseRoots = roots.map((root) => {
@@ -150,7 +160,9 @@ export function resolveRoots(roots: ProviderRoot[], providerId?: string): string
     const base = root.fixedRoot ?? (root.rootKey ? r[root.rootKey] : '')
     return root.subPath ? join(base, root.subPath) : base
   })
-  return appendUserRoots(baseRoots, providerId)
+  const filteredRoots = filterProviderRoots(providerId, baseRoots)
+  if (baseRoots.length > 0 && filteredRoots.length === 0) return []
+  return appendUserRoots(filteredRoots, providerId)
 }
 
 // ── Workspace-Roots (F6: CLAUDE.md/AGENTS.md ueber ALLE WS einsammeln) ─────

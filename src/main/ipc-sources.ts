@@ -14,7 +14,8 @@ import type {
   AddSourceRequest, SetSourceEnabledRequest,
   SourceMutateResult, UserSource, DiscoveryHit,
   ProviderChoice, SourceListResult, DiscoveryResult,
-  ProviderChoiceResult, PickFolderResult, OnboardingDoneResult
+  ProviderChoiceResult, PickFolderResult, OnboardingDoneResult,
+  ModelDiscoveryHit, ModelDiscoveryResult
 } from '@shared/contract-sources'
 import {
   createSourceStore,
@@ -24,6 +25,7 @@ import {
 import { pickFolder } from './services/folder-picker'
 import { listProviderChoices } from './services/providers-list'
 import { discoverSources } from './services/source-discovery'
+import { discoverLocalModels } from './scan/llm-discovery'
 import { setUserSourceProviderRootsProvider, setUserSourceRootsProvider } from './services/config-roots'
 import { isWriteEnabled } from './services/write-mode'
 import { guarded, guardedAsync } from './lib/guarded'
@@ -74,6 +76,9 @@ export function registerSourcesIpc(): void {
   )
   ipcMain.handle(IPC.sourcesDiscover, (): IpcResult<DiscoveryHit[]> =>
     guarded<DiscoveryHit[]>('sources:discover', () => ({ data: discoverSources(), error: null }))
+  )
+  ipcMain.handle(IPC.sourcesDiscoverModels, (): Promise<ModelDiscoveryResult> =>
+    guardedAsync<ModelDiscoveryHit[]>('sources:discoverModels', async () => ({ data: await discoverLocalModels(), error: null }))
   )
   ipcMain.handle(IPC.providersList, (): IpcResult<ProviderChoice[]> =>
     guarded<ProviderChoice[]>('providers:list', () => ({ data: listProviderChoices(), error: null }))

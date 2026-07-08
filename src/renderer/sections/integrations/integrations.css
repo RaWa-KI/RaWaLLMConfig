@@ -1,0 +1,159 @@
+/* IntegrationsSection — lokale Modulsteuerung in dichter Settings-Dashboardform. */
+
+.mi-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mi-wrap .view-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px 2px 0;
+}
+
+.mi-wrap .view-title h2 {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.mi-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 48ch;
+  color: var(--terra-d);
+  background: var(--terra-lt);
+  border: 1.5px solid color-mix(in oklab, var(--terra) 28%, var(--bg-card));
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mi-message svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.mi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mi-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 158px;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--card-shadow-sm);
+}
+
+.mi-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mi-icon {
+  display: inline-flex;
+  color: var(--terra-d);
+  background: var(--terra-lt);
+  border: 1.5px solid color-mix(in oklab, var(--terra) 30%, var(--bg-card));
+  border-radius: 8px;
+  padding: 7px;
+}
+
+.mi-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.mi-card h3 {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.mi-status {
+  display: inline-flex;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 900;
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: var(--warm-gray);
+  background: color-mix(in oklab, var(--bg-card), var(--border) 56%);
+}
+
+.mi-card--active .mi-status {
+  color: var(--sage-d);
+  background: var(--sage-lt);
+}
+
+.mi-card--found .mi-status {
+  color: var(--papa-d);
+  background: var(--papa-lt);
+}
+
+.mi-card--paused .mi-status {
+  color: var(--amber-d);
+  background: var(--amber-lt);
+}
+
+.mi-card--unavailable .mi-status {
+  color: var(--terra-d);
+  background: var(--terra-lt);
+}
+
+.mi-detail,
+.mi-status-detail,
+.mi-root {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+  color: var(--text-lt);
+}
+
+.mi-root {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mi-status-detail {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.mi-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.mi-actions .btn-ghost {
+  min-height: 30px;
+}
+
+@media (max-width: 1080px) {
+  .mi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .mi-wrap .view-head { align-items: flex-start; flex-direction: column; }
+  .mi-grid { grid-template-columns: 1fr; }
+}

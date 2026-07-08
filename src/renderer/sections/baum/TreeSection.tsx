@@ -22,7 +22,7 @@ export interface CompareCol {
   label: string
 }
 export const COMPARE_COLS: ReadonlyArray<CompareCol> = [
-  { id: 'userglobal', label: 'Userglobal' },
+  { id: 'userglobal', label: 'Persönlich' },
   { id: 'shared', label: 'Shared' },
   { id: 'ws', label: 'WS' },
   { id: 'archiv', label: 'Archiv' }
@@ -114,6 +114,7 @@ export function TreeSection() {
       </div>
 
       <TreeLegend />
+      <TreeScopeHint />
 
       {compare && (
         <div className="mach-head">
@@ -185,6 +186,15 @@ export function TreeSection() {
         />
       )}
     </main>
+  )
+}
+
+function TreeScopeHint() {
+  return (
+    <div className="tree-scope-hint card flat">
+      Persönlich meint die lokalen Nutzerordner wie <code>~/.claude</code>, <code>~/.codex</code> und{' '}
+      <code>~/.agents</code>. Geteilt meint die gemeinsamen Cross-WS-Dateien unter <code>.shared</code>.
+    </div>
   )
 }
 

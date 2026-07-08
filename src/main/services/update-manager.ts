@@ -27,9 +27,10 @@ import { resolveUpdateSource } from './update-config'
 import { buildUpdateInfo } from './update-source-local'
 import type { UpdateSourcePort } from './update-source-port'
 import { getDeps } from './update-manager-deps'
+import { finalizeDownload, requireReadyIntegrity, stageUpdateInstaller } from './update-download-flow'
 import {
   getUpdateState as getStateSnapshot, pushHistory, setPhase, setError,
-  clearError, setAvailable, setStagedPath, markPreviousVersion,
+  clearError, setAvailable, clearKnownRelease, markPreviousVersion,
 } from './update-state'
 import { currentUpdateState, syncUpdateSource, updateCheckPayload } from './update-source-state'
 
@@ -95,7 +96,7 @@ async function runCheck(): Promise<UpdateCheckResult> {
   const manifest = await source.readManifest()
   if (!manifest.sourceConfigured) {
     setPhase('idle')
-    setAvailable(null, null)
+    clearKnownRelease()
     return { data: updateCheckPayload(getUpdateState(), false, null), error: null }
   }
 
@@ -103,7 +104,6 @@ async function runCheck(): Promise<UpdateCheckResult> {
   if (manifest.error || !manifest.release) {
     setPhase('idle')
     syncUpdateSource(source, deps.getVersion(), manifest.error ? 'Quelle gerade nicht erreichbar' : null)
-    setAvailable(null, null)
     return { data: updateCheckPayload(getUpdateState(), false, null), error: null }
   }
 
@@ -136,10 +136,6 @@ interface DownloadReady {
   source: UpdateSourcePort
   freshInfo: UpdateInfo
   destPath: string
-}
-
-function requireReadyIntegrity(source: UpdateSourcePort, sha256Verified: boolean): string | null {
-  return source.kind === 'https' && !sha256Verified ? 'Pruefsumme nicht verifiziert' : null
 }
 
 /** Gates + Manifest-Reload + Dest-Pfad ermitteln. Null bei Fehler (Error bereits gesetzt). */
@@ -205,19 +201,9 @@ export async function downloadUpdate(
     return { data: null, error: persistErr }
   }
 
-  const stage = await source.stageInstaller({
-    info: freshInfo, destPath,
-    onProgress: (copied, total) => {
-      const percentage = total > 0 ? Math.round((copied / total) * 100) : 0
-      onProgress({ phase: 'downloading', copied, total, percentage })
-    },
-  })
+  const stage = await stageUpdateInstaller({ source, freshInfo, destPath, onProgress })
+  if (!('sha256Verified' in stage)) return stage
 
-  if (!stage.ok) {
-    setError(stage.error ?? 'Download fehlgeschlagen')
-    console.error('[update-manager] stageInstaller:', stage.error)
-    return { data: null, error: stage.error ?? 'Download fehlgeschlagen' }
-  }
   const readyErr = requireReadyIntegrity(source, stage.sha256Verified)
   if (readyErr) {
     setError(readyErr)
@@ -225,18 +211,7 @@ export async function downloadUpdate(
     return { data: null, error: readyErr }
   }
 
-  setStagedPath(destPath)
-  setPhase('ready')
-  pushHistory('download-complete')
-
-  return {
-    data: {
-      assetName: freshInfo.assetName, stagedPath: destPath,
-      fileSize: freshInfo.fileSize, sha256Verified: stage.sha256Verified,
-      previousVersion: getDeps().getVersion(),
-    },
-    error: null,
-  }
+  return finalizeDownload(freshInfo, destPath, stage.sha256Verified)
 }
 
 // ---------------------------------------------------------------------------

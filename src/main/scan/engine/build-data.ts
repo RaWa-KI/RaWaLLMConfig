@@ -9,7 +9,8 @@ import type { ProviderManifest } from '@shared/contract-provider'
 import { providerRegistry } from '../manifests'
 import { loadUserManifests } from '../providers/manifest-loader'
 import { scanProvider } from './scan-engine'
-import { GGUF_ROOT, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } from '../llm-scan'
+import { ggufRoots, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } from '../llm-scan'
+import { isProviderScanEnabled } from '../integration-filter'
 
 // Original-data-Key-Reihenfolge (scan-index.ts buildData, M1-Stand). findDuplicates/
 // buildCoverage iterieren data -> Reihenfolge zaehlt. Die Registry-Array-
@@ -38,13 +39,19 @@ function safeScan(name: string, fn: () => LlmConfig): LlmConfig {
   }
 }
 
+function scanIfEnabled(manifest: ProviderManifest): LlmConfig {
+  return isProviderScanEnabled(manifest.id)
+    ? safeScan(manifest.id, () => scanProvider(manifest))
+    : emptyConfig()
+}
+
 // Die llm-comingSoon-Bedingung des Bestands-Scanners (scanLocalLlm: bei fehlendem
-// GGUF_ROOT LEERE categories + diffLabels + comingSoon) auf buildData-Ebene
+// Modellroot LEERE categories + diffLabels + comingSoon) auf buildData-Ebene
 // reproduzieren. Die Engine wuerde stattdessen 2 (leere) Kategorien liefern; bei
-// fehlendem E: muss data.local exakt der Frueh-Return-LlmConfig entsprechen.
+// fehlendem Modellroot muss data.local exakt der Frueh-Return-LlmConfig entsprechen.
 // Anker: llm-scan.ts scanLocalLlm()-Frueh-Return (byte-identische Felder).
 function applyLocalComingSoon(local: LlmConfig): LlmConfig {
-  if (existsSync(GGUF_ROOT)) return local
+  if (ggufRoots().some((root) => existsSync(root))) return local
   return {
     categories: [],
     duplicates: [],
@@ -68,7 +75,7 @@ export function scanRegistry(): Record<string, LlmConfig> {
   // 1) Bestands-Familien in fixer Reihenfolge -> Migrations-Gleichheit (B-6).
   for (const id of DATA_ORDER) {
     const m = byId.get(id)
-    data[id] = m ? safeScan(id, () => scanProvider(m)) : emptyConfig()
+    data[id] = m ? scanIfEnabled(m) : emptyConfig()
   }
   // llm-comingSoon-Frueh-Return (LlmConfig-Ebene) reproduzieren (vor mergeMcp).
   data.local = applyLocalComingSoon(data.local)
@@ -77,13 +84,13 @@ export function scanRegistry(): Record<string, LlmConfig> {
   //    Gleichheit der Bestands-Familien bleibt unberuehrt.
   for (const m of registry) {
     if ((DATA_ORDER as readonly string[]).includes(m.id) || data[m.id]) continue
-    data[m.id] = safeScan(m.id, () => scanProvider(m))
+    data[m.id] = scanIfEnabled(m)
   }
   // 3) Nutzerdefinierte Laufzeit-Manifeste (D6), graceful (fehlendes Verzeichnis
   //    -> leer). Built-in gewinnt bei id-Kollision (kein Override der Bestaende).
   for (const m of loadUserManifests().manifests) {
     if (data[m.id]) continue
-    data[m.id] = safeScan(m.id, () => scanProvider(m))
+    data[m.id] = scanIfEnabled(m)
   }
   return data
 }

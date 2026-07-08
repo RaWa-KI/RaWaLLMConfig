@@ -13,6 +13,13 @@ import { applyWrite } from '../../src/main/services/apply'
 import type { WriteResult } from '../../shared/contract-write'
 import { parseImportSource, applyImportItems } from '../../src/renderer/lib/import'
 import { buildConflictExportBundle, collectEntries, buildExportBundle } from '../../src/renderer/lib/export'
+import {
+  bundleSummaryText,
+  conflictBundleFilename,
+  conflictBundleReportMetadata,
+  fullBundleFilename,
+  fullBundleReportMetadata
+} from '../../shared/templates/export-report'
 import { makeSandbox, seedFile, sandboxPath, exists } from './fixtures'
 import type { Sandbox } from './fixtures'
 
@@ -199,4 +206,16 @@ test('buildConflictExportBundle exportiert nur Konflikt-Eintraege', () => {
   const bundle = buildConflictExportBundle({ config, system: null, watcher: null })
   expect(bundle.filter).toBe('conflicts')
   expect(bundle.entries.map((e) => e.path)).toEqual(['bad.md'])
+})
+
+test('Export-Report-Templates halten Dateinamen und Reporttexte stabil', () => {
+  const exported = '2026-07-07T07:15:30.000Z'
+  const fullMeta = fullBundleReportMetadata()
+  const conflictMeta = conflictBundleReportMetadata()
+
+  expect(fullBundleFilename(exported)).toBe('rawallmconfig-2026-07-07.json')
+  expect(conflictBundleFilename(exported)).toBe('rawallmconfig-konflikte-2026-07-07.json')
+  expect(fullMeta).toMatchObject({ app: 'rawallmconfig', version: 1, kind: 'full' })
+  expect(conflictMeta).toMatchObject({ filter: 'conflicts', kind: 'conflicts' })
+  expect(bundleSummaryText(conflictMeta, 2)).toBe('Konflikt-Export: 2 Eintraege')
 })

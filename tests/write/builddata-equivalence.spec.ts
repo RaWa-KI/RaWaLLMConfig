@@ -21,6 +21,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LlmConfig } from '../../shared/contract'
+import type { IntegrationActivation } from '../../shared/contract-integrations'
 
 // ── Fresh-Load-Harness ─────────────────────────────────────────────────────
 // Scan-/Manifest-/Engine-/Service-Module aus dem require-Cache werfen, damit ihre
@@ -109,6 +110,19 @@ function md(desc: string, title: string): string {
   return ['---', `description: ${desc}`, '---', `# ${title}`, '', 'Inhalt-Zeile.', ''].join('\n')
 }
 
+function enableShared(root: string): void {
+  const state: IntegrationActivation[] = [
+    { id: 'core', enabled: true, paused: false, root: null, updatedAt: '1970-01-01T00:00:00.000Z' },
+    { id: 'user-sources', enabled: true, paused: false, root: null, updatedAt: '1970-01-01T00:00:00.000Z' },
+    { id: 'shared-trunk', enabled: true, paused: false, root: join(root, '.shared', '.claude'), updatedAt: '2026-07-07T00:00:00.000Z' },
+    { id: 'workspace-registry', enabled: false, paused: false, root: null, updatedAt: '1970-01-01T00:00:00.000Z' },
+    { id: 'graphify', enabled: false, paused: false, root: null, updatedAt: '1970-01-01T00:00:00.000Z' },
+    { id: 'obsidian', enabled: false, paused: false, root: null, updatedAt: '1970-01-01T00:00:00.000Z' },
+    { id: 'watcher-governance', enabled: false, paused: false, root: null, updatedAt: '1970-01-01T00:00:00.000Z' },
+  ]
+  writeFileSync(join(root, 'integrations.json'), JSON.stringify(state, null, 2), 'utf8')
+}
+
 // Vollstaendige Sandbox fuer alle 4 Familien (deckt mergeMcp + userglobal mit ab).
 function seedAll(root: string): void {
   const { claude, codex, shared } = sandboxRoots(root)
@@ -179,6 +193,7 @@ test.afterEach(() => {
 // ── Voll-AppData-Gleichheit (legacy == registry) ────────────────────────────
 test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl. diffLabels/comingSoon/Reihenfolge', () => {
   seedAll(sandboxRoot)
+  enableShared(sandboxRoot)
   const { buildData, legacyBuildData } = loadFresh()
   const oldData = legacyBuildData()
   const newData = buildData()
@@ -219,16 +234,17 @@ test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl.
   expect(JSON.stringify(newData.cloud)).not.toContain('dummy')
 })
 
-// ── llm-comingSoon-Frueh-Return (GGUF_ROOT-fehlt-Branch) ────────────────────
-// GGUF_ROOT liegt ausserhalb der Sandbox. Fehlt GGUF_ROOT, MUSS data.local
+// ── llm-comingSoon-Frueh-Return (Modellroot-fehlt-Branch) ───────────────────
+// Modellroots liegen ausserhalb der Sandbox. Fehlen alle Roots, MUSS data.local
 // der byte-identische comingSoon-Frueh-Return sein (LEERE categories + diffLabels
-// + comingSoon), nicht die 2 Engine-Kategorien. Bei vorhandenem E: liefern beide
-// Pfade dieselben 2 Kategorien (durch das Voll-deep-equal oben mit abgedeckt).
-test('llm-comingSoon: bei fehlendem GGUF_ROOT liefern beide Pfade den leeren comingSoon-Return', () => {
+// + comingSoon), nicht die 2 Engine-Kategorien. Bei vorhandenem Root liefern
+// beide Pfade dieselben 2 Kategorien (durch das Voll-deep-equal oben abgedeckt).
+test('llm-comingSoon: ohne Modellroot liefern beide Pfade den leeren comingSoon-Return', () => {
   seedAll(sandboxRoot)
+  enableShared(sandboxRoot)
   /* eslint-disable @typescript-eslint/no-var-requires */
-  const { GGUF_ROOT, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } = require('../../src/main/scan/llm-scan') as {
-    GGUF_ROOT: string
+  const { ggufRoots, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } = require('../../src/main/scan/llm-scan') as {
+    ggufRoots: () => string[]
     LOCAL_DIFF_LABELS: unknown
     LOCAL_COMING_SOON: unknown
   }
@@ -238,13 +254,13 @@ test('llm-comingSoon: bei fehlendem GGUF_ROOT liefern beide Pfade den leeren com
   const newLocal = buildData().local
 
   expect(newLocal).toEqual(oldLocal)
-  if (!existsSync(GGUF_ROOT)) {
-    // GGUF_ROOT fehlt -> exakter Frueh-Return aus scanLocalLlm.
+  if (!ggufRoots().some((root) => existsSync(root))) {
+    // Kein Modellroot -> exakter Frueh-Return aus scanLocalLlm.
     expect(newLocal.categories).toEqual([])
     expect(newLocal.diffLabels).toEqual(LOCAL_DIFF_LABELS)
     expect(newLocal.comingSoon).toEqual(LOCAL_COMING_SOON)
   } else {
-    // GGUF_ROOT vorhanden -> 2 Kategorien, kein comingSoon (beide Pfade identisch).
+    // Mindestens ein Modellroot vorhanden -> 2 Kategorien, kein comingSoon.
     expect(newLocal.categories.map((c) => c.id)).toEqual(['gguf-models', 'llm-endpoints'])
     expect(newLocal.comingSoon).toBeUndefined()
   }

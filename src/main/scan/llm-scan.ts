@@ -5,9 +5,10 @@
 // (llama-server :8099, Brain-Adapter :11500).
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import type { Category, ComingSoon, ConfigEntry, DiffLabels, LlmConfig } from '@shared/contract'
 import { fmtSize } from '../lib/fmt-size'
+import { userSourceRootsForProvider } from '../services/config-roots'
 
 // DiffLabels fuer lokale Familie: kein Shared-Trunk-Vergleich moeglich
 // (GGUF-Binaerdateien + Endpoints sind nicht reconcile-faehig).
@@ -23,13 +24,35 @@ const LOCAL_DIFF_LABELS: DiffLabels = {
 // buildData-Ebene am Alt-Code verankern kann statt den Text zu duplizieren.
 const LOCAL_COMING_SOON: ComingSoon = {
   title: 'Lokale LLMs nicht erreichbar',
-  text: 'Lokaler GGUF-Ordner wurde nicht gefunden. Setze RAWALLM_GGUF_ROOT oder lege Modelle unter deinem Benutzerprofil ab; Inferenz-Endpoints (llama-server :8099, Brain-Adapter :11500) werden angezeigt, sobald der Datentraeger verfuegbar ist.',
+  text: 'Lokaler GGUF-Ordner wurde nicht gefunden. Waehle einen Modellordner oder nutze RAWALLM_GGUF_ROOT; Inferenz-Endpoints werden angezeigt, sobald ein lokaler Server erreichbar ist.',
 }
 
 // Basis-Pfad: public-freundlicher Default unter dem Benutzerprofil, optional
 // per RAWALLM_GGUF_ROOT auf ein lokales Modell-Laufwerk umlegbar.
 export const GGUF_ROOT = process.env.RAWALLM_GGUF_ROOT || join(homedir(), 'models', 'gguf')
 const GGUF_EXT = '.gguf'
+const WINDOWS_MODEL_DRIVES = 'DEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+function externalGgufCandidates(): string[] {
+  if (process.platform !== 'win32') return []
+  return WINDOWS_MODEL_DRIVES.map((drive) => `${drive}:\\models\\gguf`)
+}
+
+function dedupeRoots(roots: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const root of roots) {
+    const key = root.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(root)
+  }
+  return out
+}
+
+export function ggufRoots(): string[] {
+  return dedupeRoots([GGUF_ROOT, ...externalGgufCandidates(), ...userSourceRootsForProvider('local')])
+}
 
 /** mtime als ISO-Datum (ohne Uhrzeit), graceful bei Fehler. */
 function mtimeIso(absPath: string): string {
@@ -72,25 +95,27 @@ function toEntry(absPath: string, fileName: string, modelDir: string): ConfigEnt
   }
 }
 
-/** GGUF_ROOT rekursiv (1 Ebene tief) nach *.gguf scannen. */
-function scanGgufFiles(): ConfigEntry[] {
+/** GGUF-Wurzeln rekursiv (1 Ebene tief) nach *.gguf scannen. */
+function scanGgufFiles(roots = ggufRoots()): ConfigEntry[] {
   const entries: ConfigEntry[] = []
-  for (const name of safeReaddir(GGUF_ROOT)) {
-    const child = join(GGUF_ROOT, name)
-    let isDir = false
-    try {
-      isDir = statSync(child).isDirectory()
-    } catch {
-      isDir = false
-    }
-    if (isDir) {
-      for (const inner of safeReaddir(child)) {
-        if (inner.toLowerCase().endsWith(GGUF_EXT)) {
-          entries.push(toEntry(join(child, inner), inner, name))
-        }
+  for (const root of roots.filter((item) => existsSync(item))) {
+    for (const name of safeReaddir(root)) {
+      const child = join(root, name)
+      let isDir = false
+      try {
+        isDir = statSync(child).isDirectory()
+      } catch {
+        isDir = false
       }
-    } else if (name.toLowerCase().endsWith(GGUF_EXT)) {
-      entries.push(toEntry(child, name, 'gguf'))
+      if (isDir) {
+        for (const inner of safeReaddir(child)) {
+          if (inner.toLowerCase().endsWith(GGUF_EXT)) {
+            entries.push(toEntry(join(child, inner), inner, name))
+          }
+        }
+      } else if (name.toLowerCase().endsWith(GGUF_EXT)) {
+        entries.push(toEntry(child, name, basename(root) || 'gguf'))
+      }
     }
   }
   return entries.sort((a, b) => a.name.localeCompare(b.name))
@@ -169,7 +194,8 @@ export { scanGgufFiles, endpointEntries, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON }
  */
 export function scanLocalLlm(): LlmConfig {
   try {
-    if (!existsSync(GGUF_ROOT)) {
+    const roots = ggufRoots().filter((root) => existsSync(root))
+    if (roots.length === 0) {
       return {
         categories: [],
         duplicates: [],
@@ -178,13 +204,13 @@ export function scanLocalLlm(): LlmConfig {
       }
     }
 
-    const models = scanGgufFiles()
+    const models = scanGgufFiles(roots)
     const categories: Category[] = [
       {
         id: 'gguf-models',
         label: 'GGUF-Modelle',
         icon: 'list',
-        path: GGUF_ROOT,
+        path: roots.length === 1 ? roots[0] : `${roots.length} Modellordner`,
         blurb: 'Lokale Modelle fuer llama-server (read-only, nur Datei-Metadaten)',
         entries: models,
       },

@@ -41,6 +41,20 @@
   word-break: break-all;
 }
 
+.ove-mode-note {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sage-lt);
+  color: var(--sage-d);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ove-mode-note.expert {
+  background: var(--papa-lt);
+  color: var(--papa-d);
+}
+
 /* Editier-Fläche (volle, frisch geladene Datei). */
 .ove-code {
   width: 100%;

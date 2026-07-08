@@ -14,6 +14,12 @@
 // (kein Re-Import-Truncation-Zurueckschreiben).
 import type { AppData, EntryStatus, System, Watcher } from '@shared/contract'
 import { isSecretPathForWrite } from '@shared/secret-class'
+import {
+  conflictBundleFilename,
+  conflictBundleReportMetadata,
+  fullBundleFilename,
+  fullBundleReportMetadata
+} from '@shared/templates/export-report'
 
 const TRUNC_MARK = '… (gekuerzt)'
 // Export-Anzeige-Logik (liest die Scan-Maskierung), KEIN Save-Guard-Sentinel.
@@ -77,9 +83,10 @@ export function collectEntries(config: AppData | null): ExportEntry[] {
 }
 
 function buildBundle(payload: ExportPayload): ExportBundle {
+  const meta = fullBundleReportMetadata()
   return {
-    app: 'rawallmconfig',
-    version: 1,
+    app: meta.app,
+    version: meta.version,
     exported: new Date().toISOString(),
     config: payload.config,
     system: payload.system,
@@ -89,7 +96,8 @@ function buildBundle(payload: ExportPayload): ExportBundle {
 }
 
 function buildFilteredBundle(payload: ExportPayload, filter: string, entries: ExportEntry[]): ExportBundle {
-  return { ...buildBundle(payload), filter, entries }
+  const meta = conflictBundleReportMetadata()
+  return { ...buildBundle(payload), filter: meta.filter ?? filter, entries }
 }
 
 function triggerDownload(json: string, filename: string): void {
@@ -110,8 +118,7 @@ export function buildExportBundle(payload: ExportPayload): ExportBundle {
 export function exportBundle(payload: ExportPayload): void {
   const bundle = buildBundle(payload)
   const json = JSON.stringify(bundle, null, 2)
-  const stamp = bundle.exported.slice(0, 10)
-  triggerDownload(json, `rawallmconfig-${stamp}.json`)
+  triggerDownload(json, fullBundleFilename(bundle.exported))
 }
 
 export function buildConflictExportBundle(payload: ExportPayload): ExportBundle {
@@ -122,7 +129,6 @@ export function buildConflictExportBundle(payload: ExportPayload): ExportBundle 
 export function exportConflictBundle(payload: ExportPayload): number {
   const bundle = buildConflictExportBundle(payload)
   const json = JSON.stringify(bundle, null, 2)
-  const stamp = bundle.exported.slice(0, 10)
-  triggerDownload(json, `rawallmconfig-konflikte-${stamp}.json`)
+  triggerDownload(json, conflictBundleFilename(bundle.exported))
   return bundle.entries.length
 }

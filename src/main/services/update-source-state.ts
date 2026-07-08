@@ -5,7 +5,7 @@ import { getUpdateState as getStateSnapshot, setSourceState } from './update-sta
 
 export function updateSourceLabel(desc: UpdateSourceDescription): string {
   if (!desc.configured) return 'Quelle gerade nicht erreichbar'
-  return desc.kind === 'local' ? 'Lokaler Update-Ordner' : 'Öffentliche Releases'
+  return desc.kind === 'local' ? 'Lokaler Update-Ordner' : 'Öffentliche Releases (GitHub)'
 }
 
 export function syncUpdateSource(

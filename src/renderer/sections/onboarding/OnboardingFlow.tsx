@@ -5,82 +5,36 @@
 // laufen ueber die uebergebene `src`-Schnittstelle — kein Direktzugriff auf
 // window/IPC. Treffer sind per Default angehakt (Owner-Entscheid); Ueberspringen
 // ist erlaubt. Nach Uebernehmen/Ueberspringen wird der Erststart abgeschlossen.
-import { useEffect, useState, type ReactElement } from 'react'
-import type { DiscoveryHit } from '@shared/contract-sources'
+import type { ReactElement } from 'react'
+import type { DiscoveryHit, ModelDiscoveryHit } from '@shared/contract-sources'
 import type { UseSources } from '../../state/useSources'
 import { Icon } from '../../components/Icon'
-import { DiscoveryStep } from './DiscoveryStep'
+import { ModelDiscoveryStep } from './ModelDiscoveryStep'
+import { SourceChoiceStep } from './SourceChoiceStep'
+import { useOnboardingFlow, type OnboardingPhase } from './useOnboardingFlow'
 import './onboarding.css'
 
-type Phase = 'scan' | 'choose' | 'busy'
-
 export function OnboardingFlow({ src }: { src: UseSources }): ReactElement {
-  const [phase, setPhase] = useState<Phase>('scan')
-  const [hits, setHits] = useState<DiscoveryHit[]>([])
-  // Angehakte Treffer (Schluessel = root). Vorbelegt AKTIV (Owner-Entscheid).
-  const [picked, setPicked] = useState<Set<string>>(new Set())
-
-  // Beim Oeffnen einmal die Standard-Ordner suchen und alle vorauswaehlen.
-  useEffect(() => {
-    let live = true
-    void (async () => {
-      const found = await src.discover()
-      if (!live) return
-      setHits(found)
-      setPicked(new Set(found.map((h) => h.root)))
-      setPhase('choose')
-    })()
-    return () => {
-      live = false
-    }
-  }, [src])
-
-  function toggle(root: string): void {
-    setPicked((prev) => {
-      const next = new Set(prev)
-      if (next.has(root)) next.delete(root)
-      else next.add(root)
-      return next
-    })
-  }
-
-  // Ausgewaehlte Treffer als Quellen aufnehmen, dann Erststart abschliessen.
-  async function takeOver(): Promise<void> {
-    setPhase('busy')
-    for (const hit of hits) {
-      if (!picked.has(hit.root)) continue
-      await src.addSource({ root: hit.root, providerId: hit.providerId, label: hit.label, enabled: true })
-    }
-    await src.completeOnboarding()
-  }
-
-  async function skip(): Promise<void> {
-    setPhase('busy')
-    await src.completeOnboarding()
-  }
-
-  // Eigenen Ordner waehlen: liefert nur einen Pfad. Als generische Claude-Quelle
-  // aufnehmen; die volle Verwaltung (Provider aendern, entfernen) kommt spaeter
-  // in der Quellen-Sektion. Bricht der Nutzer ab, passiert nichts.
-  async function pickOwn(): Promise<void> {
-    const path = await src.pickFolder()
-    if (!path) return
-    const exists = hits.some((h) => h.root === path)
-    if (!exists) setHits((prev) => [...prev, { root: path, providerId: 'claude', label: path }])
-    setPicked((prev) => new Set(prev).add(path))
-  }
+  const flow = useOnboardingFlow(src)
 
   return (
     <div className="ob-screen">
       <div className="ob-card">
         <ObHeader />
-        <ObBody phase={phase} hits={hits} picked={picked} onToggle={toggle} />
+        <ObBody
+          phase={flow.phase}
+          hits={flow.hits}
+          modelHits={flow.modelHits}
+          picked={flow.picked}
+          onToggle={flow.toggle}
+          onPickModelFolder={() => void flow.pickModelFolder()}
+        />
         <ObActions
-          phase={phase}
-          pickedCount={picked.size}
-          onTakeOver={() => void takeOver()}
-          onSkip={() => void skip()}
-          onPickOwn={() => void pickOwn()}
+          phase={flow.phase}
+          pickedCount={flow.picked.size}
+          onTakeOver={() => void flow.takeOver()}
+          onSkip={() => void flow.skip()}
+          onPickOwn={() => void flow.pickOwn()}
         />
       </div>
     </div>
@@ -101,12 +55,14 @@ function ObHeader(): ReactElement {
 }
 
 function ObBody(props: {
-  phase: Phase
+  phase: OnboardingPhase
   hits: DiscoveryHit[]
+  modelHits: ModelDiscoveryHit[]
   picked: Set<string>
   onToggle: (root: string) => void
+  onPickModelFolder: () => void
 }): ReactElement {
-  const { phase, hits, picked, onToggle } = props
+  const { phase, hits, modelHits, picked, onToggle, onPickModelFolder } = props
   if (phase === 'scan') {
     return (
       <div className="ob-state">
@@ -115,27 +71,16 @@ function ObBody(props: {
       </div>
     )
   }
-  if (hits.length === 0) {
-    return (
-      <div className="ob-state">
-        <span className="ob-state-ic" aria-hidden>{Icon.folder}</span>
-        <p>
-          Keine Standard-Ordner gefunden — du kannst die App leer starten und
-          später Ordner hinzufügen.
-        </p>
-      </div>
-    )
-  }
   return (
-    <div className="ob-list-wrap">
-      <p className="ob-list-hint">Gefundene Ordner ({hits.length}):</p>
-      <DiscoveryStep hits={hits} selected={picked} onToggle={onToggle} />
-    </div>
+    <>
+      <ModelDiscoveryStep hits={modelHits} onPickModelFolder={onPickModelFolder} busy={phase === 'busy'} />
+      <SourceChoiceStep hits={hits} picked={picked} onToggle={onToggle} />
+    </>
   )
 }
 
 function ObActions(props: {
-  phase: Phase
+  phase: OnboardingPhase
   pickedCount: number
   onTakeOver: () => void
   onSkip: () => void

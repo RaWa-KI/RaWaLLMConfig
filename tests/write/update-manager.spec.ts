@@ -125,7 +125,7 @@ test.describe('checkForUpdates', () => {
     const st = getUpdateState()
     expect(st.sourceConfigured).toBe(true)
     expect(st.sourceKind).toBe('https')
-    expect(st.sourceLabel).toBe('Öffentliche Releases')
+    expect(st.sourceLabel).toBe('Öffentliche Releases (GitHub)')
   })
 
   test('ungueltige Quelle -> sourceConfigured false, kein Update', async () => {
@@ -167,8 +167,8 @@ test.describe('checkForUpdates', () => {
     const r = await checkForUpdates()
     expect(r.error).toBe(null)
     expect(r.data?.hasUpdate).toBe(false)
-    expect(r.data?.sourceConfigured).toBe(true)
-    expect(r.data?.latestVersion).toBe(null)
+    expect([r.data?.sourceConfigured, r.data?.lastSourceError]).toEqual([true, 'Quelle gerade nicht erreichbar'])
+    expect(r.data?.latestVersion).toBe('9.9.9')
     expect(getUpdateState().phase).toBe('idle')
   })
 })

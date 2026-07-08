@@ -13,6 +13,7 @@ export const IPC = {
   // Endnutzer-Quellen-Verwaltung (OSS Teil C) — read-only Kanaele (kein Gate).
   sourcesList: 'sources:list',
   sourcesDiscover: 'sources:discover',
+  sourcesDiscoverModels: 'sources:discoverModels',
   providersList: 'providers:list',
   sourcesPickFolder: 'sources:pickFolder',
   sourcesOnboardingGet: 'sources:onboardingDone'

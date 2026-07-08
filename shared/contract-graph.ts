@@ -4,6 +4,16 @@
 // Kanten = `links` (NICHT `edges`); Alt-Shape `edges`/`status` (caudex) als Fallback
 // beim Parsen im Main (graphify-ingest.ts). Hier nur das normalisierte Resultat.
 // Ausgelagert aus contract.ts (R3, 300-Z-Limit). Nie Secret-Inhalt — nur Metadaten.
+import type { IntegrationAvailability } from './contract-integrations'
+
+export type GraphOptionalModuleId = 'graphify' | 'obsidian'
+
+export interface GraphModuleState {
+  id: GraphOptionalModuleId
+  availability: IntegrationAvailability
+  root: string | null
+  detail: string | null
+}
 
 // Ein Knoten aus graphify-out/graph.json (normalisiert). `id` ist der einzige
 // Pflichtwert; file_type/community sind optionale Metadaten fuer Faerbung/Cluster.
@@ -45,6 +55,7 @@ export interface GraphIngestResult {
 // Gesamt-Container ueber alle Workspaces (IPC-Nutzlast graph:ingest).
 export interface GraphIngestAll {
   workspaces: GraphIngestResult[]
+  modules: Record<GraphOptionalModuleId, GraphModuleState>
 }
 
 // ── Ignore-Scopes der Graph-Sektion (WP-B4) ──────────────────────────────
@@ -59,6 +70,7 @@ export type IgnoreScope = 'obsidian' | 'graphify' | 'gitignore'
 export interface IgnoreScopeState {
   exists: boolean
   content: string
+  availability: IntegrationAvailability
 }
 
 // READ-Resultat: aktueller Stand aller drei Scopes (read-only, kein Gate).
@@ -66,6 +78,7 @@ export interface GraphIgnores {
   obsidian: IgnoreScopeState
   graphify: IgnoreScopeState
   gitignore: IgnoreScopeState
+  modules: Record<GraphOptionalModuleId, GraphModuleState>
 }
 
 // WRITE-Request: genau EIN Scope wird geschrieben (kein Zwangs-Sync der anderen).

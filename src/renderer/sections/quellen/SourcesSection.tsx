@@ -44,12 +44,12 @@ export function SourcesSection() {
   }
 
   return (
-    <main className="main qs-wrap">
+    <main id="settings-tab-sources" className="main qs-wrap">
       <div className="view-head">
         <div className="view-title">
-          <h2>Config-Quellen</h2>
+          <h2>Zusätzliche Ordner</h2>
           <p>
-            Diese Ordner durchsucht die App zusätzlich nach Config-Dateien. Die Standard-Ordner
+            Diese Ordner durchsucht die App zusätzlich nach Einstellungsdateien. Die Standard-Ordner
             werden ohnehin gelesen — hier ergänzt du nur eigene Pfade.
           </p>
         </div>

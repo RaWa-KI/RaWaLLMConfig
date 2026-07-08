@@ -13,6 +13,7 @@ import type { ArchiveApi } from '@shared/contract-archive'
 import type { SourcesApi } from '@shared/contract-sources'
 import type { IntegrityApi } from '@shared/contract-integrity'
 import type { ConfigWatcherFsApi } from '@shared/contract-watcher-fs'
+import type { IntegrationsApi } from '@shared/channels-integrations'
 
 // Read-only Innendatei-Liste (config:listDir). Eigene Bridge-Methode am
 // electronAPI (Preload-`ListDirApi`), weil ElectronApi/contract.ts sie nicht
@@ -49,7 +50,7 @@ interface CompareApi {
 // Optional, weil die Bridge im Browser-/Test-Kontext fehlen kann.
 declare global {
   interface Window {
-    electronAPI?: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi
+    electronAPI?: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & { integrations: IntegrationsApi }
   }
 }
 

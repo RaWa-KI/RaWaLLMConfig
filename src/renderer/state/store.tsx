@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { EntryStatus } from '@shared/contract'
-import type { ImportDialogState, Mode, Section, Selection, StoreValue, ToastMsg } from './types'
+import type { DisplayMode, ImportDialogState, Mode, Section, Selection, StoreValue, ToastMsg } from './types'
 import { useComparePresetState } from './compare-preset'
 import { useConfigLoad } from './useConfigLoad'
 
 const StoreContext = createContext<StoreValue | null>(null)
+const DISPLAY_MODE_KEY = 'rawallmconfig.displayMode'
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { config, system, watcher, loadAll, loadConfig, loadSystem, loadWatcher } = useConfigLoad()
@@ -17,10 +18,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 }
 
 function useStoreUiState() {
-  const [section, setSection] = useState<Section>('config')
+  const [section, setSection] = useState<Section>('overview')
   const [llm, setLlm] = useState<string>('claude')
   const [catId, setCatId] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('overview')
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(readDisplayMode)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<EntryStatus | null>(null)
   const [sysArea, setSysArea] = useState('')
@@ -33,13 +35,15 @@ function useStoreUiState() {
   // nie das vorhandene mutieren. Reset bei Kategorie-/Sektion-/Familienwechsel.
   const [compareSel, setCompareSel] = useState<Set<string>>(() => new Set())
   const { comparePreset, setComparePreset, clearComparePreset } = useComparePresetState()
-  const state = { section, llm, catId, mode, search, statusFilter, sysArea, sel, toast, compareSel, comparePreset, importDialog }
+  useEffect(() => persistDisplayMode(displayMode), [displayMode])
+  const state = { section, llm, catId, mode, displayMode, search, statusFilter, sysArea, sel, toast, compareSel, comparePreset, importDialog }
   return {
     state,
     setSection,
     setLlm,
     setCatId,
     setMode,
+    setDisplayMode,
     setSearch,
     setStatusFilter,
     setSysArea,
@@ -68,6 +72,7 @@ function useStoreActions(ui: StoreUi, loadAll: () => Promise<void>, loadConfig: 
       ui.setCatId(id); ui.setCompareSel(new Set()); ui.clearComparePreset()
     },
     setMode: ui.setMode,
+    setDisplayMode: ui.setDisplayMode,
     setSearch: ui.setSearch,
     toggleStatusFilter: (s: EntryStatus) => ui.setStatusFilter((cur) => (cur === s ? null : s)),
     setSysArea: ui.setSysArea,
@@ -82,6 +87,25 @@ function useStoreActions(ui: StoreUi, loadAll: () => Promise<void>, loadConfig: 
     clearComparePreset: ui.clearComparePreset,
     openImportDialog: ui.setImportDialog,
     closeImportDialog: () => ui.setImportDialog(null)
+  }
+}
+
+function readDisplayMode(): DisplayMode {
+  if (typeof window === 'undefined') return 'simple'
+  try {
+    const value = window.localStorage.getItem(DISPLAY_MODE_KEY)
+    return value === 'expert' ? 'expert' : 'simple'
+  } catch {
+    return 'simple'
+  }
+}
+
+function persistDisplayMode(mode: DisplayMode): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(DISPLAY_MODE_KEY, mode)
+  } catch {
+    // Persistenz ist Komfortzustand; die UI bleibt mit Default bedienbar.
   }
 }
 
@@ -126,10 +150,10 @@ function useLazyDataEffects(
 ) {
   const section = ui.state.section
   useEffect(() => {
-    if (section === 'system' && system.loading) void loadSystem()
+    if ((section === 'overview' || section === 'system') && system.loading) void loadSystem()
   }, [section, system.loading, loadSystem])
   useEffect(() => {
-    if (section === 'updates' && watcher.loading) void loadWatcher()
+    if ((section === 'overview' || section === 'updates') && watcher.loading) void loadWatcher()
   }, [section, watcher.loading, loadWatcher])
 }
 

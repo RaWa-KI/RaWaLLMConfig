@@ -46,6 +46,40 @@
   flex-wrap: wrap;
 }
 
+.tweak-help {
+  margin: 0;
+  color: var(--text-lt);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.prefs-store-hint {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+}
+
+.prefs-store-hint p {
+  margin: 0;
+  color: var(--text-lt);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.prefs-store-hint code {
+  overflow-wrap: anywhere;
+}
+
+.prefs-technical-reason {
+  display: grid;
+  gap: 5px;
+}
+
+.prefs-technical-reason b {
+  font-size: 12px;
+  color: var(--text);
+}
+
 .backup-row {
   display: flex;
   align-items: flex-start;

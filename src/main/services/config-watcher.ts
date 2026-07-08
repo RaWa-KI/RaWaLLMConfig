@@ -5,7 +5,7 @@ import { watch, type FSWatcher } from 'chokidar'
 import { IPC_EVENTS } from '@shared/channels'
 import type { ConfigChangedPayload, ConfigFamily, ConfigRootKind } from '@shared/contract-watcher-fs'
 import { markConfigScanCacheStale } from './config-scan-cache'
-import { configRootList, configRoots } from './config-roots'
+import { configRoots, configWatchRootList } from './config-roots'
 
 const DEBOUNCE_MS = 650
 const WATCHER_REASON = 'fs-change'
@@ -47,7 +47,7 @@ function watchedRootMatches(): WatchedRoot[] {
   ]
   const out: WatchedRoot[] = []
   const knownByPath = new Map(known.map((root) => [path.resolve(root.path).toLowerCase(), root]))
-  for (const rootPath of configRootList()) {
+  for (const rootPath of configWatchRootList()) {
     const key = path.resolve(rootPath).toLowerCase()
     out.push(knownByPath.get(key) ?? { path: rootPath, family: 'local', rootKind: 'local' })
   }
@@ -70,7 +70,7 @@ export function startConfigWatcher(
 ): void {
   stopConfigWatcher()
   currentGetWindow = getWindow
-  const roots = existingRoots(options.roots ?? configRootList())
+  const roots = existingRoots(options.roots ?? configWatchRootList())
   if (roots.length === 0) return
   activeWatcher = watch(roots, {
     ignoreInitial: true,
