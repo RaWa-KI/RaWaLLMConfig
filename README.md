@@ -47,31 +47,30 @@ Nutzer freigegeben:
 Diese Punkte sind bewusst nicht als fertige Funktionen beschrieben. Sie werden
 Schritt für Schritt ergänzt.
 
-### Für wen ist die Alpha gedacht?
+### Für wen ist die Alpha von RaWaLLMConfig gedacht?
 
-RaWaLLMConfig ist für Menschen gedacht, die mit lokalen KI-Tools arbeiten
-möchten, ohne erst alle Konfigurationsdateien, Hooks, MCPs, Modelle und
-Startregeln von Hand suchen zu müssen.
+Die App richtet sich an alle, die lokale KI-Tools nutzen möchten, ohne sich
+durch endlose Konfigurationsdateien, Hooks und Startregeln zu quälen.
 
-Besonders hilfreich ist die Alpha für:
+- **Der KI-Entdecker (kein IT-Profi):** Du möchtest Claude, Codex oder lokale
+  Modelle unkompliziert nutzen? Die App bietet dir eine visuelle Übersicht, die
+  dir den Einstieg leicht macht.
+- **Der Problemlöser:** Du fragst dich, warum deine KI langsam, teuer oder
+  tokenhungrig ist? Die App hilft dir, den Flaschenhals zu verstehen und zu
+  beheben.
+- **Der Power-User und IT-Profi:** Du brauchst eine zentrale Kommandozentrale?
+  Profitiere von komfortablen Übersichten für Diagnosen, Warnungen und
+  technische Details.
 
-- Menschen, die Claude, Codex, MCPs oder lokale Modelle nutzen möchten, aber
-  keine IT- oder Admin-Oberfläche im Kopf haben.
-- Menschen, die verstehen wollen, warum ihre KI-Umgebung langsam, teuer,
-  unübersichtlich oder tokenhungrig wirkt.
-- Fortgeschrittene Nutzer und ITler, die eine visuelle Oberfläche für
-  Konfigurationen, Diagnosen, Warnungen und technische Details möchten.
+**Das kann die App bereits:** Wir bündeln deine lokalen Konfigurationen, zeigen
+dir Doppelungen auf und übersetzen kryptische Systemzustände in verständliches
+Deutsch. Dank integrierter Tipps und passender Befehle kannst du Fehler direkt
+nachvollziehen und beheben.
 
-Die App zeigt lokale Konfigurationen gesammelt an, weist auf mögliche
-Doppelungen oder Fehlkonfigurationen hin und erklärt viele technische Zustände
-verständlicher. Einige Bereiche enthalten bereits Tipps, Hinweise und passende
-Befehle, damit Probleme nicht nur sichtbar werden, sondern auch nachvollziehbar
-bleiben.
-
-Wenn du einfach nur eine vollständig fertige Endnutzer-App erwartest, ist eine
-spätere Version wahrscheinlich besser geeignet. Diese Version ist eine
-öffentliche Alpha: nützlich zum Prüfen, Verstehen und Rückmelden, aber noch
-nicht in allen Bereichen fertig poliert.
+**Wichtiger Hinweis zum Status:** Dies ist eine öffentliche Alpha-Version. Sie
+ist perfekt zum Prüfen, Verstehen und Mitgestalten. Wenn du ein zu 100 %
+fehlerfreies und fertiges Endprodukt erwartest, solltest du noch auf eine
+spätere Version warten.
 
 ### Entwicklung
 
@@ -153,29 +152,27 @@ Some planned areas are not finished yet or are not ready for regular users:
 These points are intentionally not described as finished features. They will be
 added step by step.
 
-### Who is this alpha for?
+### Who is the RaWaLLMConfig alpha for?
 
-RaWaLLMConfig is for people who want to work with local AI tools without first
-having to find every configuration file, hook, MCP, model, and startup rule by
-hand.
+The app is for anyone who wants to use local AI tools without digging through
+endless configuration files, hooks, and startup rules.
 
-The alpha is especially useful for:
+- **The AI explorer (not an IT professional):** Want to use Claude, Codex, or
+  local models more easily? The app gives you a visual overview that makes
+  getting started easier.
+- **The problem solver:** Wondering why your AI setup feels slow, expensive, or
+  token-hungry? The app helps you understand and fix the bottleneck.
+- **The power user and IT professional:** Need a central command center? Use
+  convenient overviews for diagnostics, warnings, and technical details.
 
-- people who want to use Claude, Codex, MCPs, or local models without thinking
-  in IT or admin interfaces,
-- people who want to understand why their AI environment feels slow, expensive,
-  hard to follow, or token-hungry,
-- advanced users and IT professionals who want a visual interface for
-  configurations, diagnostics, warnings, and technical details.
+**What the app can already do:** It brings your local configurations together,
+points out duplication, and translates cryptic system states into clear
+language. Integrated tips and matching commands help you understand and fix
+issues directly.
 
-The app brings local configuration surfaces into one place, points out possible
-duplication or misconfiguration, and explains many technical states in clearer
-language. Some areas already include tips, hints, and useful commands so that
-problems are not only visible, but also easier to understand.
-
-If you expect a fully finished end-user app, a later version will probably be a
-better fit. This version is a public alpha: useful for inspection,
-understanding, and feedback, but not fully polished in every area yet.
+**Important status note:** This is a public alpha. It is ideal for inspection,
+understanding, and shaping the product. If you expect a 100% flawless and fully
+finished product, you should wait for a later version.
 
 ### Development
 
