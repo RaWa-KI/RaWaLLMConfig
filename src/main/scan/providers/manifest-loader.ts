@@ -33,11 +33,12 @@ export interface ManifestLoadResult {
 const PROVIDERS_SUBDIR = 'rawallm-providers'
 
 /** Sandbox-aware Manifest-Verzeichnis: Env-Override sonst <projectRoot>/rawallm-providers. */
-export function providersDir(dir?: string): string {
+export function providersDir(dir?: string): string | null {
   if (dir && dir.trim().length > 0) return dir
   const env = process.env.RAWALLM_PROVIDERS_DIR
   if (env && env.trim().length > 0) return env.trim()
-  return join(configRoots().projectRoot, PROVIDERS_SUBDIR)
+  const projectRoot = configRoots().projectRoot
+  return projectRoot ? join(projectRoot, PROVIDERS_SUBDIR) : null
 }
 
 // Shell-Metazeichen/Command-Strings: blockiert Injektion in String-Feldern.
@@ -189,6 +190,7 @@ function loadOne(dir: string, file: string): { manifest?: ProviderManifest; reas
 export function loadUserManifests(dir?: string): ManifestLoadResult {
   const base = providersDir(dir)
   const result: ManifestLoadResult = { manifests: [], rejected: [] }
+  if (!base) return result
   let files: string[]
   try {
     files = fs.readdirSync(base).filter((f) => f.toLowerCase().endsWith('.json'))

@@ -34,5 +34,6 @@ export function updateCheckPayload(st: UpdateStateData, hasUpdate: boolean, info
     sourceLabel: st.sourceLabel,
     releaseNotes: st.releaseNotes,
     lastSourceError: st.lastSourceError,
+    noPlatformAsset: st.noPlatformAsset,
   }
 }

@@ -53,23 +53,23 @@ test('config diagnosis opens the exact family category and entry', () => {
   })
 })
 
-test('ollama system hint routes to settings sources instead of watcher', () => {
+test('ollama system hint routes to the local sources setting without claiming a default folder', () => {
   const cards = buildDiagnosisCards({ config: null, system: ollamaSystemFixture(), watcher: null, errors: [] })
   const card = cards.find((item) => item.id === 'system-env-OLLAMA_*')
   const ollamaCards = cards.filter((item) => item.diagnosisAction.focusId === 'settings-tab-sources')
   expect(ollamaCards).toHaveLength(1)
-  expect(card?.where).toBe('Einstellungen > Ordner')
+  expect(card?.where).toBe('Einstellungen > Lokale Quellen')
   expect(card?.diagnosisAction).toMatchObject({
     route: 'settings',
     focusId: 'settings-tab-sources'
   })
-  expect(card?.title).toContain('Ollama wurde erkannt')
-  expect(card?.meaning).toContain('Ollama ist ein lokaler Dienst')
-  expect(card?.how).toContain('~/.ollama')
-  expect(card?.changeHint).toContain('~/.ollama')
+  expect(card?.title).toBe('Lokale Modelle prüfen')
+  expect(card?.meaning).toContain('Hinweise zu Ollama')
+  expect(card?.how).toContain('Lokale Quellen')
+  expect(card?.changeHint).toContain('noch kein Modellordner')
   expect(card?.details).toEqual(expect.arrayContaining([
     expect.stringContaining('OLLAMA_*'),
-    expect.stringContaining('~/.ollama')
+    expect.stringContaining('Ollama-Ordner')
   ]))
 })
 

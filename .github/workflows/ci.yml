@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows verification
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Service tests
+        run: pnpm test:service
+      - name: Build
+        run: pnpm build
+      - name: UI smoke
+        run: pnpm smoke:ui
+      - name: User-flow smoke
+        run: pnpm smoke:flows
+
+  ubuntu:
+    name: Ubuntu packages and verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Install Linux packaging and display tools
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install --yes binutils cpio libopenjp2-tools rpm xvfb xauth
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Service tests
+        run: pnpm test:service
+      - name: Build
+        run: pnpm build
+      - name: Build native Linux packages
+        run: pnpm dist:linux
+      - name: UI smoke
+        run: xvfb-run -a pnpm smoke:ui
+      - name: User-flow smoke
+        run: xvfb-run -a pnpm smoke:flows
+      - name: Packaged Linux smoke
+        run: xvfb-run -a pnpm smoke:package:linux
+      - name: Upload native Linux packages and evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rawallmconfig-linux-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            dist-release/*.AppImage
+            dist-release/*.deb
+            dist-release/*.rpm
+            tests/audit-runtime/linux-package-smoke/linux-package-smoke.json

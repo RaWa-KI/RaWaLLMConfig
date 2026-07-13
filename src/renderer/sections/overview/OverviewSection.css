@@ -7,7 +7,7 @@
 
 .ov-head {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   padding: 20px;
@@ -35,7 +35,6 @@
   font-weight: 900;
 }
 
-.ov-head p,
 .ov-next p,
 .ov-task-body,
 .ov-task-meaning,
@@ -45,19 +44,6 @@
   font-weight: 750;
 }
 
-.ov-head-warn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--amber-lt);
-  color: var(--amber-d);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.ov-head-warn svg,
 .ov-metric svg,
 .ov-task svg {
   width: 16px;
@@ -69,6 +55,17 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.ov-status {
+  display: grid;
+  gap: 10px;
+}
+
+.ov-status > p {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .ov-metric {
@@ -95,12 +92,6 @@
   background: var(--sage-lt);
   border: 2px solid color-mix(in oklab, var(--sage), transparent 45%);
   border-radius: var(--radius-sm);
-}
-
-.ov-next h2 {
-  font-size: 18px;
-  line-height: 1.1;
-  font-weight: 900;
 }
 
 .ov-task {
@@ -217,7 +208,6 @@
     align-items: flex-start;
   }
 
-  .ov-head-warn,
   .ov-next .btn {
     width: 100%;
     justify-content: center;

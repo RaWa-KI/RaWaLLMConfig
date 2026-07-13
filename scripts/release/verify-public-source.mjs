@@ -19,7 +19,7 @@ function addIssue(issues, relPath, label, line = null) {
 }
 
 function isAllowedBinary(relPath) {
-  return relPath === 'build/icon.ico'
+  return relPath === 'build/icon.ico' || relPath === 'build/icon.png'
 }
 
 function checkPath(relPath, issues) {

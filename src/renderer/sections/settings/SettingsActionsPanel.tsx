@@ -1,4 +1,3 @@
-import type { DisplayMode } from '../../state/types'
 import { Icon } from '../../components/Icon'
 import { ImportTargetDialog } from '../../components/ImportTargetDialog'
 import { exportBundle, exportConflictBundle } from '../../lib/export'
@@ -6,7 +5,7 @@ import { parseImportSource, applyImportItems } from '../../lib/import'
 import { knownRootsFromConfig } from '../../lib/known-roots'
 import { msg, msgText } from '../../lib/messages'
 import { useStore } from '../../state/store'
-import { settingsExpertList } from '../../../../shared/messages/ux-copy'
+import { DisplayModeControl } from './DisplayModeControl'
 
 type StoreActions = ReturnType<typeof useStore>['actions']
 type ImportDialog = ReturnType<typeof useStore>['ui']['importDialog']
@@ -24,15 +23,7 @@ export function SettingsActionsPanel() {
             <span className="prefs-ic">{Icon.gear}</span>
             <h3>{msgText('settings.tab.tweaks')}</h3>
           </div>
-          <DisplayModeSwitch active={ui.displayMode} onSelect={actions.setDisplayMode} />
-          <p className="settings-mode-impact">
-            {ui.displayMode === 'simple' ? msgText('simpleMode.backupHint') : msgText('expertDetails.rawDetails')}
-          </p>
-          {ui.displayMode === 'expert' && (
-            <ul className="settings-expert-list">
-              {settingsExpertList().map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          )}
+          <DisplayModeControl active={ui.displayMode} onSelect={actions.setDisplayMode} />
         </div>
         <div className="settings-action-card">
           <div className="settings-action-head">
@@ -70,29 +61,6 @@ export function SettingsActionsPanel() {
         />
       )}
     </>
-  )
-}
-
-function DisplayModeSwitch(props: { active: DisplayMode; onSelect(mode: DisplayMode): void }) {
-  return (
-    <div className="section-switch display-mode-switch" aria-label={msgText('simpleMode.showDetails')}>
-      <DisplayModeButton mode="simple" active={props.active} onSelect={props.onSelect} />
-      <DisplayModeButton mode="expert" active={props.active} onSelect={props.onSelect} />
-    </div>
-  )
-}
-
-function DisplayModeButton(props: { mode: DisplayMode; active: DisplayMode; onSelect(mode: DisplayMode): void }) {
-  const label = props.mode === 'simple' ? msgText('simpleMode.label') : msgText('expertDetails.label')
-  return (
-    <button
-      type="button"
-      className={'sec-btn compact' + (props.active === props.mode ? ' on' : '')}
-      onClick={() => props.onSelect(props.mode)}
-      aria-pressed={props.active === props.mode}
-    >
-      {label}
-    </button>
   )
 }
 

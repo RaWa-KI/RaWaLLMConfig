@@ -45,17 +45,23 @@ function DiagnosisCardView(props: {
       <h3>{props.card.title}</h3>
       <p>{msg('diagnostics.card.summary', { status: props.card.status })}</p>
       <p>{msg('diagnostics.card.meaning', { issue: props.card.meaning })}</p>
-      <dl className="ov-diagnosis-next">
-        <div><dt>Wo?</dt><dd>{props.card.where}</dd></div>
-        <div><dt>Was tun?</dt><dd>{props.card.how}</dd></div>
-        <div><dt>Was ändern?</dt><dd>{props.card.changeHint}</dd></div>
-      </dl>
+      {props.displayMode === 'expert' && <DiagnosisNextSteps card={props.card} />}
       <button type="button" className="btn ghost" onClick={() => navigateToOverviewAction(props.card.diagnosisAction, props.onOpen)}>
         {Icon.arrow}
-        {props.card.diagnosisAction.label}
+        {props.displayMode === 'simple' ? props.card.action : props.card.diagnosisAction.label}
       </button>
       {props.displayMode === 'expert' && <DiagnosisDetails details={props.card.details} action={props.card.diagnosisAction} />}
     </article>
+  )
+}
+
+function DiagnosisNextSteps({ card }: { card: DiagnosisCard }) {
+  return (
+    <dl className="ov-diagnosis-next">
+      <div><dt>Wo?</dt><dd>{card.where}</dd></div>
+      <div><dt>Was tun?</dt><dd>{card.how}</dd></div>
+      <div><dt>Was ändern?</dt><dd>{card.changeHint}</dd></div>
+    </dl>
   )
 }
 

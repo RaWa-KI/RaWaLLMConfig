@@ -11,6 +11,7 @@ import type {
   MoveImpactScanResult,
   MoveImpactSkipped
 } from '@shared/contract-write-rename'
+import { isPathEqualOrUnder } from '@shared/path-compare'
 import { readFileOnce, MAX_SCAN_BYTES } from '../scan/file-read-once'
 import { isSecretPathForRead } from './secret-guard'
 
@@ -43,10 +44,6 @@ function makeSkipped(): MoveImpactSkipped {
   return { ignored: 0, binary: 0, secret: 0, oversize: 0 }
 }
 
-function normKey(p: string): string {
-  return resolve(p).replace(/\\/g, '/').toLowerCase()
-}
-
 function scanRoots(req: MoveImpactScanRequest, opts: MoveImpactScanOptions): string[] {
   const raw = opts.scanRoots?.length ? opts.scanRoots : [dirname(req.fromPath), dirname(req.to)]
   const roots = raw.map((p) => resolve(p)).filter((p) => {
@@ -63,8 +60,7 @@ function compactRoots(roots: string[]): string[] {
   const out: string[] = []
   const sorted = [...new Set(roots.map((p) => resolve(p)))].sort((a, b) => a.length - b.length)
   for (const root of sorted) {
-    const key = normKey(root)
-    if (out.some((prev) => key === normKey(prev) || key.startsWith(normKey(prev) + '/'))) continue
+    if (out.some((previous) => isPathEqualOrUnder(root, previous, process.platform))) continue
     out.push(root)
   }
   return out

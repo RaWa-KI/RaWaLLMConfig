@@ -1,5 +1,7 @@
-/* Globale Stil-Aggregation. Reihenfolge: Tokens -> Reset/Basis -> Chrome -> Komponenten. */
+/* Globale Stil-Aggregation: Tokens -> Basis -> Arbeitsfläche -> Erweiterungen. */
 @import './tokens.css';
 @import './base.css';
+@import './workbench-shell.css';
+@import './workbench-cards.css';
 @import './layout.css';
 @import './components.css';

@@ -82,6 +82,7 @@ function useStoreActions(ui: StoreUi, loadAll: () => Promise<void>, loadConfig: 
     reload: () => void loadAll(),
     reloadConfig: () => void loadConfig(),
     toggleCompare: (id: string) => ui.setCompareSel((cur) => toggleSet(cur, id)),
+    setCompareSelection: (ids: string[]) => ui.setCompareSel(new Set(ids)),
     clearCompare: () => ui.setCompareSel(new Set()),
     setComparePreset: ui.setComparePreset,
     clearComparePreset: ui.clearComparePreset,

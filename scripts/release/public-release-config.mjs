@@ -24,7 +24,8 @@ export const DOC_FILES = new Set([
 
 export const GITHUB_FILES = new Set([
   '.github/ISSUE_TEMPLATE/bug_report.yml',
-  '.github/pull_request_template.md'
+  '.github/pull_request_template.md',
+  '.github/workflows/ci.yml'
 ])
 
 export const SCRIPT_FILES = new Set([
@@ -32,13 +33,17 @@ export const SCRIPT_FILES = new Set([
   'scripts/audit-probe/dump-verify.mjs',
   'scripts/audit-probe/launch.mjs',
   'scripts/audit-probe/perf-metrics.mjs',
+  'scripts/audit-probe/process-control.mjs',
   'scripts/audit-probe/timeouts.mjs',
   'scripts/audit-probe/ui-checks.mjs',
+  'scripts/gen-icon.cjs',
   'scripts/generate-update-manifest.mjs',
   'scripts/git-hooks/pre-commit',
   'scripts/install-git-hooks.mjs',
+  'scripts/linux-package-smoke.mjs',
   'scripts/perf-smoke.mjs',
-  'scripts/ui-smoke.mjs'
+  'scripts/ui-smoke.mjs',
+  'scripts/ui-smoke-flows.mjs'
 ])
 
 export const FORBIDDEN_DIR_NAMES = new Set([
@@ -84,7 +89,7 @@ export function isAllowedPublicPath(relPath) {
   if (ROOT_FILES.has(relPath) || DOC_FILES.has(relPath)) return true
   if (GITHUB_FILES.has(relPath)) return true
   if (SCRIPT_FILES.has(relPath) || relPath.startsWith('scripts/release/')) return true
-  if (relPath === 'build/icon.ico') return true
+  if (relPath === 'build/icon.ico' || relPath === 'build/icon.png') return true
   if (relPath.startsWith('docs/brand/')) return true
   if (relPath.startsWith('src/')) return true
   if (relPath.startsWith('shared/')) return true

@@ -13,6 +13,7 @@ import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, openSyn
 import { join, dirname } from 'node:path'
 import { IPC_WRITE } from '@shared/channels-write'
 import type { IpcResult } from '@shared/contract'
+import { normalizePathForCompare } from '@shared/path-compare'
 import type { ResolvedIntegration } from '@shared/contract-integrations'
 import type {
   IgnoreScope,
@@ -32,9 +33,9 @@ import { resolveIntegrations } from './services/integration-resolve'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { guarded } from './lib/guarded'
 
-// Pfad fuer Vergleich normalisieren (Trailing-Slash weg, lowercase wie config-roots).
+// Pfad fuer Vergleich normalisieren (Trailing-Slash weg, Plattform wie config-roots).
 function normRoot(p: string): string {
-  return p.replace(/[\\/]+$/, '').toLowerCase()
+  return normalizePathForCompare(p.replace(/[\\/]+$/, ''), process.platform)
 }
 
 // SECURITY (Authorization): wsRoot muss eine bekannte Workspace-Wurzel sein

@@ -11,6 +11,8 @@ export type UpdateMessageParamsMap = {
   "update.sourceStatus.noFreshResult": undefined
   "update.sourceError.title": undefined
   "update.sourceError.detail": { sourceLabel: string }
+  "update.noPlatformAsset.title": undefined
+  "update.noPlatformAsset.detail": undefined
   "update.check": undefined
   "update.availableLabel": undefined
   "update.currentVersion": { version: string }
@@ -33,10 +35,12 @@ export type UpdateMessageParamsMap = {
   "update.toast.bridgeUnavailable": undefined
   "update.toast.checkComplete": undefined
   "update.toast.noUpdateAvailable": undefined
+  "update.toast.noPlatformAsset": undefined
   "update.toast.downloaded": undefined
   "update.toast.installStarted": undefined
   "update.toast.actionFailed": undefined
   "update.toast.bridgeError": undefined
+  "update.error.appimageEnvMissing": undefined
   "update.watcher.title": undefined
   "update.watcher.subtitle": { sourceCount: string; tokens: string; updated: string }
   "update.watcher.daemon": undefined

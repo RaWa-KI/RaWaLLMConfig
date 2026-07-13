@@ -15,10 +15,12 @@ import { configRoots } from '../services/config-roots'
 import { getVersionsCached } from '../services/cli-version-cache'
 import type { ToolSpec } from '../services/cli-version-live'
 import { scanHardwareArea } from './hardware-scan'
+import { applyWatcherPlatformCopy, sysScanPlatformCopy } from './sys-scan-platform-copy'
 
 // Trunk-Pfade aus der Single Source (Default = real, M1 unveraendert; mit
 // RAWALLM_SANDBOX_ROOT zeigt sharedDir unter <sandbox>/.shared/.claude).
-const sharedDir = configRoots().sharedClaude
+const configuredSharedDir = configRoots().sharedClaude
+const sharedDir = configuredSharedDir ?? ''
 const refDir = path.join(sharedDir, 'references')
 const trackDir = path.join(sharedDir, 'coordination', 'tracking')
 const portsFile = path.join(sharedDir, 'coordination', 'registry', 'localhost-ports.json')
@@ -134,9 +136,10 @@ const VERSION_SPECS: ToolSpec[] = [
 // stampStatic datiert — sonst wuerde das UI live erfasste Werte als statischen
 // Snapshot etikettieren (= Luege). Async via Prozess-Cache (PERF-HOCH-01):
 // Spawns laufen non-blocking und nur einmal pro App-Lauf.
-async function liveVersionAreas(): Promise<SystemArea[]> {
+async function liveVersionAreas(platform: NodeJS.Platform = process.platform): Promise<SystemArea[]> {
   const live = await getVersionsCached(VERSION_SPECS)
   const v = (id: string, fallback: string): string => live[id] ?? fallback
+  const copy = sysScanPlatformCopy(platform)
   return [
     { id: 'runtimes', label: 'Laufzeiten', icon: 'box', blurb: 'Node, Python, PHP, Git (live).', entries: [
       { id: 'node', name: 'Node.js', status: 'active', v: v('node', '22.18.0'), desc: 'engines: >=22 in Projekten' },
@@ -145,8 +148,8 @@ async function liveVersionAreas(): Promise<SystemArea[]> {
       { id: 'php', name: 'PHP', status: 'active', v: v('php', '8.4.20'), desc: 'CLI, ZTS x64' },
       { id: 'git', name: 'Git', status: 'active', v: v('git', '2.51.0'), desc: 'LFS + Longpaths aktiviert' }
     ] },
-    { id: 'cli', label: 'CLI-Tools', icon: 'term', blurb: 'Native Installer (nicht npm), Version live.', entries: [
-      { id: 'claude', name: 'Claude Code', status: 'active', v: v('claude', 'CLI'), desc: 'Native Installer · ~/.local/bin/claude.exe · Auto-Update' },
+    { id: 'cli', label: 'CLI-Tools', icon: 'term', blurb: 'Standalone-Installationen, Version live.', entries: [
+      { id: 'claude', name: 'Claude Code', status: 'active', v: v('claude', 'CLI'), desc: copy.claudeDescription },
       { id: 'codex', name: 'Codex CLI', status: 'active', v: v('codex', 'CLI'), desc: 'Native Installer · OpenAI/Codex · Auto-Update' }
     ] }
   ]
@@ -169,14 +172,18 @@ function staticAreas(): SystemArea[] {
   ])
 }
 
-export async function scanSystem(): Promise<System> {
+export async function scanSystem(platform: NodeJS.Platform = process.platform): Promise<System> {
+  if (!configuredSharedDir) return {
+    updated: '—',
+    areas: [{ id: 'configuration', label: 'Konfiguration', icon: 'warning', blurb: 'Ein Ordner muss eingerichtet werden.', entries: [{ id: 'shared-root-not-configured', name: 'Shared-Ordner nicht eingerichtet', status: 'stale', desc: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.' }] }]
+  }
   try {
     const doc = readJson<PortsDoc>(portsFile)
     const mcp = scanMcp()
     // UI-Reihenfolge erhalten: hardware, [runtimes, cli (live)], editors, hosting, workspaces.
     const hardware = await scanHardwareArea()
     const stat = staticAreas()
-    const live = await liveVersionAreas()
+    const live = await liveVersionAreas(platform)
     const areas = [hardware, ...live, ...stat, localLlmArea(doc), mcpArea(mcp), dbArea(doc), envArea()]
     return { updated: refUpdated(), areas }
   } catch (e) {
@@ -245,15 +252,23 @@ function scanWatcherStatic(): Watcher {
   return { daemon, tiers, sources, changelogs: latestChangelogs() }
 }
 
+export interface WatcherScanSources {
+  live: () => Promise<Watcher>
+  fallback: () => Watcher
+}
+
 // scanWatcher (Welle-3-INT): bevorzugt LIVE-Daten aus watcher-live (Scope-B:
 // tracking/toolchain-daemon-state + references/*-changelog, Secret-Guard je Read).
 // Fallback auf den statischen Stand (sync), wenn live keine Quellen liefert.
 // Async (PERF-HOCH-01): Versions-Spawns blockieren den Main-Loop nicht mehr.
-export async function scanWatcher(): Promise<Watcher> {
+export async function scanWatcher(
+  platform: NodeJS.Platform = process.platform,
+  readers: WatcherScanSources = { live: scanWatcherLive, fallback: scanWatcherStatic }
+): Promise<Watcher> {
   try {
-    const live = await scanWatcherLive()
-    if (live.sources.length > 0) return live
-    return scanWatcherStatic()
+    const live = await readers.live()
+    const watcher = live.sources.length > 0 ? live : readers.fallback()
+    return applyWatcherPlatformCopy(watcher, platform)
   } catch (e) {
     console.error('[scan:watcher]', 'scanWatcher failed')
     return {

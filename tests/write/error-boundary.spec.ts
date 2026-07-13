@@ -9,16 +9,30 @@
 // die ErrorBoundary bewusst nicht in einen DOM gemountet.
 // Runner: Playwright (test/expect) als reiner Node-Test-Runner (kein Browser).
 import { expect, test } from '@playwright/test'
-import { deriveErrorBoundaryState } from '../../src/renderer/components/error-boundary-state'
+import {
+  buildErrorReportRequest,
+  deriveErrorBoundaryState,
+  sanitizeComponentStack
+} from '../../src/renderer/components/error-boundary-state'
 
 test('getDerivedStateFromError: Error -> hasError=true + gekappte message', () => {
   const state = deriveErrorBoundaryState(new Error('x'))
   expect(state.hasError).toBe(true)
   expect(state.msg).toBe('x')
+  expect(state.reportBusy).toBe(false)
 })
 
 test('getDerivedStateFromError: Nicht-Error -> hasError=true + Fallback-Text', () => {
   const state = deriveErrorBoundaryState('kaputt')
   expect(state.hasError).toBe(true)
   expect(state.msg).toBe('Unbekannter Fehler')
+})
+
+test('report request enthaelt nur sanitisierte Kurzfelder', () => {
+  const state = deriveErrorBoundaryState(new Error('kaputt C:\\Workspace\\secret.txt'))
+  state.componentStack = sanitizeComponentStack('App (C:\\Workspace\\app.tsx:1:1)')
+  const req = buildErrorReportRequest(state)
+  expect(req.message).toContain('[lokaler-pfad]')
+  expect(req.componentStack).toContain('[lokaler-pfad]')
+  expect('stack' in req).toBe(false)
 })

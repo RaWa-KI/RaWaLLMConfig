@@ -1,7 +1,7 @@
 // reference-restore.spec.ts — C-06/A4-1: Restore nach Rueck-Move schreibt
 // Referenzen von refsPointTo wieder auf toPath. Nur temp-Sandbox-Fixtures.
 import { test, expect } from '@playwright/test'
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { restoreBackup } from '../../src/main/services/archive-restore'
 import type { RestoreCtx } from '../../src/main/services/archive-restore'
@@ -49,13 +49,9 @@ test('restoreBackup rollt Ziel zurueck wenn Referenz-Rewrite scheitert', () => {
   writeFileSync(original, 'VORHER', 'utf8')
   writeFileSync(backup, 'AUS BACKUP', 'utf8')
   writeFileSync(index, `Ref: ${moved}\n`, 'utf8')
+  mkdirSync(`${index}.tmp-${process.pid}`)
 
-  chmodSync(index, 0o444)
-  try {
-    const res = restoreBackup({ backupPath: backup, toPath: original, refsPointTo: moved }, ctxFor(sb))
-    expect(res.error).not.toBeNull()
-    expect(readFileSync(original, 'utf8')).toBe('VORHER')
-  } finally {
-    chmodSync(index, 0o666)
-  }
+  const res = restoreBackup({ backupPath: backup, toPath: original, refsPointTo: moved }, ctxFor(sb))
+  expect(res.error).not.toBeNull()
+  expect(readFileSync(original, 'utf8')).toBe('VORHER')
 })

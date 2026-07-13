@@ -12,6 +12,7 @@ import {
 } from 'node:fs'
 import { dirname, join, basename } from 'node:path'
 import { app } from 'electron'
+import { pathsEqual } from '@shared/path-compare'
 import type {
   SourcesFile, UserSource, AddSourceRequest,
   SetSourceEnabledRequest, SourceMutateResult
@@ -100,7 +101,7 @@ function persist(ctx: SourceStoreContext, next: SourcesFile): SourceMutateResult
 
 async function addSource(ctx: SourceStoreContext, req: AddSourceRequest): Promise<SourceMutateResult> {
   const state = readState(ctx.storePath)
-  const exists = state.sources.some((s) => s.root.toLowerCase() === req.root.toLowerCase())
+  const exists = state.sources.some((s) => pathsEqual(s.root, req.root, process.platform))
   if (exists) return { ok: true, error: null, backupPath: null, sources: state.sources }
   const taken = new Set(state.sources.map((s) => s.id))
   const entry: UserSource = {

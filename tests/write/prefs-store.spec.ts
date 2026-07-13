@@ -58,6 +58,12 @@ test('get/set sind idempotent (gleicher Tweak -> gleicher Zustand)', async () =>
   expect(await store.get('density')).toBe('compact')
 })
 
+test('flache Root-Prefs werden wie andere Prefs gespeichert', async () => {
+  const store = createFilePrefsStore(storeOpts())
+  await store.set('roots.sharedClaude', 'D:\\Projekte\\.shared\\.claude')
+  expect(await store.get('roots.sharedClaude')).toBe('D:\\Projekte\\.shared\\.claude')
+})
+
 test('MariaDB graceful-absent: File-Adapter laeuft ohne DB/Env', async () => {
   // Hermetisch: relevante MARIADB-Env explizit fuer die Testlaufzeit loeschen
   // (vorher sichern, im finally restaurieren). So testet der Fall deterministisch

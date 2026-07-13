@@ -4,6 +4,7 @@ import { registerIpc } from './ipc'
 import { registerIntegrationsIpc } from './ipc-integrations'
 import { registerWrite } from './register-write'
 import { registerUpdatesIpc } from './ipc-updates'
+import { registerDiagnosticsIpc } from './ipc-diagnostics'
 import { endPool } from './services/mariadb-pool'
 import { registerAppScheme, handleAppProtocol } from './app-protocol'
 import { enableDevtools } from './devtools'
@@ -116,6 +117,11 @@ app
       registerUpdatesIpc(() => mainWindow)
     } catch (err) {
       console.error('[main] registerUpdatesIpc fehlgeschlagen', err)
+    }
+    try {
+      registerDiagnosticsIpc(() => mainWindow)
+    } catch (err) {
+      console.error('[main] registerDiagnosticsIpc fehlgeschlagen', err)
     }
     // Teardown: MariaDB-Pool sauber schliessen beim App-Ende.
     app.on('before-quit', () => {

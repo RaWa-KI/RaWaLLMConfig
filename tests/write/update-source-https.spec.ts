@@ -6,12 +6,15 @@ import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { makeSandbox, type Sandbox } from './fixtures'
 import { HttpsUpdateSource } from '../../src/main/services/update-source-https'
+import { assetSpecFor } from '../../src/main/services/update-platform'
 import type { UpdateAsset, UpdateInfo, UpdateRelease } from '../../shared/contract-updates'
 
 const BASE_URL = 'https://updates.example/releases'
 const GITHUB_LATEST_URL = 'https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest/download/latest.json'
 const GOOD_CONTENT = 'MZ' + 'x'.repeat(4096)
+const GOOD_APPIMAGE_CONTENT = '\u007fELF' + 'x'.repeat(4096)
 const BAD_CONTENT = 'MZ' + 'y'.repeat(4096)
+const WIN_SPEC = assetSpecFor('win32')
 
 function sha(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex')
@@ -94,6 +97,12 @@ function stagedDest(sb: Sandbox): string {
   return join(dir, 'app-setup.exe')
 }
 
+function stagedAppImageDest(sb: Sandbox): string {
+  const dir = join(sb.root, 'staged')
+  mkdirSync(dir, { recursive: true })
+  return join(dir, 'app.AppImage')
+}
+
 test.describe('HttpsUpdateSource readManifest', () => {
   test('liest latest.json via HTTPS mit manual redirect', async () => {
     const mock = queueFetch([jsonResponse(makeRelease())])
@@ -142,6 +151,7 @@ test.describe('HttpsUpdateSource stageInstaller', () => {
     const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
       info: makeInfo(),
       destPath,
+      platformSpec: WIN_SPEC,
       onProgress: (copied, total) => progress.push({ copied, total }),
     })
     expect(result).toEqual({ ok: true, sha256Verified: true, error: null })
@@ -158,6 +168,7 @@ test.describe('HttpsUpdateSource stageInstaller', () => {
     const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
       info: makeInfo({ sha256: undefined }),
       destPath: stagedDest(sb),
+      platformSpec: WIN_SPEC,
     })
     expect(result).toEqual({ ok: false, sha256Verified: false, error: 'Pruefsumme fehlt' })
     expect(mock.calls).toHaveLength(0)
@@ -170,6 +181,7 @@ test.describe('HttpsUpdateSource stageInstaller', () => {
     const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
       info: makeInfo(),
       destPath: stagedDest(sb),
+      platformSpec: WIN_SPEC,
     })
     expect(result.error).toBe('HTTPS erforderlich')
     expect(mock.calls).toHaveLength(1)
@@ -185,6 +197,7 @@ test.describe('HttpsUpdateSource stageInstaller', () => {
     const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
       info: makeInfo(),
       destPath: stagedDest(sb),
+      platformSpec: WIN_SPEC,
     })
     expect(result.error).toBe('HTML-Antwort abgelehnt')
   })
@@ -198,6 +211,7 @@ test.describe('HttpsUpdateSource stageInstaller', () => {
     const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
       info: makeInfo(),
       destPath,
+      platformSpec: WIN_SPEC,
     })
     expect(result.error).toBe('Download zu gross')
     expect(existsSync(destPath)).toBe(false)
@@ -210,10 +224,37 @@ test.describe('HttpsUpdateSource stageInstaller', () => {
     const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
       info: makeInfo(),
       destPath,
+      platformSpec: WIN_SPEC,
     })
     expect(result.error).toBe('Pruefsumme stimmt nicht ueberein')
     expect(result.sha256Verified).toBe(false)
     expect(existsSync(destPath)).toBe(false)
     expect(readdirSync(join(sb.root, 'staged', '_failed')).length).toBe(1)
+  })
+
+  test('Linux-Spec streamt AppImage, prueft ELF-Magic und SHA', async () => {
+    const sb = makeSandbox()
+    const size = Buffer.byteLength(GOOD_APPIMAGE_CONTENT)
+    const hash = sha(GOOD_APPIMAGE_CONTENT)
+    const asset = makeAsset({
+      name: 'RaWaLLMConfig.AppImage',
+      browser_download_url: 'https://updates.example/releases/RaWaLLMConfig.AppImage',
+      size,
+      content_type: 'application/octet-stream',
+      sha256: hash,
+    })
+    const mock = queueFetch([jsonResponse(makeRelease(asset)), responseWithBody(GOOD_APPIMAGE_CONTENT, {
+      'content-type': 'application/octet-stream',
+      'content-length': String(size),
+    })])
+    const destPath = stagedAppImageDest(sb)
+    const result = await new HttpsUpdateSource(BASE_URL, mock.fetchImpl).stageInstaller({
+      info: makeInfo({ assetName: 'RaWaLLMConfig.AppImage', fileSize: size, sha256: hash }),
+      destPath,
+      platformSpec: assetSpecFor('linux'),
+    })
+    expect(result).toEqual({ ok: true, sha256Verified: true, error: null })
+    expect(existsSync(destPath)).toBe(true)
+    expect(statSync(destPath).size).toBe(size)
   })
 })

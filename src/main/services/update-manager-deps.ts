@@ -12,6 +12,8 @@ import { app } from 'electron'
 import { exportSnapshot, DEFAULT_ARCHIVE_ROOT, type SnapshotResult } from './backup'
 import { resolvePrefsStore, DEFAULT_PREFS_PATH } from './prefs-store'
 import { verifyInstaller, runInstaller } from './update-installer'
+import { runAppImageInstall } from './update-installer-linux'
+import { assetSpecFor, currentUpdatePlatform } from './update-platform'
 
 // ---------------------------------------------------------------------------
 // Deps-Vertrag
@@ -53,8 +55,10 @@ const realDeps: UpdateMgrDeps = {
     const store = await resolvePrefsStore()
     await store.set(key, val)
   },
-  verify: verifyInstaller,
-  run: runInstaller,
+  verify: (filePath) => verifyInstaller(filePath, assetSpecFor(currentUpdatePlatform())),
+  run: (filePath, opts) => currentUpdatePlatform() === 'linux'
+    ? runAppImageInstall(filePath)
+    : runInstaller(filePath, opts),
 }
 
 let deps: UpdateMgrDeps = realDeps

@@ -30,7 +30,7 @@ import { getDeps } from './update-manager-deps'
 import { finalizeDownload, requireReadyIntegrity, stageUpdateInstaller } from './update-download-flow'
 import {
   getUpdateState as getStateSnapshot, pushHistory, setPhase, setError,
-  clearError, setAvailable, clearKnownRelease, markPreviousVersion,
+  clearError, setAvailable, clearKnownRelease, markPreviousVersion, setNoPlatformAsset,
 } from './update-state'
 import { currentUpdateState, syncUpdateSource, updateCheckPayload } from './update-source-state'
 
@@ -90,6 +90,7 @@ async function runCheck(): Promise<UpdateCheckResult> {
   const deps = getDeps()
   setPhase('checking')
   clearError()
+  setNoPlatformAsset(false)
 
   const source = getUpdateSource()
   syncUpdateSource(source, deps.getVersion())
@@ -107,10 +108,15 @@ async function runCheck(): Promise<UpdateCheckResult> {
     return { data: updateCheckPayload(getUpdateState(), false, null), error: null }
   }
 
-  const { hasUpdate, info, latestVersion } = buildUpdateInfo(manifest.release, deps.getVersion())
-  setAvailable(latestVersion ?? '', info?.assetName ?? null, info?.releaseNotes ?? manifest.release.body ?? null)
+  const { hasUpdate, info, latestVersion, noPlatformAsset } = buildUpdateInfo(manifest.release, deps.getVersion())
+  setAvailable(
+    latestVersion ?? '',
+    info?.assetName ?? null,
+    info?.releaseNotes ?? manifest.release.body ?? null,
+    noPlatformAsset
+  )
   setPhase(hasUpdate ? 'available' : 'idle')
-  pushHistory(hasUpdate ? 'update-available' : 'up-to-date')
+  pushHistory(noPlatformAsset ? 'no-platform-asset' : hasUpdate ? 'update-available' : 'up-to-date')
 
   return { data: updateCheckPayload(getUpdateState(), hasUpdate, info ?? null), error: null }
 }

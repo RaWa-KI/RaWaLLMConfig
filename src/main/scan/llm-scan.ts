@@ -7,6 +7,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { Category, ComingSoon, ConfigEntry, DiffLabels, LlmConfig } from '@shared/contract'
+import { normalizePathForCompare } from '@shared/path-compare'
 import { fmtSize } from '../lib/fmt-size'
 import { userSourceRootsForProvider } from '../services/config-roots'
 
@@ -42,7 +43,7 @@ function dedupeRoots(roots: string[]): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   for (const root of roots) {
-    const key = root.trim().toLowerCase()
+    const key = normalizePathForCompare(root.trim(), process.platform)
     if (!key || seen.has(key)) continue
     seen.add(key)
     out.push(root)
@@ -121,8 +122,8 @@ function scanGgufFiles(roots = ggufRoots()): ConfigEntry[] {
   return entries.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Bekannte lokale Inferenz-Endpoints (Topologie aus validierter Referenz). */
-function endpointEntries(): ConfigEntry[] {
+/** Projektinterne lokale Inferenz-Endpoints aus der validierten Referenz. */
+function projectEndpointEntries(): ConfigEntry[] {
   return [
     {
       id: 'llama-server-8099',
@@ -143,7 +144,13 @@ function endpointEntries(): ConfigEntry[] {
       desc: 'OpenAI-/v1-Adapter mit RAG/Tools vor llama-server (reserved)',
       updated: '2026-06-04',
       fields: { Port: '11500', Status: 'reserved', API: 'OpenAI /v1' },
-    },
+    }
+  ]
+}
+
+/** Verbreitete lokale Runner mit Standard-Ports und manuellem Start. */
+function publicEndpointEntries(): ConfigEntry[] {
+  return [
     // ── Verbreitete lokale Runner (OSS Teil D): Standard-Ports, manueller Start.
     // status 'stale' = bekannter Default-Endpoint, NICHT auf Erreichbarkeit
     // geprueft (die App ruft nie selbst auf). Fuer-jeden-nutzbar-Scope.
@@ -178,6 +185,11 @@ function endpointEntries(): ConfigEntry[] {
       fields: { Port: '8000', Backend: 'vLLM', API: 'OpenAI /v1' },
     },
   ]
+}
+
+/** Bekannte lokale Inferenz-Endpoints (Topologie aus validierter Referenz). */
+function endpointEntries(): ConfigEntry[] {
+  return [...projectEndpointEntries(), ...publicEndpointEntries()]
 }
 
 // B-4: additive Exporte fuer das datengetriebene llm-Manifest (CustomCategory).

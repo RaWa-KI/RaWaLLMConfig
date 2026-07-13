@@ -27,6 +27,7 @@ export interface UpdateCheckResultData {
   info: UpdateInfo | null; sourceConfigured: boolean
   sourceKind: UpdateSourceKind | null; sourceLabel: string
   releaseNotes: string | null; lastSourceError: string | null
+  noPlatformAsset: boolean
 }
 export type UpdateCheckResult = IpcResult<UpdateCheckResultData>
 export interface UpdateDownloadRequest { version: string }
@@ -45,7 +46,8 @@ export interface UpdateStateData {
   sourceKind: UpdateSourceKind | null; sourceLabel: string
   latestVersion: string | null; assetName: string | null; stagedPath: string | null
   releaseNotes: string | null; lastCheckedAt: string | null
-  lastError: string | null; lastSourceError: string | null; history: UpdateHistoryEntry[]
+  lastError: string | null; lastSourceError: string | null
+  noPlatformAsset: boolean; history: UpdateHistoryEntry[]
 }
 export type UpdateStateResult = IpcResult<UpdateStateData>
 export interface UpdateProgressPayload {

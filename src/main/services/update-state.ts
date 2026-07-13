@@ -36,6 +36,7 @@ let state: UpdateStateData = {
   lastCheckedAt: null,
   lastError: null,
   lastSourceError: null,
+  noPlatformAsset: false,
   history: [],
 }
 
@@ -77,6 +78,11 @@ export function clearError(): void {
   state.lastError = null
 }
 
+/** Setzt oder loescht den Hinweis "Release ohne Paket fuer diese Plattform". */
+export function setNoPlatformAsset(value: boolean): void {
+  state.noPlatformAsset = value
+}
+
 /**
  * Aktualisiert sourceConfigured + currentVersion.
  * currentVersion kommt als Parameter (deps.getVersion() im update-manager) —
@@ -100,12 +106,14 @@ export function setSourceState(
 export function setAvailable(
   latestVersion: string | null,
   assetName: string | null,
-  releaseNotes: string | null = null
+  releaseNotes: string | null = null,
+  noPlatformAsset = false
 ): void {
   state.latestVersion = latestVersion
   state.assetName = assetName
   state.releaseNotes = releaseNotes
   state.lastCheckedAt = new Date().toISOString()
+  state.noPlatformAsset = noPlatformAsset
 }
 
 /** Loescht bekannten Manifeststand ohne den letzten erfolgreichen Check zu ueberschreiben. */
@@ -113,11 +121,13 @@ export function clearKnownRelease(): void {
   state.latestVersion = null
   state.assetName = null
   state.releaseNotes = null
+  state.noPlatformAsset = false
 }
 
 /** Setzt stagedPath nach erfolgreichem Download. */
 export function setStagedPath(p: string | null): void {
   state.stagedPath = p
+  if (p) state.noPlatformAsset = false
 }
 
 /** Setzt previousVersion-Hinweis in der History (kein eigenes State-Feld). */

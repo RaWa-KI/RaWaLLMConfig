@@ -6,6 +6,7 @@
 import path from 'node:path'
 import os from 'node:os'
 import type { AppData, Category, ConfigEntry, LlmConfig, LlmDef, Machine, Snapshot } from '@shared/contract'
+import { isPathEqualOrUnder } from '@shared/path-compare'
 import { scanMcp, mcpNames } from './mcp-scan'
 import { scanRegistry } from './engine/build-data'
 import { isProviderScanEnabled } from './integration-filter'
@@ -119,9 +120,7 @@ function markConflicts(mcpCat: Category, scanCat: Category | null): Category {
 
 function isUnderRoot(rawPath: string, rawRoot: string): boolean {
   if (!rawPath || !rawRoot) return false
-  const filePath = path.resolve(rawPath).toLowerCase()
-  const rootPath = path.resolve(rawRoot).toLowerCase()
-  return filePath === rootPath || filePath.startsWith(rootPath + path.sep)
+  return isPathEqualOrUnder(path.resolve(rawPath), path.resolve(rawRoot), process.platform)
 }
 
 function cloneUserEntry(entry: ConfigEntry, source: string, sourceLabel: string): ConfigEntry {

@@ -101,3 +101,10 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+.root-rows {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}

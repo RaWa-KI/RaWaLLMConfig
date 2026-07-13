@@ -13,12 +13,8 @@ import type {
   StrukturFinding,
   StrukturFindingStatus
 } from '@shared/contract-write'
-import { configRoots, workspaceRoots } from '../services/config-roots'
-
-// Standard-Config-Ordner, die in bestimmten Roots ERWARTET werden.
-// .claude und .codex = Tool-Home-Ordner; die Sub-Ordner darin sind ihre Kinder.
-const TOOL_HOME_DIRS = new Set(['.claude', '.codex'])
-const CONFIG_SUBDIRS = new Set(['skills', 'rules', 'hooks', 'agents', 'commands', 'plugins'])
+import { buildRootDefs, CONFIG_SUBDIRS, TOOL_HOME_DIRS, type RootDef } from './struktur-roots'
+import { normalizePathForCompare } from '@shared/path-compare'
 
 // Container-Ordner, die beim Walk komplett uebersprungen werden (Treffer DARIN
 // sind Rauschen, kein Config-Befund): VCS-/Dependency-/Vault-/Build-/Temp-Baeume.
@@ -42,65 +38,6 @@ const IGNORE_CONTAINERS = new Set([
 // VCS-Rauschen, damit deren "hooks"-Ordner nicht als Befund erscheinen.
 function isIgnoredContainer(nameLower: string): boolean {
   return IGNORE_CONTAINERS.has(nameLower) || nameLower.endsWith('.git')
-}
-
-// Roots mit ihren erlaubten Top-Level-Config-Ordnern.
-// claudeHome: .claude ist hier der Root selbst → erwartet keine .claude-Kopie darin.
-// codexHome: analog.
-// sharedClaude: ist ~/.shared/.claude → erwartet keine .claude-Kopie darin.
-// projektDir: Projekte-Elternordner → .claude/.codex darin = misplaced.
-interface RootDef {
-  label: string
-  // Ordner-Namen, die auf TOP-LEVEL dieses Roots als OK gelten (kein Befund).
-  allowedTopLevel: ReadonlySet<string>
-  // Ordner-Namen, die auf TOP-LEVEL dieses Roots als misplaced gelten.
-  warnTopLevel: ReadonlySet<string>
-  // Erwartete Tool-Home-Kontexte unterhalb eines Parent-Roots.
-  knownNestedToolHomes: ReadonlySet<string>
-}
-
-// Roots aus configRoots() beziehen (Single Source, respektiert RAWALLM_SANDBOX_ROOT).
-// Projekte-Root = Elternordner des projectRoot (WS), damit fehlplatzierte .claude-
-// Kopien im Projekte-Ordner korrekt erkannt werden (Owner-Punkt 11).
-function buildRootDefs(): Record<string, RootDef> {
-  const roots = configRoots()
-  const projekte = path.dirname(roots.projectRoot)
-  const knownNestedToolHomes = new Set([
-    roots.sharedClaude,
-    path.join(roots.projectRoot, '.claude'),
-    path.join(roots.projectRoot, '.codex'),
-    ...workspaceRoots().flatMap(({ root }) => [
-      path.join(root, '.claude'),
-      path.join(root, '.codex')
-    ])
-  ].map((p) => p.toLowerCase()))
-
-  return {
-    [projekte]: {
-      label: 'Projekte',
-      allowedTopLevel: new Set<string>(),
-      warnTopLevel: new Set([...TOOL_HOME_DIRS, ...CONFIG_SUBDIRS]),
-      knownNestedToolHomes
-    },
-    [roots.claudeHome]: {
-      label: '~/.claude',
-      allowedTopLevel: new Set([...CONFIG_SUBDIRS]),
-      warnTopLevel: new Set<string>(),
-      knownNestedToolHomes: new Set<string>()
-    },
-    [roots.codexHome]: {
-      label: '~/.codex',
-      allowedTopLevel: new Set([...CONFIG_SUBDIRS, 'instructions']),
-      warnTopLevel: new Set<string>(),
-      knownNestedToolHomes: new Set<string>()
-    },
-    [roots.sharedClaude]: {
-      label: '.shared/.claude',
-      allowedTopLevel: new Set([...CONFIG_SUBDIRS, 'coordination', 'references', 'tools']),
-      warnTopLevel: new Set<string>(),
-      knownNestedToolHomes: new Set<string>()
-    }
-  }
 }
 
 // Pruefen ob ein Ordner existiert (nur stat, kein Inhalt-Read).
@@ -207,7 +144,7 @@ function walkStep(dir: string, depth: number, ctx: WalkCtx): void {
     // Tiefer als depth 1: nach versteckten Config-Ordnern suchen.
     const isConfigDir = TOOL_HOME_DIRS.has(nameLower) || CONFIG_SUBDIRS.has(nameLower)
     if (isConfigDir) {
-      if (ctx.def.knownNestedToolHomes.has(childPath.toLowerCase())) continue
+      if (ctx.def.knownNestedToolHomes.has(normalizePathForCompare(childPath, process.platform))) continue
       ctx.findings.push({
         path: childPath,
         status: 'warn',

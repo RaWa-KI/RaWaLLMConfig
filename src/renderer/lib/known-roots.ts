@@ -9,6 +9,11 @@
 // So bleibt die Allowlist hart (nur .claude/.codex/.shared je WS) und der Dialog
 // bietet exakt die Wurzeln, in die der Write-Guard tatsaechlich schreiben darf.
 import type { AppData } from '@shared/contract'
+import {
+  normalizePathForCompare,
+  rendererPathComparisonPlatformFor,
+  splitPathForPlatform,
+} from '@shared/path-compare'
 
 // Allowlist-Segmente (Spiegel von import-targets.ALLOWED_ROOT_SEGMENTS). Bewusst
 // dupliziert klein gehalten: dieses Modul kennt nur die Wurzel-Ableitung, nicht
@@ -20,13 +25,7 @@ const ROOT_SEGMENTS = new Set(['.claude', '.codex', '.shared'])
 // der KEIN Allowlist-Segment traegt. Pfade darunter sind im Main schreibbar, also
 // muss die Renderer-Wurzel-Ableitung sie ebenfalls anbieten (B1: Renderer-Scope
 // = Main-Scope). Spiegel von import-targets.PROJECT_ROOT_SEGMENT.
-const PROJECT_ROOT_SEGMENT = 'rawallmconfig'
-
-// Pfad in normalisierte Roh-Segmente zerlegen (Backslash -> Slash). Gross-/
-// Kleinschreibung bleibt erhalten (echter Pfad fuer den Write-Guard).
-function rawSegments(p: string): string[] {
-  return p.replace(/\\/g, '/').split('/').filter(Boolean)
-}
+const PROJECT_ROOT_SEGMENT = 'RaWaLLMConfig'
 
 // Aus einem realen absoluten Pfad die schreibbare Wurzel ableiten (oder null,
 // wenn weder ein Allowlist-Segment noch der projectRoot vorkommt). Beim LETZTEN
@@ -34,25 +33,26 @@ function rawSegments(p: string): string[] {
 // zwei-Segment-Wurzel mit. Faellt ein Pfad NICHT unter .claude/.codex/.shared,
 // aber unter den projectRoot (.../RaWaLLMConfig), wird beim projectRoot gekappt
 // (B1: WS-Root ist im Main schreibbar, also auch hier eine waehlbare Wurzel).
-function rootOf(absPath: string): string | null {
-  const segs = rawSegments(absPath)
-  const lc = segs.map((s) => s.toLowerCase())
+function rootOf(absPath: string, platform: string): string | null {
+  const { prefix, segments: segs } = splitPathForPlatform(absPath, platform)
+  const comparisonSegments = segs.map((segment) => normalizePathForCompare(segment, platform))
   let idx = -1
-  for (let i = 0; i < lc.length; i++) {
-    if (ROOT_SEGMENTS.has(lc[i])) idx = i
+  for (let i = 0; i < comparisonSegments.length; i++) {
+    if (ROOT_SEGMENTS.has(comparisonSegments[i])) idx = i
   }
   if (idx !== -1) {
     let end = idx + 1
-    if (lc[idx] === '.shared' && lc[idx + 1] === '.claude') end = idx + 2
-    return segs.slice(0, end).join('/')
+    if (comparisonSegments[idx] === '.shared' && comparisonSegments[idx + 1] === '.claude') end = idx + 2
+    return prefix + segs.slice(0, end).join('/')
   }
   // Kein Allowlist-Segment: projectRoot-Fallback (letztes Vorkommen kappen).
+  const projectRootSegment = normalizePathForCompare(PROJECT_ROOT_SEGMENT, platform)
   let pidx = -1
-  for (let i = 0; i < lc.length; i++) {
-    if (lc[i] === PROJECT_ROOT_SEGMENT) pidx = i
+  for (let i = 0; i < comparisonSegments.length; i++) {
+    if (comparisonSegments[i] === projectRootSegment) pidx = i
   }
   if (pidx === -1) return null
-  return segs.slice(0, pidx + 1).join('/')
+  return prefix + segs.slice(0, pidx + 1).join('/')
 }
 
 // Alle realen Pfade aus den Config-Daten einsammeln (Kategorie-Pfade +
@@ -75,13 +75,15 @@ function collectPaths(data: AppData | null): string[] {
  * geladen sind oder kein Pfad ein Allowlist-Segment traegt (Dialog zeigt dann
  * keine Ziel-Optionen -> Confirm bleibt fuer ready-Items leer/abgeschaltet).
  */
-export function knownRootsFromConfig(data: AppData | null): string[] {
+export function knownRootsFromConfig(data: AppData | null, platform?: string): string[] {
   const seen = new Set<string>()
   const out: string[] = []
-  for (const p of collectPaths(data)) {
-    const root = rootOf(p)
+  const paths = collectPaths(data)
+  const comparisonPlatform = platform ?? rendererPathComparisonPlatformFor(...paths)
+  for (const p of paths) {
+    const root = rootOf(p, comparisonPlatform)
     if (!root) continue
-    const key = root.toLowerCase()
+    const key = normalizePathForCompare(root, comparisonPlatform)
     if (seen.has(key)) continue
     seen.add(key)
     out.push(root)

@@ -23,7 +23,8 @@ async function runPerf() {
   const win = launched.win
   const launchMs = Date.now() - started
   recordStep('launch', { launchMs })
-  await win.locator('.sec-btn').first().waitFor({ state: 'visible', timeout: 10_000 })
+  await completeOnboardingForMetrics(win)
+  await win.locator('.sec-btn, .nav-item, .settings-tabs').first().waitFor({ state: 'visible', timeout: 10_000 })
   const interactiveMs = Date.now() - started
   recordStep('interactive', { interactiveMs })
   const configTextLength = await appTextLength(win)
@@ -45,6 +46,16 @@ async function runPerf() {
   enforceThresholds(report)
   writeJson(reportPath, report)
   return report
+}
+
+async function completeOnboardingForMetrics(win) {
+  const onboarding = win.locator('.ob-card')
+  if (!(await onboarding.isVisible().catch(() => false))) return
+  const skip = onboarding.getByRole('button', { name: 'Überspringen', exact: true })
+  await skip.waitFor({ state: 'visible', timeout: 10_000 })
+  await skip.click()
+  await onboarding.waitFor({ state: 'detached', timeout: 10_000 })
+  recordStep('onboarding-skipped')
 }
 
 async function measureUpdateReaction(win) {

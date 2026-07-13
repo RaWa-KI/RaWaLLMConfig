@@ -20,14 +20,33 @@ export function referenceModels(data: AppData | null): LlmDef[] {
 }
 
 export function datasetForModel(data: AppData | null, modelId: string, mode: ReferenceMode): RefDataset {
-  const model = referenceModels(data).find((item) => item.id === modelId)
-  const base = STATIC_DATASETS[modelId] ?? datasetFromScan(modelId, model, data?.data[modelId])
+  const base = baseDatasetForModel(data, modelId)
   return mode === 'commands' ? commandDataset(base) : base
+}
+
+export function commandModelId(data: AppData | null, currentId?: string): string {
+  const models = referenceModels(data)
+  if (currentId && commandDataset(baseDatasetForModel(data, currentId)).artifacts.some(hasFields)) {
+    return currentId
+  }
+  return models.find((model) => commandDataset(baseDatasetForModel(data, model.id)).artifacts.some(hasFields))?.id
+    ?? currentId
+    ?? models[0]?.id
+    ?? 'claude'
 }
 
 export function firstArtifactId(dataset: RefDataset, mode: ReferenceMode): string {
   if (mode === 'commands') return 'slash'
   return dataset.artifacts[0]?.id ?? 'empty'
+}
+
+function baseDatasetForModel(data: AppData | null, modelId: string): RefDataset {
+  const model = referenceModels(data).find((item) => item.id === modelId)
+  return STATIC_DATASETS[modelId] ?? datasetFromScan(modelId, model, data?.data[modelId])
+}
+
+function hasFields(artifact: RefArtifact): boolean {
+  return artifact.fields.length > 0
 }
 
 function commandDataset(dataset: RefDataset): RefDataset {

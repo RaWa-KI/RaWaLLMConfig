@@ -8,7 +8,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { configRoots, configRootList, activeSandboxRoot, workspaceRoots } from '../../src/main/services/config-roots'
+import { configRoots, configRootList, activeSandboxRoot, discoverConfigRoots, setRootPrefsProvider, setRootExistsProvider, workspaceRoots } from '../../src/main/services/config-roots'
+import { discoverRoot } from '../../src/main/services/config-root-resolution'
 
 const WM_PATH = require.resolve('../../src/main/services/write-mode.ts')
 function loadWriteMode(): typeof import('../../src/main/services/write-mode') {
@@ -21,6 +22,44 @@ function clearEnv(): void {
   delete process.env.RAWALLM_SANDBOX_ROOT
   delete process.env.RAWALLM_WRITE_ENABLED
 }
+
+test.afterEach(() => {
+  setRootPrefsProvider(() => ({}))
+  setRootExistsProvider(() => true)
+})
+
+test('Root-Discovery: Prefs gewinnen vor dem vorhandenen Default und weisen die Quelle aus', () => {
+  clearEnv()
+  setRootPrefsProvider(() => ({
+    'roots.sharedClaude': 'D:\\Config\\shared',
+    'roots.workspaceParent': 'D:\\Projekte',
+    'roots.projectRoot': 'D:\\Projekte\\App'
+  }))
+  expect(discoverConfigRoots().sharedClaude).toEqual({ value: 'D:\\Config\\shared', source: 'prefs' })
+  expect(discoverConfigRoots().workspaceParent).toEqual({ value: 'D:\\Projekte', source: 'prefs' })
+  expect(discoverConfigRoots().projectRoot).toEqual({ value: 'D:\\Projekte\\App', source: 'prefs' })
+})
+
+test('Root-Discovery: Sandbox gewinnt vor Prefs', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'rawallm-roots-'))
+  process.env.RAWALLM_SANDBOX_ROOT = sandbox
+  setRootPrefsProvider(() => ({ 'roots.sharedClaude': 'D:\\Ignored' }))
+  expect(discoverConfigRoots().sharedClaude).toEqual({ value: join(sandbox, '.shared', '.claude'), source: 'sandbox' })
+  clearEnv()
+})
+
+test('Root-Discovery: fehlender Windows-Default wird direkt als none aufgeloest', () => {
+  const missingWindowsRoot = 'C:\\nicht-vorhanden\\.shared\\.claude'
+  expect(discoverRoot(null, missingWindowsRoot, () => false)).toEqual({ value: null, source: 'none' })
+})
+
+test('configRoots gibt fehlende Shared- und Projekt-Roots ehrlich als null weiter', () => {
+  clearEnv()
+  setRootExistsProvider(() => false)
+  expect(configRoots().sharedClaude).toBeNull()
+  expect(configRoots().projectRoot).toBeNull()
+  expect(configRootList()).not.toContain(null)
+})
 
 test('(a) Default ohne RAWALLM_SANDBOX_ROOT -> reale Home-basierte Wurzeln', () => {
   clearEnv()

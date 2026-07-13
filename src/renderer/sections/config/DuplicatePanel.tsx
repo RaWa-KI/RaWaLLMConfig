@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Category, DiffLabels, DuplicateSet } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import { SEITE, PILL, diffLabels, seiteForFamily } from '@shared/dup-labels'
+import { PILL, diffLabels, seiteForFamily } from '@shared/dup-labels'
 import { buildKnownPaths } from './known-paths'
 import { folderPathOf } from './manifest-path'
 import { DirDiffView } from './DirDiffView'
@@ -149,10 +149,15 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
 function FamilyChips({ seite }: { seite: 'claude' | 'codex' | 'workspace' }) {
   return (
     <span className="deh-fams">
-      <span className="deh-fam shared">{SEITE.shared}</span>
-      <span className={'deh-fam ' + seite}>{SEITE[seite]}</span>
+      <span className="deh-fam shared">Gemeinsame Version</span>
+      <span className={'deh-fam ' + seite}>{familyChipLabel(seite)}</span>
     </span>
   )
+}
+
+function familyChipLabel(seite: 'claude' | 'codex' | 'workspace'): string {
+  if (seite === 'workspace') return 'Deine Workspace-Kopie'
+  return `Deine ${seite === 'claude' ? 'Claude' : 'Codex'}-Version`
 }
 
 // Typ-/Zaehler-Text im Kopf: „<Kategorie> · Ordner · N Dateien" bzw.

@@ -29,4 +29,22 @@ export type CoreMessageParamsMap = {
   "integrations.action.chooseFolder": undefined
   "integrations.error.loadFailed": undefined
   "integrations.error.unavailable": undefined
+  "envMigrate.target.windows": undefined
+  "envMigrate.target.linux": undefined
+  "envMigrate.action": { varName: string }
+  "envMigrate.action.title": { target: string; varName: string }
+  "envMigrate.confirm.title": { target: string; varName: string }
+  "envMigrate.confirm.detail.windows": { varRef: string }
+  "envMigrate.confirm.detail.linux": { varRef: string }
+  "envMigrate.confirm.button": undefined
+  "envMigrate.status.busy": undefined
+  "envMigrate.status.done": { varName: string }
+  "envMigrate.status.partial": { varName: string }
+  "envMigrate.status.error": { detail: string }
+  "envMigrate.error.generic": undefined
+  "envMigrate.error.backup": undefined
+  "envMigrate.error.rollback": undefined
+  "envMigrate.error.partial": undefined
+  "envMigrate.error.unsupported": undefined
+  "envMigrate.unavailable.macos": undefined
 }

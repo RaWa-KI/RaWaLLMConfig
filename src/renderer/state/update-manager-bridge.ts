@@ -35,13 +35,18 @@ export async function runUpdateAction<T>(
   return res
 }
 
+export function updateErrorMessage(error: string | null): string | null {
+  if (error === 'appimage-env-missing') return msg('update.error.appimageEnvMissing')
+  return error
+}
+
 function showUpdateToast<T>(
   res: UpdateResult<T>,
   showToast: ToastFn,
   okMsg: string
 ): void {
   if (res.error || res.data === null) {
-    showToast(res.error ?? msg('update.toast.actionFailed'), 'warn')
+    showToast(updateErrorMessage(res.error) ?? msg('update.toast.actionFailed'), 'warn')
     return
   }
   showToast(okMsg, 'check')

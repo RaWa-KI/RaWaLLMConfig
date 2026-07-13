@@ -178,9 +178,9 @@ test('applyImportItems: alle Picks uebersprungen -> ok=false, ehrliche No-Op-Mel
 // ── B1: Renderer-Scope = Main-Scope + Traversal-Haertung ────────────────────
 
 test('isAllowedRoot akzeptiert projectRoot (.../RaWaLLMConfig) wie den Main-Scope', () => {
-  expect(isAllowedRoot('C:/Users/u/Desktop/Projekte/RaWaLLMConfig/docs/x.md')).toBe(true)
-  expect(isAllowedRoot('/home/u/.claude/rules/r.md')).toBe(true)
-  expect(isAllowedRoot('/tmp/foreign/x.md')).toBe(false)
+  expect(isAllowedRoot('C:/Users/u/Desktop/Projekte/RaWaLLMConfig/docs/x.md', 'win32')).toBe(true)
+  expect(isAllowedRoot('/home/u/.claude/rules/r.md', 'linux')).toBe(true)
+  expect(isAllowedRoot('/tmp/foreign/x.md', 'linux')).toBe(false)
 })
 
 test('sanitizeRelTarget entfernt Traversal/absolute Praefixe', () => {

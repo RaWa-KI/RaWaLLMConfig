@@ -56,6 +56,7 @@ function withKnownRoot(
 ): IntegrationActivation {
   if (hasCustomExists || definition.id !== 'shared-trunk' || activation.root) return activation
   const sharedRoot = configRoots().sharedClaude
+  if (!sharedRoot) return activation
   return pathStatus(sharedRoot) === 'available' ? { ...activation, root: sharedRoot } : activation
 }
 

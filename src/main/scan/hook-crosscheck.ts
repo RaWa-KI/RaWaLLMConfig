@@ -1,6 +1,7 @@
 // hook-crosscheck.ts — C-04/A1-5 isolierter Hook-Crosscheck.
 // Vergleicht command-Pfade aus settings/hooks.json mit Hook-Scripts in hooks/*.
 import path from 'node:path'
+import { normalizePathForCompare } from '@shared/path-compare'
 import { listFilesDeep, pathExists, readJsonFile, slashPath } from './c04-scan-helpers'
 
 export interface HookCrosscheckInput {
@@ -108,5 +109,5 @@ function isHookScript(absPath: string): boolean {
 }
 
 function norm(absPath: string): string {
-  return slashPath(path.resolve(absPath)).toLowerCase()
+  return normalizePathForCompare(slashPath(path.resolve(absPath)), process.platform)
 }

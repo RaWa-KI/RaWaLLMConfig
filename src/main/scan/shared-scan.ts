@@ -27,7 +27,8 @@ import {
 
 // Trunk-Pfad aus der Single Source (Default = realer .shared/.claude, M1
 // unveraendert; mit RAWALLM_SANDBOX_ROOT = <sandbox>/.shared/.claude).
-const sharedDir = configRoots().sharedClaude
+const configuredSharedDir = configRoots().sharedClaude
+const sharedDir = configuredSharedDir ?? ''
 
 // Sichtbare Spalten-Anker (Quelle->Ziel->Wirkung) zentral aus dup-labels:
 // die zentrale Version (Shared) gegenueber der lokalen Workspace-Kopie.
@@ -250,6 +251,13 @@ export {
 // Trunk-Kanonik scannen: A (volle Karten) + Instructions + C (references/registry) + D (Zaehler).
 // B (changelogs/tracking) bewusst ausgelassen — gehoert in den Watcher.
 export function scanShared(): LlmConfig {
+  if (!configuredSharedDir) return {
+    categories: [{
+      id: 'shared-root-not-configured', label: 'Shared', icon: 'warning', path: '',
+      blurb: 'Shared-Konfiguration ist nicht eingerichtet.',
+      entries: [{ id: 'shared-root-not-configured', name: 'Shared-Ordner nicht eingerichtet', status: 'stale', scope: 'shared', path: '', desc: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.', updated: '' }]
+    }], duplicates: [], diffLabels: SHARED_DIFF_LABELS
+  }
   const categories: Category[] = []
   for (const def of A_CATEGORIES) {
     try {

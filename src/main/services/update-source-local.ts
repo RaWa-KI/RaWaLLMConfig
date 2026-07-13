@@ -17,7 +17,13 @@ import type {
   UpdateSourcePort,
   UpdateStageRequest,
 } from './update-source-port'
-import { checkMzHeader, checkExactSize, sha256Hex, moveToFailed } from './update-gates'
+import { checkExactSize, checkMagicHeader, checkMzHeader, moveToFailed, sha256Hex } from './update-gates'
+import {
+  assetSpecFor,
+  currentUpdatePlatform,
+  matchesPlatformAsset,
+  type PlatformAssetSpec,
+} from './update-platform'
 import { isPathWithin } from '../lib/path-within'
 
 export type { StageInstallerOpts, StageResult } from './update-source-port'
@@ -94,33 +100,35 @@ export function compareVersions(a: string, b: string): number {
   return 0
 }
 
-export function selectAsset(assets: UpdateAsset[]): UpdateAsset | null {
-  return (
-    assets.find(
-      (a) =>
-        typeof a.name === 'string' &&
-        (a.content_type === 'application/x-msdownload' ||
-          a.name.toLowerCase().endsWith('.exe'))
-    ) ?? null
-  )
+export function selectAsset(
+  assets: UpdateAsset[],
+  spec: PlatformAssetSpec = assetSpecFor(currentUpdatePlatform())
+): UpdateAsset | null {
+  return assets.find((asset) => matchesPlatformAsset(asset, spec)) ?? null
 }
 
 export function buildUpdateInfo(
   release: UpdateRelease,
-  currentVersion: string
-): { hasUpdate: boolean; info: UpdateInfo | null; latestVersion: string | null } {
+  currentVersion: string,
+  spec: PlatformAssetSpec = assetSpecFor(currentUpdatePlatform())
+): {
+  hasUpdate: boolean
+  info: UpdateInfo | null
+  latestVersion: string | null
+  noPlatformAsset: boolean
+} {
   // Pre-release-Gate
   if (release.prerelease) {
-    return { hasUpdate: false, info: null, latestVersion: null }
+    return { hasUpdate: false, info: null, latestVersion: null, noPlatformAsset: false }
   }
   const latestVersion = release.tag_name.replace(/^v/i, '')
   const cmp = compareVersions(latestVersion, currentVersion.replace(/^v/i, ''))
   if (cmp <= 0) {
-    return { hasUpdate: false, info: null, latestVersion }
+    return { hasUpdate: false, info: null, latestVersion, noPlatformAsset: false }
   }
-  const asset = selectAsset(release.assets)
+  const asset = selectAsset(release.assets, spec)
   if (!asset) {
-    return { hasUpdate: false, info: null, latestVersion }
+    return { hasUpdate: false, info: null, latestVersion, noPlatformAsset: true }
   }
   const info: UpdateInfo = {
     version: latestVersion,
@@ -132,7 +140,7 @@ export function buildUpdateInfo(
     isPrerelease: release.prerelease,
     sha256: asset.sha256,
   }
-  return { hasUpdate: true, info, latestVersion }
+  return { hasUpdate: true, info, latestVersion, noPlatformAsset: false }
 }
 
 function stageError(error: string): StageResult {
@@ -193,8 +201,12 @@ async function copyInstallerFile(
   }
 }
 
-function validateCopiedInstaller(destPath: string, fileSize: number): StageResult | null {
-  if (!checkMzHeader(destPath)) {
+function validateCopiedInstaller(
+  destPath: string,
+  fileSize: number,
+  platformSpec: PlatformAssetSpec
+): StageResult | null {
+  if (!checkMagicHeader(destPath, platformSpec.magic)) {
     moveToFailed(destPath)
     return stageError('invalid-installer')
   }
@@ -221,7 +233,13 @@ async function verifyOptionalSha(destPath: string, sha256?: string): Promise<Sta
 }
 
 export async function stageInstaller(opts: StageInstallerOpts): Promise<StageResult> {
-  const { updateDir, info, destPath, onProgress } = opts
+  const {
+    updateDir,
+    info,
+    destPath,
+    onProgress,
+    platformSpec = assetSpecFor(currentUpdatePlatform()),
+  } = opts
   const srcExe = join(updateDir, basename(info.assetName))
 
   const sourceErr = validateSourceFile(srcExe)
@@ -234,7 +252,7 @@ export async function stageInstaller(opts: StageInstallerOpts): Promise<StageRes
   if (copyErr) return copyErr
   await delay(UPDATE_CONSTANTS.COPY_FLUSH_DELAY_MS)
 
-  const installerErr = validateCopiedInstaller(destPath, info.fileSize)
+  const installerErr = validateCopiedInstaller(destPath, info.fileSize, platformSpec)
   if (installerErr) return installerErr
   const shaErr = await verifyOptionalSha(destPath, info.sha256)
   if (shaErr) return shaErr

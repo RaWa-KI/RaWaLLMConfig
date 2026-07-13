@@ -1,113 +1,91 @@
 # RaWaLLMConfig
 
-## Screenshots / Bildschirmfotos
+RaWaLLMConfig is a local desktop app for inspecting and safely managing AI
+tool configuration. Deutsche Informationen stehen zuerst; an English summary
+follows below.
 
-| Overview / Überblick | Modules / Module |
-| --- | --- |
-| <img src="docs/brand/dashboard-simple-mode.png" alt="RaWaLLMConfig overview with guided core flows" width="420"> | <img src="docs/brand/app-config-modules.png" alt="RaWaLLMConfig module configuration view" width="420"> |
-| Edit view / Änderungsansicht | Toolchain watcher |
-| <img src="docs/brand/model-config-edit-simple-mode.png" alt="RaWaLLMConfig edit view for model and tool configuration" width="420"> | <img src="docs/brand/toolchain-watcher.png" alt="RaWaLLMConfig toolchain watcher" width="420"> |
+## Bildschirmfotos
+
+![Übersicht im einfachen Modus](docs/brand/dashboard-simple-mode.png)
+
+![Modulkonfiguration](docs/brand/app-config-modules.png)
+
+![Änderungsansicht](docs/brand/model-config-edit-simple-mode.png)
+
+![Toolchain-Watcher](docs/brand/toolchain-watcher.png)
 
 ## Deutsch
 
-RaWaLLMConfig ist eine lokale Desktop-App, mit der KI-Tool-Konfigurationen an
-einem Ort sichtbar werden: Claude, Codex, MCP, Hooks, lokale Modelle, Agenten
-und Workspace-Einstellungen.
+RaWaLLMConfig macht lokale Konfigurationen für Claude, Codex, MCP, Hooks,
+Agenten und lokale Modelle an einem Ort sichtbar. Die App arbeitet lokal.
+Schreibaktionen brauchen eine Bestätigung und legen zuerst eine Sicherung an.
 
-Die App richtet sich an Menschen, die ihre lokale KI-Arbeitsumgebung besser
-verstehen, prüfen und sicher verwalten möchten. Sie läuft lokal auf dem eigenen
-Rechner. Schreibaktionen sind geschützt: Änderungen brauchen Bestätigung und
-werden backup-first ausgeführt.
+Die App ist eine öffentliche Alpha. Der Kern ist nutzbar, einzelne Ansichten
+und Integrationen werden noch vereinfacht und vervollständigt.
 
-RaWaLLMConfig ist aktuell eine öffentliche Alpha. Das bedeutet: Der Kern ist
-nutzbar, einzelne Bereiche werden aber noch erweitert, geglättet und
-verständlicher gemacht.
+### Enthaltene Funktionen
 
-Der öffentliche Quellcode steht unter AGPL-3.0-or-later. Externe Beiträge
-brauchen vor dem Merge eine Contributor License Agreement.
-
-### Installation für Endnutzer
-
-Die aktuelle Windows-Version liegt auf der
-[GitHub-Releases-Seite](https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest).
-Lade dort `RaWaLLMConfig-Setup-0.1.4.exe` herunter und starte den Installer.
-
-Windows SmartScreen kann bei einem noch unsignierten Alpha-Installer einen
-Hinweis anzeigen. Das ist bei neuen, nicht signierten Open-Source-Installern
-nicht ungewöhnlich. Prüfe bei Bedarf vor dem Start den SHA256-Hash:
-
-```text
-f081ef5294439106042fd5e67cca78e757722a466997be78b8952a1b8a8f1b6a
-```
-
-### Was aktuell enthalten ist
-
-- Übersicht über erkannte KI- und Tool-Konfigurationen.
-- Unterstützung für Claude-, Codex-, MCP-, Hook- und lokale Modell-Quellen.
-- Lokale Anzeige wichtiger Konfigurationspfade und Zustände.
-- Geführte Einstiege für typische Prüf- und Verwaltungsaufgaben.
+- Übersicht über erkannte Konfigurationsquellen und wichtige Zustände.
+- Geführte Einstiege für Prüfung, Vergleich und sichere Änderungen.
 - Geschützter Schreibmodus mit Bestätigung und Backup-first-Logik.
-- Toolchain-Watcher für lokale Versions-, Changelog- und Wartungshinweise.
-- Update-Unterstützung über öffentliche GitHub-Releases.
-- Tests und Smokes für zentrale App-Flows.
+- Toolchain-Watcher für lokale Versionen und Wartungshinweise.
+- Plattformbezogene Auswahl passender Update-Pakete.
+- Node-basierte Service-Tests für zentrale App-Flows.
+
+### Downloads und Updates nach Betriebssystem
+
+Windows- und Linux-Pakete sind getrennte Erstdownloads. Verwende immer das
+Paket für dein Betriebssystem.
+
+#### Windows
+
+Der derzeit geprüfte Endnutzer-Download ist der Windows-Installer auf der
+[GitHub-Releases-Seite][releases]. Er trägt das Namensmuster
+`RaWaLLMConfig-Setup-x.y.z.exe` und wird als NSIS-Installer ausgeführt.
+
+Der In-App-Updater wählt für Windows das passende `.exe`-Paket aus dem
+Release. Windows SmartScreen kann bei einer noch unsignierten Alpha einen
+Hinweis anzeigen. Der jeweilige Release stellt Prüfsummen bereit.
+
+#### Linux
+
+Die Build-Konfiguration enthält getrennte Ziele für AppImage, deb und rpm.
+Der vollständige Paket- und Startbeweis auf einem nativen Linux-Runner steht
+für die aktuelle Alpha noch aus. Ein Linux-Download gilt deshalb erst dann als
+verfügbar, wenn die passenden Dateien im jeweiligen Release veröffentlicht
+und dort als geprüft ausgewiesen sind.
+
+- **AppImage:** Das AppImage ist der portable Erstdownload. Wird die App als
+  AppImage gestartet, ist der In-App-Updater für den gesicherten Austausch
+  genau dieser AppImage-Datei vorgesehen.
+- **deb/rpm:** Diese Pakete werden über den Paketmanager installiert. Es gibt
+  derzeit kein eigenes apt-/dnf-Paket-Repository. Eine neue Version wird daher
+  manuell als neues deb-/rpm-Paket über den Paketmanager installiert; der
+  In-App-Updater ersetzt keine paketverwaltete Installation.
 
 ### Toolchain-Watcher
 
-KI-Werkzeuge ändern sich schnell: Claude Code, Codex, MCPs, Hooks und lokale
-Modelle bekommen regelmäßig neue Versionen, neue Regeln oder geänderte
-Konfigurationswege. RaWaLLMConfig sammelt diese Hinweise lokal, ordnet sie ein
-und zeigt, was Aufmerksamkeit braucht.
+Claude Code, Codex, MCPs und lokale Modelle ändern sich regelmäßig. Der
+Watcher verbindet lokal erfasste Versions- und Changelog-Hinweise mit der
+vorhandenen Konfiguration. Er zeigt Hinweise an, führt aber keine stillen
+Installationen oder Reparaturen aus.
 
-Der „Betrifft dich“-Abgleich verbindet Changelog- und Watcher-Informationen mit
-deiner echten lokalen Konfiguration. So musst du nicht jede Anbieteränderung
-lesen, sondern siehst zuerst, ob eine Änderung für deine Arbeitsumgebung
-relevant ist.
+Für Claude Code gilt der native Standalone-Pfad als Projektvorgabe; npm gehört
+nicht zum unterstützten Betriebsweg. Der Versionscheck über `claude --version`
+bestätigt nur die erreichbare Version; er weist weder den Installationspfad
+noch den Installationsursprung nach.
 
-### Noch nicht vollständig enthalten
+### Noch nicht vollständig
 
-Einige geplante Bereiche sind noch nicht fertig oder noch nicht für normale
-Nutzer freigegeben:
+- Import eigener Sprachdateien.
+- Vollständige Vorlagenverwaltung.
+- Einfach-/Expertenmodus in jeder Ansicht.
+- Datenbank-Unterstützung als Standardpfad für normale Nutzer.
+- Vollständige Linux-CI mit Paket- und Startbeweis.
 
-- die App soll später eigene Sprachdateien laden können; dieser Import ist noch
-  nicht fertig,
-- vollständige Vorlagen-/Template-Verwaltung,
-- der Einfach-/Expertenmodus ist noch nicht in allen Ansichten vollständig
-  umgesetzt,
-- Datenbank-Unterstützung ist vorbereitet, aber noch kein fertiger Standardpfad
-  für normale Nutzer,
-- alle geplanten Integrationen für weitere lokale Tool-Familien,
-- ein komplett geglätteter Nicht-Technik-Modus für alle Ansichten,
-- vollständige Dokumentation für jede Einstellung und jeden Spezialfall.
+### Entwicklung und Prüfung
 
-Diese Punkte sind bewusst nicht als fertige Funktionen beschrieben. Sie werden
-Schritt für Schritt ergänzt.
-
-### Für wen ist die Alpha von RaWaLLMConfig gedacht?
-
-Die App richtet sich an alle, die lokale KI-Tools nutzen möchten, ohne sich
-durch endlose Konfigurationsdateien, Hooks und Startregeln zu quälen.
-
-- **Der KI-Entdecker (kein IT-Profi):** Du möchtest Claude, Codex oder lokale
-  Modelle unkompliziert nutzen? Die App bietet dir eine visuelle Übersicht, die
-  dir den Einstieg leicht macht.
-- **Der Problemlöser:** Du fragst dich, warum deine KI langsam, teuer oder
-  tokenhungrig ist? Die App hilft dir, den Flaschenhals zu verstehen und zu
-  beheben.
-- **Der Power-User und IT-Profi:** Du brauchst eine zentrale Kommandozentrale?
-  Profitiere von komfortablen Übersichten für Diagnosen, Warnungen und
-  technische Details.
-
-**Das kann die App bereits:** Wir bündeln deine lokalen Konfigurationen, zeigen
-dir Doppelungen auf und übersetzen kryptische Systemzustände in verständliches
-Deutsch. Dank integrierter Tipps und passender Befehle kannst du Fehler direkt
-nachvollziehen und beheben.
-
-**Wichtiger Hinweis zum Status:** Dies ist eine öffentliche Alpha-Version. Sie
-ist perfekt zum Prüfen, Verstehen und Mitgestalten. Wenn du ein zu 100 %
-fehlerfreies und fertiges Endprodukt erwartest, solltest du noch auf eine
-spätere Version warten.
-
-### Entwicklung
+Voraussetzung ist Node.js 22 oder neuer mit Corepack.
 
 ```bash
 corepack pnpm install --frozen-lockfile
@@ -116,126 +94,109 @@ corepack pnpm test
 corepack pnpm build
 ```
 
-Windows-Build:
+### Build-Matrix
 
-```bash
-corepack pnpm dist
-```
+- `corepack pnpm dist:win` baut den Windows-NSIS-Installer.
+- `corepack pnpm dist:linux` baut AppImage, deb und rpm.
+- `corepack pnpm dist:all` startet beide konfigurierten Build-Ziele.
 
-### Public-Alpha-Export
+Für Release-Beweise sollen Windows- und Linux-Pakete auf dem jeweiligen
+nativen Betriebssystem oder in einer entsprechenden CI-Matrix gebaut und
+gestartet werden. Ein erfolgreicher Quell-Build ersetzt diesen Paketbeweis
+nicht.
 
-Der öffentliche Quellstand wird bewusst aus einem frischen, bereinigten Export
-geschnitten. Private Git-Historie, Governance-Dateien, lokale Laufzeitdaten,
-generierte Ausgaben und Dateien mit Secret-Risiko gehören nicht in den
-öffentlichen Quellstand.
+### Öffentlicher Quell-Export
+
+Der öffentliche Quellstand wird aus einem frischen, leeren Ziel außerhalb des
+Repositories erzeugt und anschließend geprüft:
 
 ```bash
 corepack pnpm release:notices
-corepack pnpm release:export "$env:TEMP/rawallmconfig-public-alpha"
-corepack pnpm release:verify "$env:TEMP/rawallmconfig-public-alpha"
+corepack pnpm release:export "../rawallmconfig-public-alpha"
+corepack pnpm release:verify "../rawallmconfig-public-alpha"
 ```
 
-Der Exportumfang ist in `docs/PUBLIC-RELEASE-SCOPE.md` beschrieben.
+Der Exportumfang steht in
+[`docs/PUBLIC-RELEASE-SCOPE.md`](docs/PUBLIC-RELEASE-SCOPE.md).
 
-### Lizenz
+### Lizenz und Beiträge
 
-RaWaLLMConfig steht unter der GNU Affero General Public License v3.0 or later.
-Externe Beiträge benötigen vor dem Merge die RaWaLLMConfig Contributor License
-Agreement.
+Der Quellcode steht unter AGPL-3.0-or-later. Externe Beiträge benötigen vor
+dem Merge eine Contributor License Agreement. Details stehen in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## English
 
-RaWaLLMConfig is a local desktop app for making AI tool configuration visible in
-one place: Claude, Codex, MCP, hooks, local models, agents, and workspace
-settings.
+RaWaLLMConfig brings local configuration for Claude, Codex, MCP, hooks,
+agents, and local models into one desktop app. It runs locally. Write actions
+require confirmation and create a backup before changing files.
 
-The app is built for people who want to understand, inspect, and safely manage
-their local AI working environment. It runs locally on the user's machine. Write
-actions are protected: changes require confirmation and use backup-first
-safeguards.
+The app is a public alpha. Its core is usable, while some views and
+integrations are still being simplified and completed.
 
-RaWaLLMConfig is currently a public alpha. This means the core is usable, while
-some areas are still being expanded, refined, and made easier to understand.
+### Included features
 
-The public source code is licensed under AGPL-3.0-or-later. External
-contributions require a Contributor License Agreement before merge.
+- An overview of detected configuration sources and important states.
+- Guided entry points for inspection, comparison, and safe changes.
+- Protected write mode with confirmation and backup-first safeguards.
+- A toolchain watcher for local versions and maintenance notices.
+- Platform-aware selection of matching update packages.
+- Node-based service tests for central app flows.
 
-### Installation for end users
+### Downloads and updates by operating system
 
-The current Windows version is available on the
-[GitHub Releases page](https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest).
-Download `RaWaLLMConfig-Setup-0.1.4.exe` and run the installer.
+Windows and Linux packages are separate first downloads. Always choose the
+package built for your operating system.
 
-Windows SmartScreen may show a notice for this unsigned alpha installer. That
-is not unusual for new, unsigned open-source installers. If you want to verify
-the download before running it, check this SHA256 hash:
+#### Windows download
 
-```text
-f081ef5294439106042fd5e67cca78e757722a466997be78b8952a1b8a8f1b6a
-```
+The currently verified end-user download is the Windows installer on the
+[GitHub Releases page][releases]. Its name follows the pattern
+`RaWaLLMConfig-Setup-x.y.z.exe`, and it runs as an NSIS installer.
 
-### What is included now
+On Windows, the in-app updater selects the matching `.exe` asset from the
+release. Windows SmartScreen may show a notice for an unsigned alpha. Each
+release provides checksums for verification.
 
-- Overview of detected AI and tool configuration sources.
-- Support for Claude, Codex, MCP, hook, and local model configuration surfaces.
-- Local display of important configuration paths and states.
-- Guided entry points for common inspection and management tasks.
-- Protected write mode with confirmation and backup-first behavior.
-- Toolchain watcher for local version, changelog, and maintenance notices.
-- Update support through public GitHub releases.
-- Tests and smokes for central app flows.
+#### Linux downloads
+
+The build configuration contains separate AppImage, deb, and rpm targets.
+Complete package and launch evidence from a native Linux runner is still
+pending for the current alpha. A Linux download is therefore considered
+available only when the matching files are published in a release and marked
+there as verified.
+
+- **AppImage:** The AppImage is the portable first download. When the app is
+  launched as an AppImage, the in-app updater is intended to replace that
+  AppImage file after creating a backup.
+- **deb/rpm:** These packages are installed through the package manager. The
+  project does not currently provide its own apt or dnf repository. Later
+  versions must therefore be installed manually as a new deb or rpm package;
+  the in-app updater does not replace a package-managed installation.
 
 ### Toolchain watcher
 
-AI tools change quickly: Claude Code, Codex, MCPs, hooks, and local models
-regularly receive new versions, new rules, or changed configuration paths.
-RaWaLLMConfig collects these notices locally, sorts them, and shows what needs
-attention.
+Claude Code, Codex, MCPs, and local models change regularly. The watcher
+connects locally collected version and changelog notices with the detected
+configuration. It shows notices but does not perform silent installations or
+repairs.
 
-The "Affects you" check connects changelog and watcher information with your
-real local configuration. You do not have to read every provider change first;
-you can see whether a change is relevant to your working environment.
+For Claude Code, the native standalone path is the project standard; npm is
+outside the supported operating path. The `claude --version` check confirms
+only the reachable version; it proves neither the installation path nor its
+origin.
 
-### Not fully included yet
+### Not yet complete
 
-Some planned areas are not finished yet or are not ready for regular users:
+- Importing custom language files.
+- Complete template management.
+- Simple/Expert mode in every view.
+- Database support as the default path for regular users.
+- Complete Linux CI with package and launch evidence.
 
-- the app is intended to load custom language files later; this import flow is
-  not finished yet,
-- full template management,
-- the Simple/Expert mode switch is not fully implemented across all views yet,
-- database support is prepared, but not yet a finished default path for regular
-  users,
-- all planned integrations for additional local tool families,
-- a fully polished non-technical mode across all views,
-- complete documentation for every setting and special case.
+### Development and verification
 
-These points are intentionally not described as finished features. They will be
-added step by step.
-
-### Who is the RaWaLLMConfig alpha for?
-
-The app is for anyone who wants to use local AI tools without digging through
-endless configuration files, hooks, and startup rules.
-
-- **The AI explorer (not an IT professional):** Want to use Claude, Codex, or
-  local models more easily? The app gives you a visual overview that makes
-  getting started easier.
-- **The problem solver:** Wondering why your AI setup feels slow, expensive, or
-  token-hungry? The app helps you understand and fix the bottleneck.
-- **The power user and IT professional:** Need a central command center? Use
-  convenient overviews for diagnostics, warnings, and technical details.
-
-**What the app can already do:** It brings your local configurations together,
-points out duplication, and translates cryptic system states into clear
-language. Integrated tips and matching commands help you understand and fix
-issues directly.
-
-**Important status note:** This is a public alpha. It is ideal for inspection,
-understanding, and shaping the product. If you expect a 100% flawless and fully
-finished product, you should wait for a later version.
-
-### Development
+Node.js 22 or newer with Corepack is required.
 
 ```bash
 corepack pnpm install --frozen-lockfile
@@ -244,28 +205,34 @@ corepack pnpm test
 corepack pnpm build
 ```
 
-Windows build:
+### Build matrix
 
-```bash
-corepack pnpm dist
-```
+- `corepack pnpm dist:win` builds the Windows NSIS installer.
+- `corepack pnpm dist:linux` builds AppImage, deb, and rpm packages.
+- `corepack pnpm dist:all` starts both configured build targets.
 
-### Public Alpha Export
+For release evidence, Windows and Linux packages should be built and launched
+on the matching native operating system or CI matrix. A successful source
+build does not replace package-level evidence.
 
-The public source set is intentionally cut from a fresh, sanitized export.
-Private git history, governance files, local runtime data, generated output, and
-secret-risk files are not part of the public source set.
+### Public source export
+
+The public source set is created in a fresh, empty target outside the
+repository and verified afterwards:
 
 ```bash
 corepack pnpm release:notices
-corepack pnpm release:export "$env:TEMP/rawallmconfig-public-alpha"
-corepack pnpm release:verify "$env:TEMP/rawallmconfig-public-alpha"
+corepack pnpm release:export "../rawallmconfig-public-alpha"
+corepack pnpm release:verify "../rawallmconfig-public-alpha"
 ```
 
-The export scope is documented in `docs/PUBLIC-RELEASE-SCOPE.md`.
+The export scope is documented in
+[`docs/PUBLIC-RELEASE-SCOPE.md`](docs/PUBLIC-RELEASE-SCOPE.md).
 
-### License
+### License and contributions
 
-RaWaLLMConfig is licensed under the GNU Affero General Public License v3.0 or
-later. External contributions require the RaWaLLMConfig Contributor License
-Agreement before merge.
+The source code is licensed under AGPL-3.0-or-later. External contributions
+require a Contributor License Agreement before merge. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for details.
+
+[releases]: https://github.com/RaWa-KI/RaWaLLMConfig/releases/latest

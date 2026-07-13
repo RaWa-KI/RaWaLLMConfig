@@ -2,6 +2,7 @@ import type { UpdatePhase, UpdateProgressPayload, UpdateStateData } from '@share
 import { Icon } from '../../components/Icon'
 import { fmtSize } from '../../lib/fmt-size'
 import { msg } from '../../lib/messages'
+import { updateErrorMessage } from '../../state/update-manager-bridge'
 
 function IdleCard({ state, onCheck, busy }: {
   state: UpdateStateData
@@ -35,6 +36,24 @@ function SourceErrorCard({ state, onCheck, busy }: {
       <div className="ump-error-msg">
         <b>{msg('update.sourceError.title')}</b>
         <span>{msg('update.sourceError.detail', { sourceLabel: state.sourceLabel })}</span>
+      </div>
+      <button className="ump-btn" onClick={onCheck} disabled={busy}>
+        {Icon.refresh} {msg('update.retryCheck')}
+      </button>
+    </div>
+  )
+}
+
+function NoPlatformAssetCard({ onCheck, busy }: {
+  onCheck(): void
+  busy: boolean
+}) {
+  return (
+    <div className="ump-error">
+      <span className="ump-error-ic">{Icon.warn}</span>
+      <div className="ump-error-msg">
+        <b>{msg('update.noPlatformAsset.title')}</b>
+        <span>{msg('update.noPlatformAsset.detail')}</span>
       </div>
       <button className="ump-btn" onClick={onCheck} disabled={busy}>
         {Icon.refresh} {msg('update.retryCheck')}
@@ -142,9 +161,10 @@ export function UpdatePhaseView({
   if (phase === 'ready') return <ReadyCard state={state} onInstall={onInstall} busy={busy} />
   if (phase === 'installing') return <InstallingState />
   if (phase === 'error') {
-    const errorMessage = state.lastError ?? msg('update.unknownError')
+    const errorMessage = updateErrorMessage(state.lastError) ?? msg('update.unknownError')
     return <ErrorRow message={errorMessage} onCheck={onCheck} busy={busy} />
   }
+  if (state.noPlatformAsset) return <NoPlatformAssetCard onCheck={onCheck} busy={busy} />
   if (state.lastSourceError) return <SourceErrorCard state={state} onCheck={onCheck} busy={busy} />
   return <IdleCard state={state} onCheck={onCheck} busy={busy} />
 }

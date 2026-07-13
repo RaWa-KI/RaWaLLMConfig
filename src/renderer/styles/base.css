@@ -1,14 +1,14 @@
 /* ============================================================
-   Basis-Reset + Body-Grundlayout (1:1 Prototyp)
+   Basis-Reset + lokale Arbeitsfläche
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-ui);
   background: var(--bg); color: var(--text);
   height: 100vh; overflow: hidden;
-  background-image: radial-gradient(circle, color-mix(in oklab,var(--text),transparent 92%) 1.5px, transparent 1.7px);
-  background-size: 22px 22px;
+  background-image: linear-gradient(to bottom, color-mix(in oklab, var(--border), transparent 55%) 1px, transparent 1px);
+  background-size: 100% 28px;
 }
 html[data-structure="lines"] body, html[data-structure="emboss"] body { background-image: none; }
 
@@ -25,6 +25,7 @@ body::after {
 ::-webkit-scrollbar-thumb:hover { background: var(--warm-gray); background-clip: content-box; }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font: inherit; }
 
 /* Icon-Sicherheitsnetz: Icon-SVGs haben nur viewBox (kein width/height-Attribut).
    Ohne Constraint rendert ein SVG im Browser-Default (~300x150px = Riesen-Icon).

@@ -1,6 +1,7 @@
-import type { AppData, EntryStatus, System, Watcher } from '@shared/contract'
+import type { AppData, EntryStatus, System, SystemEntry, Watcher } from '@shared/contract'
 import { msg } from '../../lib/messages'
 import type { Section } from '../../state/types'
+import { isOllamaHint, ollamaDiagnosisCopy, ollamaEvidence } from './diagnosis-ollama'
 import type { OverviewNavigationAction } from './overview-navigation'
 
 type DiagnosisStatus = 'notConfigured' | 'notFound' | 'unavailable' | 'paused' | 'problemFound' | 'notUsable'
@@ -22,6 +23,7 @@ export interface DiagnosisCard {
   diagnosisAction: OverviewNavigationAction
   target: Section
   details: readonly string[]
+  causeKey: string
 }
 
 interface DiagnosisInput {
@@ -32,12 +34,12 @@ interface DiagnosisInput {
 }
 
 export function buildDiagnosisCards(data: DiagnosisInput): DiagnosisCard[] {
-  return sortCards([
+  return sortCards(dedupeCauses([
     ...loadErrorCards(data.errors),
     ...configCards(data.config),
-    ...systemCards(data.system),
+    ...systemCards(data.system, data.config),
     ...watcherCards(data.watcher)
-  ])
+  ]))
 }
 
 function loadErrorCards(errors: readonly (string | null)[]): DiagnosisCard[] {
@@ -109,7 +111,7 @@ function statusCardState(status: EntryStatus): DiagnosisStatus {
   return 'problemFound'
 }
 
-function systemCards(system: System | null): DiagnosisCard[] {
+function systemCards(system: System | null, config: AppData | null): DiagnosisCard[] {
   if (!system) return [card('system-missing', 'unavailable', 'warning', 'system', 'system')]
   const entries = system.areas.flatMap((area) => area.entries.map((entry) => ({ areaId: area.id, entry })))
   if (entries.length === 0) return [card('system-empty', 'notFound', 'warning', 'system', 'system')]
@@ -119,9 +121,9 @@ function systemCards(system: System | null): DiagnosisCard[] {
       detail: systemDetail(item.areaId, item.entry),
       targetLabel: item.entry.name,
       focusId: systemFocus(item.areaId, item.entry),
-      ...systemCopy(item.areaId, item.entry)
+      ...systemCopy(item.areaId, item.entry, config)
     }))
-  return mergeOllamaCards(cards)
+  return cards
 }
 
 function watcherCards(watcher: Watcher | null): DiagnosisCard[] {
@@ -153,6 +155,7 @@ interface DiagnosisTarget {
   where?: string
   how?: string
   changeHint?: string
+  causeKey?: string
 }
 
 function statusCard(id: string, status: EntryStatus, source: DiagnosisSource, target: Section, targetInfo?: DiagnosisTarget): DiagnosisCard {
@@ -184,27 +187,25 @@ function card(
     changeHint: targetInfo.changeHint ?? changeText(status, source, targetInfo.targetLabel),
     diagnosisAction: action,
     target,
-    details: targetInfo.detail ? [msg('diagnostics.detail.source', { source: msg(`diagnostics.source.${source}`) }), targetInfo.detail] : []
+    details: targetInfo.detail ? [msg('diagnostics.detail.source', { source: msg(`diagnostics.source.${source}`) }), targetInfo.detail] : [],
+    causeKey: targetInfo.causeKey ?? id
   }
 }
 
-function systemRoute(areaId: string, entry: { id?: string; name: string; desc: string }): Section {
+function systemRoute(areaId: string, entry: SystemEntry): Section {
   return isOllamaHint(areaId, entry) ? 'settings' : 'system'
 }
 
-function systemFocus(areaId: string, entry: { id?: string; name: string; desc: string }): string {
+function systemFocus(areaId: string, entry: SystemEntry): string {
   if (isOllamaHint(areaId, entry)) return 'settings-tab-sources'
   return `system-entry-${areaId}-${entry.id ?? entry.name}`
 }
 
-function systemCopy(areaId: string, entry: { id?: string; name: string; desc: string }): Pick<DiagnosisTarget, 'title' | 'meaning' | 'where' | 'how' | 'changeHint'> {
+function systemCopy(areaId: string, entry: SystemEntry, config: AppData | null): Pick<DiagnosisTarget, 'title' | 'meaning' | 'where' | 'how' | 'changeHint' | 'causeKey'> {
   if (isOllamaHint(areaId, entry)) {
     return {
-      title: 'Ollama wurde erkannt, aber der Ordner ist nicht verbunden',
-      meaning: 'Beim ersten Scan wurden Ollama-Hinweise gefunden. Ollama ist ein lokaler Dienst, mit dem KI-Modelle direkt auf diesem PC laufen können.',
-      where: 'Einstellungen > Ordner',
-      how: 'Darum prüft die App, ob der Standardordner ~/.ollama als lokale Quelle verbunden werden soll.',
-      changeHint: 'Wenn du Ollama nutzt: ~/.ollama als Quelle verbinden. Wenn nicht: OLLAMA_*-Altbestand außerhalb der App bereinigen oder bewusst stehen lassen.'
+      ...ollamaDiagnosisCopy(config),
+      causeKey: 'local-models:ollama-hints'
     }
   }
   return {
@@ -214,24 +215,22 @@ function systemCopy(areaId: string, entry: { id?: string; name: string; desc: st
   }
 }
 
-function isOllamaHint(areaId: string, entry: { id?: string; name: string; desc: string }): boolean {
-  return `${areaId} ${entry.id ?? ''} ${entry.name} ${entry.desc}`.toLowerCase().includes('ollama')
-}
-
-function systemDetail(areaId: string, entry: { name: string; desc: string; conflictReason?: string; path?: string }): string {
+function systemDetail(areaId: string, entry: SystemEntry): string {
   const detail = entry.conflictReason ?? entry.path ?? entry.desc
-  return isOllamaHint(areaId, entry) ? `${entry.name}: ${detail}` : detail
+  return isOllamaHint(areaId, entry) ? ollamaEvidence(entry) : detail
 }
 
-function mergeOllamaCards(cards: DiagnosisCard[]): DiagnosisCard[] {
-  const firstOllama = cards.find((card) => card.diagnosisAction.focusId === 'settings-tab-sources')
-  if (!firstOllama) return cards
-  const details = new Set(firstOllama.details)
-  return cards.filter((card) => {
-    if (card.diagnosisAction.focusId !== 'settings-tab-sources') return true
-    for (const detail of card.details) details.add(detail)
-    return card === firstOllama
-  }).map((card) => card === firstOllama ? { ...card, details: [...details] } : card)
+function dedupeCauses(cards: DiagnosisCard[]): DiagnosisCard[] {
+  const unique = new Map<string, DiagnosisCard>()
+  for (const card of cards) {
+    const existing = unique.get(card.causeKey)
+    if (!existing) {
+      unique.set(card.causeKey, card)
+      continue
+    }
+    unique.set(card.causeKey, { ...existing, details: [...new Set([...existing.details, ...card.details])] })
+  }
+  return [...unique.values()]
 }
 
 function whereText(source: DiagnosisSource, target: Section): string {

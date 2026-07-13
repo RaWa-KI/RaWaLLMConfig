@@ -16,6 +16,7 @@ import type {
   DirActionResult,
   DirActionResultData
 } from '@shared/contract-write'
+import { normalizePathForCompare } from '@shared/path-compare'
 import { assertWritable, isSecretPathForRead } from './secret-guard'
 import { maskSecrets } from './secret-mask'
 import { assertInScope } from './path-scope'
@@ -109,12 +110,12 @@ function archiveInboundRefs(path: string, allowedRoots?: string[]): { inboundRef
   if (roots.length === 0) return null
   const files: string[] = []
   for (const root of roots) collectAllFiles(root, files)
-  const source = resolve(path).toLowerCase()
+  const source = normalizePathForCompare(resolve(path), process.platform)
   const pairs = buildPairs(path, `${path}-archive-warning.md`)
   const refs: string[] = []
   let count = 0
   for (const filePath of files) {
-    if (resolve(filePath).toLowerCase() === source) continue
+    if (normalizePathForCompare(resolve(filePath), process.platform) === source) continue
     const st = safeStat(filePath)
     if (!st?.isFile() || isSecretFile(filePath) || !isTextCandidate(filePath)) continue
     const read = readTextFile(filePath)

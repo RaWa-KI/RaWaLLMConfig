@@ -1,12 +1,13 @@
 // src/renderer/sections/referenz/DriftBanner.tsx
 // Praesentational/props-getrieben: zeigt das „Betrifft dich"-Banner mit den
 // offenen Changelog-Aenderungen je Feld. KEIN Store-Zugriff hier — die
-// Verdrahtung (driftByField/vcmp/Versionsstand aus Watcher) macht ReferenceSection.
+// Verdrahtung (driftByField/vcmp/Versionsstand aus Watcher) macht der Container.
 import { useState } from 'react'
 import { Icon } from '../../components/Icon'
 // DriftItem lebt in ref-logic.ts (reines TS-Modul, testbar ohne .tsx-Load);
 // hier nur type-only konsumiert. vcmp: gemeinsame Semver-Semantik (@shared).
 import { vcmp, type DriftItem, type KeyOccurrence } from './ref-logic'
+import './DriftBanner.css'
 
 // Owner-Default: voller Pfad + gematchter Key je Fundstelle (WP25), max 5
 // Fundstellen + „+x weitere"; leer -> „keine Datei".
