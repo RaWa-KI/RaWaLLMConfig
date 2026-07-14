@@ -117,7 +117,18 @@ async function patchDialogs(runtime) {
 
 async function openSettings(win, tab = 'tweaks') {
   const settingsButton = win.getByRole('button', { name: /(?:Einstellungen|Settings) öffnen/i })
-  await settingsButton.waitFor({ state: 'visible', timeout: 60_000 })
+  try {
+    await settingsButton.waitFor({ state: 'visible', timeout: 60_000 })
+  } catch {
+    const evidence = await win.evaluate(() => ({
+      body: document.body?.innerText?.trim().slice(0, 800) ?? '',
+      buttons: [...document.querySelectorAll('button')]
+        .map((button) => button.getAttribute('aria-label') || button.textContent?.trim() || '')
+        .filter(Boolean)
+        .slice(0, 20)
+    }))
+    throw new Error(`settings navigation unavailable: ${JSON.stringify(evidence)}`)
+  }
   await settingsButton.click()
   await win.locator('.settings-tabs').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
   await win.locator(`#settings-tab-${tab}`).click()
