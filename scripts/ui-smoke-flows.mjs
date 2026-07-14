@@ -116,7 +116,9 @@ async function patchDialogs(runtime) {
 }
 
 async function openSettings(win, tab = 'tweaks') {
-  await win.getByRole('button', { name: /Einstellungen öffnen/i }).click()
+  const settingsButton = win.getByRole('button', { name: /(?:Einstellungen|Settings) öffnen/i })
+  await settingsButton.waitFor({ state: 'visible', timeout: 60_000 })
+  await settingsButton.click()
   await win.locator('.settings-tabs').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
   await win.locator(`#settings-tab-${tab}`).click()
 }
