@@ -34,6 +34,7 @@ export const SCRIPT_FILES = new Set([
   'scripts/audit-probe/launch.mjs',
   'scripts/audit-probe/perf-metrics.mjs',
   'scripts/audit-probe/process-control.mjs',
+  'scripts/audit-probe/qa-helpers.mjs',
   'scripts/audit-probe/timeouts.mjs',
   'scripts/audit-probe/ui-checks.mjs',
   'scripts/gen-icon.cjs',
