@@ -18,6 +18,7 @@ import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
 import { scanMoveImpact } from './services/move-impact-scan'
 import { WRITE_DISABLED_REASON } from './ipc-write'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { guarded, guardedAsync } from './lib/guarded'
 
 type RenameSideName = 'shared' | 'claude'
@@ -38,6 +39,7 @@ async function handleRename(req: RenameRequest): Promise<RenameResult> {
     const side = sideForRename(req, idx)
     return { side, status: 'renamed' as const, fromPath: op.from, toPath: op.to ?? null }
   })
+  markScanCachesStale('write:rename')
   return { data: { newName: req.newName, sides, partial: false }, error: null }
 }
 
@@ -60,6 +62,7 @@ async function handleMoveVersioned(req: MoveVersionedRequest): Promise<MoveVersi
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
   const fsOp = preview.data.fsOps[0]
+  markScanCachesStale('write:move-versioned')
   return {
     data: {
       version: req.version,

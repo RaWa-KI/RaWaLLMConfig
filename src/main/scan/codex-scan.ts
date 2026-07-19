@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Category, ConfigEntry, LlmConfig } from '@shared/contract'
 import { diffLabels } from '@shared/dup-labels'
+import { normalizePathForCompare } from '@shared/path-compare'
 import { configRoots, workspaceRoots } from '../services/config-roots'
 import {
   isSecret,
@@ -39,7 +40,7 @@ function cat(id: string, label: string, icon: string, p: string, blurb: string, 
 // machen den Ursprung im Vergleich sichtbar. dedupe verhindert Doppel-Pfade.
 function pushAgentsMd(entries: ConfigEntry[], seen: Set<string>, dir: string, label: string): void {
   const fp = path.join(dir, 'AGENTS.md')
-  const key = fp.toLowerCase()
+  const key = normalizePathForCompare(fp, process.platform)
   if (seen.has(key) || !fs.existsSync(fp)) return
   seen.add(key)
   const e = fileEntry(`codex-agents-md-${label}`, dir, 'AGENTS.md', 'project', `AGENTS.md (${label})`, true)
@@ -60,7 +61,7 @@ function scanInstructions(): Category {
     const isMd = /\.md$/i.test(d.name) && /^(AGENTS|CLAUDE_PARITY|CODEX)/i.test(d.name)
     const isToml = /\.toml$/i.test(d.name) && /^(pm-|profile)/i.test(d.name)
     if (!isMd && !isToml) continue
-    if (/^AGENTS\.md$/i.test(d.name)) seen.add(path.join(codexDir, d.name).toLowerCase())
+    if (/^AGENTS\.md$/i.test(d.name)) seen.add(normalizePathForCompare(path.join(codexDir, d.name), process.platform))
     entries.push(fileEntry('codex-instr', codexDir, d.name, 'global', 'Startanker/Paritaets-Doku', true))
   }
   for (const w of workspaceRoots()) {

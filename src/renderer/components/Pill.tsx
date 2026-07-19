@@ -6,7 +6,8 @@ const STATUS: Record<EntryStatus, { label: string; cls: string }> = {
   stale: { label: 'veraltet', cls: 'stale' },
   conflict: { label: 'Konflikt', cls: 'conflict' },
   dup: { label: 'Duplikat', cls: 'dup' },
-  archived: { label: 'archiviert', cls: 'archived' }
+  archived: { label: 'archiviert', cls: 'archived' },
+  acknowledged: { label: 'bestätigt', cls: 'active' }
 }
 
 const SCOPE_LABEL: Record<Scope, string> = {

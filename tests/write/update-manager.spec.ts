@@ -13,17 +13,16 @@ import { join } from 'node:path'
 import { makeSandbox, seedFile, type Sandbox } from './fixtures'
 import {
   checkForUpdates, downloadUpdate, installUpdate,
-  getUpdateState, UPDATE_DISABLED_REASON
+  getUpdateState, resetUpdateCheckCacheForTest, UPDATE_DISABLED_REASON
 } from '../../src/main/services/update-manager'
 import {
   setUpdateMgrDepsForTest, type UpdateMgrDeps
 } from '../../src/main/services/update-manager-deps'
+import { assetSpecFor, currentUpdatePlatform } from '../../src/main/services/update-platform'
 import type { UpdateProgressPayload } from '../../shared/contract-updates'
 
 // stageInstaller wartet 100 ms Flush + install-quit haengt an 500-ms-setTimeout.
 test.setTimeout(30_000)
-
-// --- Env-Hygiene: Update-Envs je Test sichern + restaurieren -----------------
 
 const ENV_DIR = 'RAWALLM_UPDATE_DIR'
 const ENV_GATE = 'RAWALLM_UPDATE_ENABLED'
@@ -40,6 +39,8 @@ test.beforeEach(() => {
   delete process.env[ENV_DIR]
   delete process.env[ENV_GATE]
   process.env[ENV_RELEASE] = 'disabled-for-tests'
+  // TTL-Check-Cache (Teilplan B) ist Modul-Singleton: je Test frischer Zustand.
+  resetUpdateCheckCacheForTest()
 })
 test.afterEach(() => {
   if (dirBefore === undefined) delete process.env[ENV_DIR]
@@ -52,10 +53,13 @@ test.afterEach(() => {
   setUpdateMgrDepsForTest({})
 })
 
-// --- Helpers (nur Testdaten + Fakes, kein Prod-Verhalten nachgebaut) ---------
-
 const CURRENT_VERSION = '0.1.0'
-const INSTALLER_CONTENT = 'MZ' + 'x'.repeat(4096)
+const UPDATE_PLATFORM = currentUpdatePlatform()
+const PLATFORM_SPEC = assetSpecFor(UPDATE_PLATFORM)
+const ASSET_NAME = PLATFORM_SPEC.platform === 'linux' ? 'RaWaLLMConfig.AppImage' : 'RaWa-Setup.exe'
+const INSTALLER_CONTENT = PLATFORM_SPEC.platform === 'linux'
+  ? '\u007fELF' + 'x'.repeat(4096)
+  : 'MZ' + 'x'.repeat(4096)
 
 interface DepsRecorder {
   quitCalled: boolean
@@ -71,7 +75,7 @@ function tempRoot(sb: Sandbox): string {
 
 // Erwarteter staged-Pfad (update-manager: <temp>/RaWaLLMConfig-Updates/<asset>).
 function expectedStagedPath(sb: Sandbox): string {
-  return join(tempRoot(sb), 'RaWaLLMConfig-Updates', 'RaWa-Setup.exe')
+  return join(tempRoot(sb), 'RaWaLLMConfig-Updates', ASSET_NAME)
 }
 
 // Fake-Deps installieren; Recorder fuer quit + prefs-Persist zurueckgeben.
@@ -89,17 +93,17 @@ function installDeps(sb: Sandbox, over: Partial<UpdateMgrDeps> = {}): DepsRecord
   return rec
 }
 
-// Update-Quelle seeden: Fake-Installer ('MZ'+Fueller) + gueltiges latest.json
-// (tag v9.9.9, exe-Asset mit echter size + sha256) + RAWALLM_UPDATE_DIR setzen.
+// Update-Quelle seeden: nativer Fake-Installer + gueltiges latest.json
+// (tag v9.9.9, Plattform-Asset mit echter size + sha256) + RAWALLM_UPDATE_DIR setzen.
 function seedUpdateSource(sb: Sandbox): { size: number; sha: string } {
   const size = Buffer.byteLength(INSTALLER_CONTENT)
   const sha = createHash('sha256').update(INSTALLER_CONTENT, 'utf8').digest('hex')
-  seedFile(sb, 'RaWa-Setup.exe', INSTALLER_CONTENT)
+  seedFile(sb, ASSET_NAME, INSTALLER_CONTENT)
   seedFile(sb, 'latest.json', JSON.stringify({
     tag_name: 'v9.9.9', name: 'Release 9.9.9', body: 'Notes',
     published_at: '2026-06-10T00:00:00Z', prerelease: false,
     assets: [{
-      name: 'RaWa-Setup.exe', browser_download_url: 'file://audit-only',
+      name: ASSET_NAME, browser_download_url: 'file://audit-only',
       size, sha256: sha,
     }],
   }))
@@ -150,7 +154,7 @@ test.describe('checkForUpdates', () => {
     expect(r.data?.hasUpdate).toBe(true)
     expect(r.data?.sourceConfigured).toBe(true)
     expect(r.data?.latestVersion).toBe('9.9.9')
-    expect(r.data?.info?.assetName).toBe('RaWa-Setup.exe')
+    expect(r.data?.info?.assetName).toBe(ASSET_NAME)
     const st = getUpdateState()
     expect(st.phase).toBe('available')
     expect(st.latestVersion).toBe('9.9.9')
@@ -204,7 +208,7 @@ test.describe('downloadUpdate', () => {
     const progress: UpdateProgressPayload[] = []
     const r = await downloadUpdate({ version: '9.9.9' }, (p) => progress.push(p))
     expect(r.error).toBe(null)
-    expect(r.data?.assetName).toBe('RaWa-Setup.exe')
+    expect(r.data?.assetName).toBe(ASSET_NAME)
     expect(r.data?.stagedPath).toBe(expectedStagedPath(sb))
     expect(existsSync(expectedStagedPath(sb))).toBe(true)
     expect(r.data?.fileSize).toBe(size)
@@ -263,7 +267,7 @@ test.describe('installUpdate', () => {
       run: async () => ({ spawned: true, error: null }), // KEIN echter Spawn im Unit-Lauf
     })
     seedUpdateSource(sb)
-    await reachReady(sb) // verify laeuft real gegen die staged MZ-.exe
+    await reachReady(sb) // verify laeuft real gegen das native staged Asset
     process.env[ENV_GATE] = '1'
     const r = await installUpdate({ silent: true })
     expect(r.error).toBe(null)

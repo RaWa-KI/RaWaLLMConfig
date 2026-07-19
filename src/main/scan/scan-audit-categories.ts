@@ -124,7 +124,7 @@ function memoryDirs(roots: string[]): string[] {
 
 function configRootList(): string[] {
   const r = configRoots()
-  return [r.projectRoot, r.sharedClaude]
+  return [r.projectRoot, r.sharedClaude].filter((root): root is string => root !== null)
 }
 
 function memoryRoots(): string[] {
@@ -132,7 +132,7 @@ function memoryRoots(): string[] {
   return [
     path.join(r.claudeHome, 'agents'),
     path.join(r.codexHome, 'agents'),
-    path.join(r.sharedClaude, 'agents'),
+    ...(r.sharedClaude ? [path.join(r.sharedClaude, 'agents')] : []),
   ]
 }
 
@@ -156,7 +156,8 @@ function registryInput(): { workspacesJsonPath: string; governanceDependenciesPa
 }
 
 function registryPath(): string {
-  return path.join(configRoots().sharedClaude, 'coordination', 'registry')
+  const sharedRoot = configRoots().sharedClaude
+  return sharedRoot ? path.join(sharedRoot, 'coordination', 'registry') : ''
 }
 
 function slug(value: string): string {

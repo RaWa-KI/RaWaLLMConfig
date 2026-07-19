@@ -25,12 +25,16 @@ import type { ProviderManifest } from '../../shared/contract-provider'
 // Alle Scan-/Manifest-/Engine-Module aus dem require-Cache werfen, damit ihre
 // modul-gebundenen *Dir-Konstanten unter dem aktuellen RAWALLM_SANDBOX_ROOT neu
 // aufgeloest werden. Grob ueber den Pfad-Praefix (Scan-Subtree + shared/services).
+// scan-invalidation MUSS mit: das Modul bindet markStrukturScanCacheStale aus
+// struktur-scan — bleibt es gecacht, waehrend struktur-scan neu laedt, markiert
+// es die Alt-Instanz stale und Invalidierungs-Asserts laufen ins Leere.
 function bustScanCache(): void {
   for (const key of Object.keys(require.cache)) {
     const k = key.replace(/\\/g, '/')
     if (
       k.includes('/src/main/scan/') ||
       k.includes('/src/main/services/config-roots') ||
+      k.includes('/src/main/services/scan-invalidation') ||
       k.includes('/shared/contract')
     ) {
       delete require.cache[key]

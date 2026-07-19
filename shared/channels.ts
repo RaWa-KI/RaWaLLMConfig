@@ -16,7 +16,8 @@ export const IPC = {
   sourcesDiscoverModels: 'sources:discoverModels',
   providersList: 'providers:list',
   sourcesPickFolder: 'sources:pickFolder',
-  sourcesOnboardingGet: 'sources:onboardingDone'
+  sourcesOnboardingGet: 'sources:onboardingDone',
+  diagnosticsSaveErrorReport: 'diagnostics:saveErrorReport'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

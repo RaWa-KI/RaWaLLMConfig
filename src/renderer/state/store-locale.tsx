@@ -18,7 +18,15 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   const value: LocaleValue = {
     locale,
-    setAppLocale: (nextLocale) => setPref('locale', nextLocale)
+    setAppLocale: (nextLocale) => {
+      // Synchron vor setPref (Teilplan C, Kritiker-Auflage): die Overview-
+      // Selektoren schluesseln auf die React-Locale, die Builder lesen aber die
+      // Modul-Locale. Ohne Sync hier cached der erste Render nach dem Wechsel
+      // alt-sprachige Texte unter dem neuen Key (Cache-Poisoning). Der Effect
+      // oben bleibt fuer externe Pref-Aenderungen; setLocale ist idempotent.
+      setLocale(nextLocale)
+      return setPref('locale', nextLocale)
+    }
   }
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>

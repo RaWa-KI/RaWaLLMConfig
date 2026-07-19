@@ -21,12 +21,16 @@ export interface UpdateInfo {
   assetName: string                 // path.basename()-normalisiert
   fileSize: number; isPrerelease: boolean; sha256?: string
 }
-export interface UpdateCheckRequest { /* leer; Quelle = RAWALLM_UPDATE_DIR */ }
+export interface UpdateCheckRequest {
+  // force: kurzlebigen Check-Cache (TTL) im Main umgehen — explizite Nutzer-Aktion.
+  force?: boolean
+}
 export interface UpdateCheckResultData {
   hasUpdate: boolean; currentVersion: string; latestVersion: string | null
   info: UpdateInfo | null; sourceConfigured: boolean
   sourceKind: UpdateSourceKind | null; sourceLabel: string
   releaseNotes: string | null; lastSourceError: string | null
+  noPlatformAsset: boolean
 }
 export type UpdateCheckResult = IpcResult<UpdateCheckResultData>
 export interface UpdateDownloadRequest { version: string }
@@ -45,7 +49,8 @@ export interface UpdateStateData {
   sourceKind: UpdateSourceKind | null; sourceLabel: string
   latestVersion: string | null; assetName: string | null; stagedPath: string | null
   releaseNotes: string | null; lastCheckedAt: string | null
-  lastError: string | null; lastSourceError: string | null; history: UpdateHistoryEntry[]
+  lastError: string | null; lastSourceError: string | null
+  noPlatformAsset: boolean; history: UpdateHistoryEntry[]
 }
 export type UpdateStateResult = IpcResult<UpdateStateData>
 export interface UpdateProgressPayload {

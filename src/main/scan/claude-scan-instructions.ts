@@ -5,6 +5,7 @@
 // dedupliziert. NIE Secret-Werte.
 import path from 'node:path'
 import type { ConfigEntry } from '@shared/contract'
+import { normalizePathForCompare } from '@shared/path-compare'
 import { workspaceRoots } from '../services/config-roots'
 import { buildPreview, firstContentLine } from './scan-helpers'
 import type { FileSnapshot } from './file-read-once'
@@ -38,7 +39,7 @@ export function collectClaudeMds(claudeDir: string): ConfigEntry[] {
   const out: ConfigEntry[] = []
   const seen = new Set<string>()
   const add = (id: string, fp: string, scope: ConfigEntry['scope'], origin: string, fb: string): void => {
-    const key = fp.toLowerCase()
+    const key = normalizePathForCompare(fp, process.platform)
     if (seen.has(key)) return
     // WP16: readFileOnce ersetzt existsSync + Read-Trio — snap null = Datei fehlt.
     const snap = readFileOnce(fp)

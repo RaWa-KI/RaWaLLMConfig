@@ -1,6 +1,6 @@
 /**
  * generate-update-manifest.mjs
- * Erzeugt latest.json + kopiert den NSIS-Installer in RAWALLM_UPDATE_DIR.
+ * Erzeugt latest.json + kopiert vorhandene Release-Artefakte in RAWALLM_UPDATE_DIR.
  * Kein Upload, kein scp, kein Publish.
  * Nur Node-Builtins (fs, crypto, path, url).
  *
@@ -33,25 +33,37 @@ const pkg     = JSON.parse(readFileSync(pkgPath, 'utf8'))
 const version = pkg.version   // z.B. "0.1.0"
 
 // ---------------------------------------------------------------------------
-// 2. NSIS-Installer lokalisieren (per electron-builder.yml: output = dist-release,
-//    artifactName = "RaWaLLMConfig-Setup-${version}.${ext}")
+// 2. Release-Artefakte lokalisieren (per electron-builder.yml: output = dist-release)
 // ---------------------------------------------------------------------------
-const exeName  = `RaWaLLMConfig-Setup-${version}.exe`
-const distDir  = join(repoRoot, 'dist-release')
-const exePath  = join(distDir, exeName)
+const distDir  = resolve(process.env.RAWALLM_DIST_DIR ?? join(repoRoot, 'dist-release'))
 
-if (!existsSync(exePath)) {
-  console.error(`[generate-update-manifest] Installer nicht gefunden: ${exePath}`)
-  console.error('Zuerst "npm run dist" ausfuehren.')
-  process.exit(1)
+const ARTIFACT_SPECS = [
+  { name: `RaWaLLMConfig-Setup-${version}.exe`, contentType: 'application/x-msdownload', required: true },
+  { name: `RaWaLLMConfig-${version}.AppImage`, contentType: 'application/x-appimage' },
+  { name: `RaWaLLMConfig-${version}.deb`, contentType: 'application/vnd.debian.binary-package' },
+  { name: `RaWaLLMConfig-${version}.rpm`, contentType: 'application/x-rpm' }
+]
+
+function readArtifact(spec) {
+  const filePath = join(distDir, spec.name)
+  if (!existsSync(filePath)) {
+    if (spec.required) {
+      console.error(`[generate-update-manifest] Pflicht-Artefakt nicht gefunden: ${filePath}`)
+      console.error('Zuerst "pnpm dist:win" ausfuehren.')
+      process.exit(1)
+    }
+    return null
+  }
+  const buf = readFileSync(filePath)
+  return {
+    ...spec,
+    filePath,
+    size: buf.length,
+    sha256: createHash('sha256').update(buf).digest('hex')
+  }
 }
 
-// ---------------------------------------------------------------------------
-// 3. Groesse + SHA256 (lowercase)
-// ---------------------------------------------------------------------------
-const exeBuf = readFileSync(exePath)
-const size   = exeBuf.length
-const sha256 = createHash('sha256').update(exeBuf).digest('hex')  // lowercase
+const artifacts = ARTIFACT_SPECS.map(readArtifact).filter(Boolean)
 
 // ---------------------------------------------------------------------------
 // 4. Release-Notes (Pflicht: Deutsch + Chat-Freigabe vor Manifest/Upload)
@@ -81,7 +93,6 @@ mkdirSync(updateDir, { recursive: true })
 // 6. latest.json schreiben
 // ---------------------------------------------------------------------------
 const now         = new Date().toISOString()
-const downloadUrl = `${publicAssetBase}/${encodeURIComponent(exeName)}`
 
 /** @type {object} */
 const manifest = {
@@ -90,16 +101,14 @@ const manifest = {
   body,
   published_at: now,
   prerelease:   false,
-  assets: [
-    {
-      name:                 exeName,
-      browser_download_url: downloadUrl,
-      size,
-      content_type:         'application/x-msdownload',
-      download_count:       0,
-      sha256               // lowercase
-    }
-  ]
+  assets: artifacts.map((artifact) => ({
+    name:                 artifact.name,
+    browser_download_url: `${publicAssetBase}/${encodeURIComponent(artifact.name)}`,
+    size:                 artifact.size,
+    content_type:         artifact.contentType,
+    download_count:       0,
+    sha256:               artifact.sha256
+  }))
 }
 
 const manifestPath = join(updateDir, 'latest.json')
@@ -107,33 +116,25 @@ writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8')
 console.log(`[OK] latest.json     -> ${manifestPath}`)
 
 // ---------------------------------------------------------------------------
-// 7. Installer in updateDir kopieren (skip wenn Quelle === Ziel)
+// 7. Artefakte in updateDir kopieren (skip wenn Quelle === Ziel)
 // ---------------------------------------------------------------------------
-const destExe    = join(updateDir, exeName)
-const srcResolved  = resolve(exePath)
-const destResolved = resolve(destExe)
-
-if (srcResolved !== destResolved) {
-  copyFileSync(exePath, destExe)
-  console.log(`[OK] Installer kopiert -> ${destExe}`)
-} else {
-  console.log(`[OK] Installer liegt bereits im Zielordner, kein Kopieren noetig.`)
+for (const artifact of artifacts) {
+  const destPath = join(updateDir, artifact.name)
+  if (resolve(artifact.filePath) !== resolve(destPath)) {
+    copyFileSync(artifact.filePath, destPath)
+    console.log(`[OK] Artefakt kopiert -> ${destPath}`)
+  } else {
+    console.log(`[OK] Artefakt liegt bereits im Zielordner: ${artifact.name}`)
+  }
+  const sidecarPath = join(updateDir, `${artifact.name}.sha256`)
+  writeFileSync(sidecarPath, artifact.sha256.toUpperCase(), 'utf8')
+  console.log(`[OK] SHA256-Sidecar  -> ${sidecarPath}`)
 }
-
-// ---------------------------------------------------------------------------
-// 8. SHA256-Sidecar schreiben (UPPERCASE, kein Newline — nur Paritaet,
-//    NICHT im aktiven Update-Flow gelesen)
-// ---------------------------------------------------------------------------
-const sidecarPath = join(updateDir, `${exeName}.sha256`)
-writeFileSync(sidecarPath, sha256.toUpperCase(), 'utf8')
-console.log(`[OK] SHA256-Sidecar  -> ${sidecarPath}`)
 
 // ---------------------------------------------------------------------------
 // Fertig
 // ---------------------------------------------------------------------------
 console.log(`\nManifest-Zusammenfassung:`)
 console.log(`  version : ${version}`)
-console.log(`  exeName : ${exeName}`)
-console.log(`  size    : ${size} Bytes`)
-console.log(`  sha256  : ${sha256}`)
+console.log(`  assets  : ${artifacts.map((artifact) => artifact.name).join(', ')}`)
 console.log(`  updateDir: ${updateDir}`)

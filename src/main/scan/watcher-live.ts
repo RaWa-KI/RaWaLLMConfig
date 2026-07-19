@@ -30,10 +30,11 @@ export interface WatcherRoots {
   trackingDir: string // .shared/.claude/coordination/tracking
 }
 
-function defaultRoots(): WatcherRoots {
+function defaultRoots(): WatcherRoots | null {
   // Trunk aus der Single Source (Default = real, M1 unveraendert; mit
   // RAWALLM_SANDBOX_ROOT = <sandbox>/.shared/.claude). Pfade bleiben injizierbar.
   const shared = configRoots().sharedClaude
+  if (!shared) return null
   return {
     referencesDir: path.join(shared, 'references'),
     trackingDir: path.join(shared, 'coordination', 'tracking')
@@ -106,10 +107,11 @@ function parseVersioned(file: string): ParsedChangelog | null {
   return { date: m[1], tool: m[2], version: m[3], tag: m[4] }
 }
 
-// Neuesten Changelog je *-changelog-Ordner: ERST versionierte Dateien filtern, DANN nach
-// Name (= Datum-Praefix) sortiert die neueste nehmen. Ordner ohne versionierte Datei:
-// README/Index als Fallback mit klarem 'Index/Uebersicht'-Label. Secret-Guard je Pfad;
-// kein Volltext hier — nur Metadaten + Pfad fuer den readFull-Drilldown.
+// Neuesten Changelog je *-changelog-Ordner: ERST versionierte Dateien filtern,
+// DANN nach Name (= Datum-Praefix) sortiert die neueste nehmen. Ordner ohne
+// versionierte Datei liefern KEIN Feed-Item: README/Index ist Navigation, kein
+// Changelog. Secret-Guard je Pfad; kein Volltext hier — nur Metadaten + Pfad
+// fuer den readFull-Drilldown.
 function liveChangelogs(referencesDir: string): WatcherChangelog[] {
   const out: WatcherChangelog[] = []
   let dirs: string[] = []
@@ -118,9 +120,7 @@ function liveChangelogs(referencesDir: string): WatcherChangelog[] {
     const dirPath = path.join(referencesDir, d)
     const files = safeListMd(dirPath)
     const versioned = files.filter((f) => VERSIONED_RE.test(f)).sort()
-    const entry = versioned.length
-      ? buildVersionedEntry(dirPath, versioned[versioned.length - 1])
-      : buildIndexFallback(dirPath, d, files)
+    const entry = versioned.length ? buildVersionedEntry(dirPath, versioned[versioned.length - 1]) : null
     if (entry) out.push(entry)
   }
   return out
@@ -142,22 +142,6 @@ function buildVersionedEntry(dirPath: string, file: string): WatcherChangelog | 
   }
 }
 
-// Fallback fuer Ordner ohne versionierte Datei: README/Index klar als Uebersicht labeln.
-function buildIndexFallback(dirPath: string, dir: string, files: string[]): WatcherChangelog | null {
-  const idx = files.find((f) => /index/i.test(f)) ?? files.find((f) => /^readme\.md$/i.test(f)) ?? files[0]
-  if (!idx) return null
-  const fullPath = path.join(dirPath, idx)
-  if (isSecretPathForRead(fullPath)) return null
-  const tool = dir.replace(/-changelog$/, '')
-  return {
-    tool,
-    version: 'Index',
-    date: '—',
-    summary: `Keine versionierte Datei — Uebersicht/Index (${idx}).`,
-    path: fullPath
-  }
-}
-
 function staticTiers(): WatcherTier[] {
   return [
     { id: 1, label: 'Stufe 1', mode: 'auto-erfassen', cls: 'active', desc: 'Automatisch erfasst & signalisiert (read-only).' },
@@ -174,11 +158,19 @@ function liveUpdated(state: DaemonState | null): string {
   return at ? at.slice(0, 10) : '—'
 }
 
+function notConfiguredWatcher(): Watcher {
+  return {
+    daemon: { status: 'Unknown', lastResult: '—', schedule: '—', tokens: '0', sources: 0, updated: '—', note: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.' },
+    tiers: [], sources: [], changelogs: []
+  }
+}
+
 /**
  * Live-Watcher aus Scope-B lesen. Liefert immer ein gueltiges `Watcher`-Objekt;
  * fehlende Quellen ergeben leere Listen + "Unknown"-Daemon (graceful, kein Crash).
  */
-export async function scanWatcherLive(roots: WatcherRoots = defaultRoots()): Promise<Watcher> {
+export async function scanWatcherLive(roots: WatcherRoots | null = defaultRoots()): Promise<Watcher> {
+  if (!roots) return notConfiguredWatcher()
   try {
     // Nur tracking lesen — bewusst KEIN coordination/{security,signals,briefings}.
     const statePath = path.join(roots.trackingDir, 'toolchain-daemon-state.json')

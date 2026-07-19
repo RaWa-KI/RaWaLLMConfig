@@ -14,7 +14,7 @@
   gap: 18px;
   align-items: start;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .graph-shell { grid-template-columns: 1fr; }
 }
 
@@ -154,7 +154,7 @@
 
 /* God Nodes + Kollisions-Stems (gcols/god-*/coll-*). */
 .gcols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 760px) { .gcols { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .gcols { grid-template-columns: 1fr; } }
 .god-list, .coll-list { display: flex; flex-direction: column; gap: 7px; }
 .god-row { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border: 2px solid var(--border); border-radius: 9px; padding: 8px 12px; }
 .god-name { font-size: 11.5px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -173,7 +173,7 @@
    ign-area/ign-bar/ign-save/ign-ok/ign-err/ign-new neu fuer den Editor.
    ============================================================ */
 .ign-scopes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-@media (max-width: 820px) { .ign-scopes { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .ign-scopes { grid-template-columns: 1fr; } }
 .ign-scope {
   display: flex; flex-direction: column; background: var(--bg-card);
   border: var(--card-border); border-radius: var(--radius-sm);

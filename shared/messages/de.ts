@@ -5,6 +5,7 @@ import { deCompareMessages } from './de-compare'
 import { deChromeMessages } from './de-chrome'
 import { deOverviewMessages } from './de-overview'
 import { deConfigWarningsMessages } from './de-config-warnings'
+import { deConfigMessages } from './de-config'
 
 export const deMessages = {
   ...deCoreMessages,
@@ -13,4 +14,5 @@ export const deMessages = {
   ...deChromeMessages,
   ...deOverviewMessages,
   ...deConfigWarningsMessages,
+  ...deConfigMessages,
 } as const satisfies MessageCatalog

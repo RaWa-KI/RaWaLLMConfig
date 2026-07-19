@@ -11,10 +11,10 @@ import { msg } from '../../lib/messages'
 import { Icon } from '../../components/Icon'
 import { FieldCard } from './FieldCard'
 import { CopyChip } from './CopyChip'
-import { DriftBanner } from './DriftBanner'
 import { PortPanel } from './PortPanel'
 import { RefSidebar } from './ReferenceSidebar'
 import {
+  commandModelId,
   datasetForModel,
   firstArtifactId,
   referenceModels,
@@ -22,11 +22,7 @@ import {
 } from './reference-datasets'
 import {
   countsByArtifact,
-  driftItems,
   fieldMatches,
-  sourceIsStale,
-  usedArtifacts,
-  versionsFromWatcher,
 } from './ref-logic'
 import './ReferenceSection.css'
 
@@ -196,13 +192,18 @@ function ArtExtras({ art, query }: { art: RefArtifact; query: string }) {
 }
 
 export function ReferenceSection({ mode: initialMode = 'commands' }: { mode?: ReferenceMode }) {
-  const { watcher, config, ui } = useStore()
+  const { config, ui } = useStore()
   const [mode, setMode] = useState<ReferenceMode>(initialMode)
   const models = useMemo(() => referenceModels(config.data), [config.data])
   const [llm, setLlm] = useState(models[0]?.id ?? 'claude')
   useEffect(() => {
+    if (mode === 'commands') {
+      const next = commandModelId(config.data, llm)
+      if (next !== llm) setLlm(next)
+      return
+    }
     if (!models.some((model) => model.id === llm)) setLlm(models[0]?.id ?? 'claude')
-  }, [llm, models])
+  }, [config.data, llm, mode, models])
   const dataset = useMemo(() => datasetForModel(config.data, llm, mode), [config.data, llm, mode])
   const arts = dataset.artifacts
   const preferredArt = firstArtifactId(dataset, mode)
@@ -212,17 +213,6 @@ export function ReferenceSection({ mode: initialMode = 'commands' }: { mode?: Re
   }, [artId, arts, preferredArt])
   const [query, setQuery] = useState('')
 
-  const ver = useMemo(() => versionsFromWatcher(watcher.data?.sources, llm), [watcher.data, llm])
-  // Watcher-Quelle veraltet? Banner zeigt dann „ungewiss" statt „nutzt du".
-  const stale = useMemo(() => sourceIsStale(watcher.data?.sources, llm), [watcher.data, llm])
-  // „nutzt du" aus der echten Config (still aus ohne Daten).
-  const used = useMemo(() => usedArtifacts(config.data?.data[llm]), [config.data, llm])
-  const drift = useMemo(
-    // cfg (config.data?.data[llm]) durchreichen, damit driftItems die Datei-Fundstellen
-    // (occurrences -> „kommt vor in: <pfad>") befuellt; ohne cfg zeigt der Banner immer „keine Datei".
-    () => driftItems(dataset, ver, watcher.data?.sources, llm, used, config.data?.data[llm]),
-    [dataset, ver, watcher.data, llm, used, config.data],
-  )
   const counts = useMemo(() => countsByArtifact(arts, query), [arts, query])
 
   const switchLlm = (id: string) => {
@@ -244,6 +234,7 @@ export function ReferenceSection({ mode: initialMode = 'commands' }: { mode?: Re
         mode={mode}
         onMode={(nextMode) => {
           setMode(nextMode)
+          if (nextMode === 'commands') setLlm(commandModelId(config.data, llm))
           setQuery('')
         }}
         onLlm={switchLlm}
@@ -251,7 +242,6 @@ export function ReferenceSection({ mode: initialMode = 'commands' }: { mode?: Re
       />
       <main className="main refwrap">
         <RefHead art={art} query={query} onQuery={setQuery} expertMode={ui.displayMode === 'expert'} />
-        <DriftBanner items={drift} installed={ver?.installed} latest={ver?.latest} stale={stale} />
         {art.intro && <p className="ref-intro">{art.intro}</p>}
         {mode === 'environment' && llm === 'claude' && <PortPanel artifactId={art.id} />}
         <ArtBody art={art} query={query} />

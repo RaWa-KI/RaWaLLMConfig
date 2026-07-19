@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRafRefresh } from './useRafRefresh'
+import { initialVirtualRange, virtualRangeFor, type VirtualRange } from './virtual-range'
 
 interface VirtualRowsOptions {
   count: number
@@ -8,32 +9,21 @@ interface VirtualRowsOptions {
   enabled?: boolean
 }
 
-interface VirtualRange {
-  start: number
-  end: number
-}
-
-function initialRange(count: number, estimateSize: number, overscan: number, enabled: boolean): VirtualRange {
-  if (!enabled || count === 0 || typeof window === 'undefined') return { start: 0, end: count }
-  const visible = Math.ceil(window.innerHeight / estimateSize) + overscan
-  return { start: 0, end: Math.min(count, visible) }
-}
-
+// Berechnungskern liegt in ./virtual-range (rein, browserlos testbar).
 export function useVirtualRows(options: VirtualRowsOptions) {
   const { count, estimateSize, overscan = 6, enabled = true } = options
   const ref = useRef<HTMLDivElement | null>(null)
-  const [range, setRange] = useState<VirtualRange>(() => initialRange(count, estimateSize, overscan, enabled))
+  const [range, setRange] = useState<VirtualRange>(() =>
+    initialVirtualRange(count, estimateSize, overscan, enabled, typeof window === 'undefined' ? null : window.innerHeight)
+  )
   const measure = useCallback(() => {
     if (!enabled || !ref.current || count === 0) {
       setRange((cur) => (cur.start === 0 && cur.end === count ? cur : { start: 0, end: count }))
       return
     }
     const rect = ref.current.getBoundingClientRect()
-    const top = Math.max(0, -rect.top)
-    const bottom = Math.min(count * estimateSize, top + window.innerHeight)
-    const start = Math.max(0, Math.floor(top / estimateSize) - overscan)
-    const end = Math.min(count, Math.ceil(bottom / estimateSize) + overscan)
-    setRange((cur) => (cur.start === start && cur.end === end ? cur : { start, end }))
+    const next = virtualRangeFor(-rect.top, window.innerHeight, count, estimateSize, overscan)
+    setRange((cur) => (cur.start === next.start && cur.end === next.end ? cur : next))
   }, [count, enabled, estimateSize, overscan])
   const scheduleMeasure = useRafRefresh(measure)
   useEffect(() => {

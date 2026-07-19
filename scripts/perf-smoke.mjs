@@ -1,80 +1,104 @@
+// perf-smoke.mjs — perf:ui-Runner (F-WP1): caudex-Akzeptanzbudgets, drei
+// Szenarien (normal / firstRun / scan), Report pro Metrik mit verdict.
+// Gegatet werden normal + scan; firstRun ist informativ. Exit 1 bei FAIL.
+// HR31: jede Szenario-App wird im finally geschlossen; Notfall-Close + PID-/
+// Stichproben-Nachweis landen im Report (cleanup).
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { closeElectronApp, launchElectronApp } from './audit-probe/launch.mjs'
-import { appTextLength, navByText, scrollMetric, visibleCount } from './audit-probe/perf-metrics.mjs'
+import { BUDGETS_VERSION, budgetEntry, overall } from './audit-probe/perf-budgets.mjs'
+import { checkPidAlive, closeElectronApp, electronProcessSample } from './audit-probe/launch.mjs'
+import { installedExePath, launchInstalledApp } from './audit-probe/launch-installed.mjs'
+import { runFirstRunScenario, runNormalScenario, runScanScenario } from './audit-probe/perf-scenarios.mjs'
 import { failPayload, PERF_SMOKE_TIMEOUT_MS, withDeadline, writeJson } from './audit-probe/timeouts.mjs'
 
+// Target-Auswahl: Default = Dev-Build (out/); RAWALLM_PERF_TARGET=installed
+// misst gegen die installierte App (exe + connectOverCDP, siehe launch-installed).
+const isInstalled = process.env.RAWALLM_PERF_TARGET === 'installed'
+const target = isInstalled ? 'installed' : 'dev'
+const targetExe = isInstalled ? installedExePath() : null
+const launchFn = isInstalled ? launchInstalledApp : undefined
+
 const outDir = resolve('tests/audit-runtime/perf-smoke')
-const reportPath = join(outDir, 'perf-smoke.json')
+const reportPath = join(outDir, isInstalled ? 'perf-smoke-installed.json' : 'perf-smoke.json')
 mkdirSync(outDir, { recursive: true })
-let app = null
 const steps = []
+const scenarios = {}
+const ctxs = []
 
 function recordStep(name, data = {}) {
   steps.push({ name, atMs: Date.now(), ...data })
-  writeJson(reportPath, { status: 'RUNNING', generatedAt: new Date().toISOString(), steps })
+  writeJson(reportPath, { status: 'RUNNING', target, budgetsVersion: BUDGETS_VERSION, gatedWindow: 'post-scan-quiet', generatedAt: new Date().toISOString(), scenarios, steps })
+}
+
+async function runScenario(name, runFn) {
+  const ctx = {}
+  ctxs.push(ctx)
+  scenarios[name] = await runFn(recordStep, ctx, launchFn)
+  scenarios[name].cleanup = ctx.cleanup ?? { app: ctx.cleanupApp, sandbox: ctx.cleanupSandbox }
+  recordStep(`${name}:done`, { ok: true })
+}
+
+// Metrik-Report { valueMs, targetMs, hardMs, verdict } aus den Rohwerten.
+function buildMetrics() {
+  const normal = scenarios.normal ?? {}
+  const scan = scenarios.scan ?? {}
+  const metrics = {
+    windowVisibleMs: budgetEntry('windowVisibleMs', normal.windowVisibleMs ?? null),
+    interactiveMs: budgetEntry('interactiveMs', normal.interactiveMs ?? null),
+    clickFeedbackMs: budgetEntry('clickFeedbackMs', normal.clickFeedbackMs ?? null),
+    scrollLongTaskMs: budgetEntry('scrollLongTaskMs', normal.scroll?.maxDurationMs ?? null)
+  }
+  for (const [label, ms] of Object.entries(normal.nav ?? {})) metrics[`nav:${label}`] = budgetEntry('navMs', ms)
+  for (const item of scan.feedback ?? []) metrics[`scan:${item.label}`] = budgetEntry('scanFeedbackMs', item.ms)
+  return metrics
+}
+
+// HR31-Stillstand: alle Szenario-PIDs muessen nach close tot sein (+ Stichprobe).
+function collectStillstand() {
+  const pids = Object.values(scenarios).map((s) => s?.pid).filter(Boolean)
+  return { pids: pids.map((pid) => ({ pid, alive: checkPidAlive(pid) })), electronSample: electronProcessSample() }
 }
 
 async function runPerf() {
-  const started = Date.now()
   recordStep('start')
-  const launched = await launchElectronApp({ label: 'perf-smoke', readyWaitMs: 1200 })
-  app = launched.app
-  const win = launched.win
-  const launchMs = Date.now() - started
-  recordStep('launch', { launchMs })
-  await win.locator('.sec-btn').first().waitFor({ state: 'visible', timeout: 10_000 })
-  const interactiveMs = Date.now() - started
-  recordStep('interactive', { interactiveMs })
-  const configTextLength = await appTextLength(win)
-  recordStep('config-text', { configTextLength })
-  const systemNavMs = await navByText(win, '.sec-btn', 'System')
-  recordStep('system', { systemNavMs })
-  const updatesNavMs = await navByText(win, '.sec-btn', 'Prüfen')
-  recordStep('updates', { updatesNavMs })
-  const settingsNavMs = await navByText(win, '.sec-btn', 'Einstellungen')
-  recordStep('settings', { settingsNavMs })
-  const appUpdateMs = await navByText(win, '.mode-tab', 'Updates', 500)
-  recordStep('app-update', { appUpdateMs })
-  const updateReactionMs = await measureUpdateReaction(win)
-  recordStep('update-reaction', { updateReactionMs })
-  const scroll = await scrollMetric(win)
-  recordStep('scroll', { scroll })
-  const visibleRows = await visibleCount(win, '.rows .row')
-  const report = { status: 'PASS', generatedAt: new Date().toISOString(), launchMs, interactiveMs, configTextLength, systemNavMs, updatesNavMs, settingsNavMs, appUpdateMs, updateReactionMs, scroll, visibleRows, steps }
-  enforceThresholds(report)
+  await runScenario('normal', runNormalScenario)
+  await runScenario('firstRun', runFirstRunScenario)
+  await runScenario('scan', runScanScenario)
+  const metrics = buildMetrics()
+  const verdictAll = overall(metrics)
+  const status = verdictAll === 'fail' ? 'FAIL' : verdictAll === 'warn' ? 'WARN' : 'PASS'
+  const report = {
+    status,
+    target,
+    exe: targetExe,
+    budgetsVersion: BUDGETS_VERSION,
+    gatedWindow: 'post-scan-quiet',
+    generatedAt: new Date().toISOString(),
+    metrics,
+    scenarios,
+    stillstand: collectStillstand(),
+    steps
+  }
   writeJson(reportPath, report)
   return report
 }
 
-async function measureUpdateReaction(win) {
-  const started = Date.now()
-  const clicked = await win.evaluate(() => {
-    const buttons = [...document.querySelectorAll('.ump-btn')]
-    const found = buttons.find((el) => /Prüfen|Erneut prüfen/i.test(el.textContent ?? ''))
-    if (!(found instanceof HTMLButtonElement)) return false
-    found.click()
-    return true
-  }).catch(() => false)
-  if (!clicked) return null
-  await win.waitForTimeout(250)
-  return Date.now() - started
-}
-
-function enforceThresholds(report) {
-  const hard = { launchMs: 20_000, interactiveMs: 25_000, systemNavMs: 6_000, updatesNavMs: 6_000, settingsNavMs: 6_000, appUpdateMs: 6_000 }
-  for (const [key, max] of Object.entries(hard)) if ((report[key] ?? 0) > max) throw new Error(`${key} too slow: ${report[key]}ms > ${max}ms`)
-  if (report.configTextLength < 20) throw new Error('app text too short after launch')
+// Kurzfassung der Metriken fuer die Konsole (Rohwerte bleiben im Report).
+function consoleSummary(metrics) {
+  return Object.fromEntries(Object.entries(metrics).map(([key, entry]) => [key, `${entry.valueMs ?? '?'}ms:${entry.verdict}`]))
 }
 
 try {
   const report = await withDeadline(runPerf(), PERF_SMOKE_TIMEOUT_MS, 'perf-smoke')
-  await closeElectronApp(app)
-  console.log(JSON.stringify({ status: 'PASS', report: reportPath, launchMs: report.launchMs, interactiveMs: report.interactiveMs }, null, 2))
+  console.log(JSON.stringify({ status: report.status, target, budgetsVersion: BUDGETS_VERSION, report: reportPath, metrics: consoleSummary(report.metrics) }, null, 2))
+  if (report.status === 'FAIL') process.exit(1)
 } catch (error) {
-  await closeElectronApp(app)
-  const failed = { ...failPayload('perf-smoke', error), steps }
+  // Notfall-Close (z.B. Deadline mitten im Szenario) — HR31 auf allen Pfaden.
+  for (const ctx of ctxs) {
+    if (ctx.app) await closeElectronApp(ctx.app).catch(() => {})
+  }
+  const failed = { ...failPayload('perf-smoke', error), target, budgetsVersion: BUDGETS_VERSION, scenarios, stillstand: collectStillstand(), steps }
   writeJson(reportPath, failed)
-  console.error(JSON.stringify({ status: 'FAIL', report: reportPath, error: error instanceof Error ? error.message : String(error) }, null, 2))
+  console.error(JSON.stringify({ status: 'FAIL', report: reportPath, error: failed.error }, null, 2))
   process.exit(1)
 }

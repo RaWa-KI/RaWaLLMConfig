@@ -2,7 +2,7 @@
 type: public-release-scope
 status: draft
 created: 2026-07-03
-updated: 2026-07-06
+updated: 2026-07-16
 plan: PLAN-rawallmconfig-oss-teil-a-cleanup-lizenz_2026-06-16
 snapshot: private archive snapshot 2026-07-03-oss-teil-a-a0-presnapshot
 secret_review: no-secrets
@@ -51,7 +51,7 @@ Diese Klassen werden nicht in das frische Public-Repo uebernommen:
 
 - Governance, Session- und Agentenlaufzeit: `.claude/**`, `.agents/**`, `.codex/**`
 - lokale Appdaten und Audit-Runtime: `.rawallmconfig/**`, `.remember/**`, `.playwright-mcp/**`
-- historische Prototypen/Importe: `_entpackt/**`, `KI LLM Config Dashboard.zip`
+- interne historische Designpakete, Prototypen und Import-Artefakte
 - Projektinterne Steuerdokumente: `AGENTS.md`, `CLAUDE.md`, `MODULAR-DEBT.md`, `ZIELE.md`
 - Build- und Cache-Ausgaben: `node_modules/**`, `out/**`, `dist/**`, `dist-release/**`, `.vite/**`
 - Test-/Design-/Graph-Ausgaben: `tests/audit-runtime/**`, `test-results/**`,

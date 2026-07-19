@@ -1,5 +1,11 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { deriveErrorBoundaryState, type ErrorBoundaryState } from './error-boundary-state'
+import { Component, type ErrorInfo, type ReactNode, useState } from 'react'
+import {
+  buildErrorReportRequest,
+  deriveErrorBoundaryState,
+  sanitizeComponentStack,
+  type ErrorBoundaryState
+} from './error-boundary-state'
+import { ErrorReportDialog } from './ErrorReportDialog'
 
 // A8-6, Stufe 2: globale Auffangschicht fuer den Renderer. Ein Render-Throw in
 // einem Kind wuerde sonst ein WEISSES Fenster erzeugen (React unmountet den Baum).
@@ -10,7 +16,14 @@ interface Props {
   children: ReactNode
 }
 export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false, msg: '' }
+  state: ErrorBoundaryState = {
+    hasError: false,
+    msg: '',
+    source: 'React ErrorBoundary',
+    componentStack: null,
+    reportStatus: null,
+    reportBusy: false
+  }
 
   // React-Lifecycle: aus dem Fehler den neuen State ableiten (rendert Fallback).
   static getDerivedStateFromError(err: unknown): ErrorBoundaryState {
@@ -20,7 +33,25 @@ export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
   // Nur loggen (secret-frei): message + Komponenten-Herkunft, nie das ganze Objekt.
   componentDidCatch(err: unknown, info: ErrorInfo): void {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
-    console.error('[renderer] ErrorBoundary', msg, info.componentStack ?? '')
+    console.error('[renderer] ErrorBoundary', msg)
+    this.setState({ componentStack: sanitizeComponentStack(info.componentStack) })
+  }
+
+  private saveReport = async (): Promise<void> => {
+    const api = window.electronAPI
+    if (!api?.saveErrorReport) {
+      this.setState({ reportStatus: 'Fehlerbericht ist in diesem Kontext nicht verfuegbar.' })
+      return
+    }
+    this.setState({ reportBusy: true, reportStatus: 'Fehlerbericht wird vorbereitet ...' })
+    try {
+      const saved = await api.saveErrorReport({ error: buildErrorReportRequest(this.state) })
+      this.setState({ reportStatus: statusText(saved.data?.canceled, saved.error) })
+    } catch {
+      this.setState({ reportStatus: 'Fehlerbericht konnte nicht gespeichert werden.' })
+    } finally {
+      this.setState({ reportBusy: false })
+    }
   }
 
   render(): ReactNode {
@@ -28,17 +59,57 @@ export class ErrorBoundary extends Component<Props, ErrorBoundaryState> {
     return (
       <div className="error-boundary" role="alert">
         <div className="eb-box">
-          <div className="eb-title">Etwas ist schiefgelaufen</div>
+          <div className="eb-kicker">RaWaLLMConfig</div>
+          <div className="eb-title">Diese Ansicht ist abgestuerzt</div>
           <p className="eb-text">
-            Die Ansicht konnte nicht angezeigt werden. Deine Konfigurationsdateien
-            sind nicht betroffen. Lade die App neu, um es erneut zu versuchen.
+            Die App laeuft weiter. Deine lokalen Konfigurationsdateien wurden dabei nicht veraendert.
           </p>
-          {this.state.msg && <div className="eb-detail">{this.state.msg}</div>}
-          <button type="button" className="eb-reload" onClick={() => location.reload()}>
-            Neu laden
-          </button>
+          {this.state.msg && (
+            <details className="eb-detail">
+              <summary>Details anzeigen</summary>
+              <pre>{this.state.msg}</pre>
+            </details>
+          )}
+          {this.state.reportStatus && <p className="eb-status">{this.state.reportStatus}</p>}
+          <div className="eb-actions">
+            <button type="button" className="eb-report" onClick={this.saveReport} disabled={this.state.reportBusy}>
+              {this.state.reportBusy ? 'Wird vorbereitet ...' : 'Anonymen Fehlerbericht speichern'}
+            </button>
+            <OnlineReportLauncher msg={this.state.msg} stack={this.state.componentStack} />
+            <button type="button" className="eb-reload" onClick={() => location.reload()}>
+              Neu laden
+            </button>
+          </div>
         </div>
       </div>
     )
   }
+}
+
+function statusText(canceled: boolean | undefined, error: string | null | undefined): string {
+  if (error) return 'Fehlerbericht konnte nicht gespeichert werden.'
+  if (canceled) return 'Speichern abgebrochen.'
+  return 'Fehlerbericht wurde lokal gespeichert.'
+}
+
+// Online-Pfad (D055): oeffnet den Consent-Dialog mit Vorschau und Opt-out.
+// Eigene funktionale Komponente mit lokalem State — die Klassen-Boundary bleibt
+// rein (kein zusaetzlicher Dialog-State im Klassen-State).
+function OnlineReportLauncher({ msg, stack }: { msg: string; stack: string | null }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" className="eb-online" onClick={() => setOpen(true)}>
+        An Entwickler melden
+      </button>
+      {open && (
+        <ErrorReportDialog
+          errorMessage={msg || 'Unbekannter Fehler'}
+          errorStack={stack ?? undefined}
+          errorSource="reactErrorBoundary"
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  )
 }

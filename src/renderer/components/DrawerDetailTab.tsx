@@ -18,6 +18,7 @@ import { useExplain } from '../sections/config/use-explain'
 interface DetailTabProps {
   cat: Category
   entry: ConfigEntry
+  onCompare(): void
 }
 
 // kind-Hygiene: explain-kind NICHT doppelt praefixen. Manche cat.id tragen die
@@ -27,7 +28,7 @@ function explainKind(llm: string, catId: string): string {
   return /^(shared|codex)-/.test(catId) ? catId : `${llm}-${catId}`
 }
 
-export function DrawerDetailTab({ cat, entry }: DetailTabProps) {
+export function DrawerDetailTab({ cat, entry, onCompare }: DetailTabProps) {
   const { ui } = useStore()
   const [editOpen, setEditOpen] = useState(false)
   // Stabiler kind-Bezug -> explain.ts leitet daraus Familie UND Element-Klasse ab
@@ -35,7 +36,7 @@ export function DrawerDetailTab({ cat, entry }: DetailTabProps) {
   const explain = useExplain(explainKind(ui.llm, cat.id), entry.name)
   return (
     <div className="drawer-detail-tab">
-      <ConflictResolution entry={entry} onEdit={() => setEditOpen(true)} />
+      <ConflictResolution entry={entry} onEdit={() => setEditOpen(true)} onCompare={onCompare} />
       <DrawerEdit cat={cat} entry={entry} open={editOpen} onOpenChange={setEditOpen} />
       <CredentialCard entry={entry} />
       <ExplainPanel

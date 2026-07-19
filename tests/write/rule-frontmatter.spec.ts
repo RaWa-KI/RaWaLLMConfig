@@ -7,7 +7,13 @@ import type { LlmConfig } from '../../shared/contract'
 function bustScanCache(): void {
   for (const key of Object.keys(require.cache)) {
     const k = key.replace(/\\/g, '/')
-    if (k.includes('/src/main/scan/') || k.includes('/src/main/services/config-roots')) {
+    // scan-invalidation mit werfen: es bindet struktur-scan-Modulzustand;
+    // sonst markiert die Alt-Instanz den neu geladenen Cache nie stale.
+    if (
+      k.includes('/src/main/scan/') ||
+      k.includes('/src/main/services/config-roots') ||
+      k.includes('/src/main/services/scan-invalidation')
+    ) {
       delete require.cache[key]
     }
   }

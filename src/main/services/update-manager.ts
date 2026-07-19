@@ -30,7 +30,7 @@ import { getDeps } from './update-manager-deps'
 import { finalizeDownload, requireReadyIntegrity, stageUpdateInstaller } from './update-download-flow'
 import {
   getUpdateState as getStateSnapshot, pushHistory, setPhase, setError,
-  clearError, setAvailable, clearKnownRelease, markPreviousVersion,
+  clearError, setAvailable, clearKnownRelease, markPreviousVersion, setNoPlatformAsset,
 } from './update-state'
 import { currentUpdateState, syncUpdateSource, updateCheckPayload } from './update-source-state'
 
@@ -42,6 +42,25 @@ export const UPDATE_DISABLED_REASON =
   'Update-Installation ist deaktiviert — RAWALLM_UPDATE_ENABLED=0 entfernen oder auf 1 setzen und App neu starten'
 
 let checkPromise: Promise<UpdateCheckResult> | null = null
+
+// Teilplan B: kurzlebiger Ergebnis-Cache (Default-TTL 60 s) fuer erfolgreiche
+// Checks. updatesCheck kostete profiliert 1,5–6,5 s (Netz/Manifest-Zugriff) und
+// ist der teuerste IPC-Call. Nur erfolgreiche Ergebnisse (error === null) werden
+// gecacht — ein Fehler wird beim naechsten Aufruf frisch erneut versucht.
+// force (explizite Nutzer-Aktion) umgeht den Cache; die in-flight-Dedup bleibt.
+const CHECK_CACHE_DEFAULT_TTL_MS = 60_000
+let checkCacheTtlMs = CHECK_CACHE_DEFAULT_TTL_MS
+let lastCheck: { at: number; result: UpdateCheckResult } | null = null
+
+/** Test-Hooks: Cache-Zustand zuruecksetzen / TTL verkleinern (Suite-Pinning). */
+export function resetUpdateCheckCacheForTest(): void {
+  lastCheck = null
+  checkCacheTtlMs = CHECK_CACHE_DEFAULT_TTL_MS
+}
+
+export function setUpdateCheckCacheTtlForTest(ms: number): void {
+  checkCacheTtlMs = ms
+}
 
 // ---------------------------------------------------------------------------
 // Hilfsfunktionen
@@ -90,6 +109,7 @@ async function runCheck(): Promise<UpdateCheckResult> {
   const deps = getDeps()
   setPhase('checking')
   clearError()
+  setNoPlatformAsset(false)
 
   const source = getUpdateSource()
   syncUpdateSource(source, deps.getVersion())
@@ -107,18 +127,30 @@ async function runCheck(): Promise<UpdateCheckResult> {
     return { data: updateCheckPayload(getUpdateState(), false, null), error: null }
   }
 
-  const { hasUpdate, info, latestVersion } = buildUpdateInfo(manifest.release, deps.getVersion())
-  setAvailable(latestVersion ?? '', info?.assetName ?? null, info?.releaseNotes ?? manifest.release.body ?? null)
+  const { hasUpdate, info, latestVersion, noPlatformAsset } = buildUpdateInfo(manifest.release, deps.getVersion())
+  setAvailable(
+    latestVersion ?? '',
+    info?.assetName ?? null,
+    info?.releaseNotes ?? manifest.release.body ?? null,
+    noPlatformAsset
+  )
   setPhase(hasUpdate ? 'available' : 'idle')
-  pushHistory(hasUpdate ? 'update-available' : 'up-to-date')
+  pushHistory(noPlatformAsset ? 'no-platform-asset' : hasUpdate ? 'update-available' : 'up-to-date')
 
   return { data: updateCheckPayload(getUpdateState(), hasUpdate, info ?? null), error: null }
 }
 
-/** Check mit Dedup (genau ein in-flight Promise — 1:1 RawaLite). */
-export async function checkForUpdates(): Promise<UpdateCheckResult> {
+/** Check mit Dedup (genau ein in-flight Promise — 1:1 RawaLite) + TTL-Cache. */
+export async function checkForUpdates(options?: { force?: boolean }): Promise<UpdateCheckResult> {
   if (checkPromise) return checkPromise
+  if (!options?.force && lastCheck && Date.now() - lastCheck.at < checkCacheTtlMs) {
+    return lastCheck.result
+  }
   checkPromise = runCheck()
+    .then((result) => {
+      if (!result.error) lastCheck = { at: Date.now(), result }
+      return result
+    })
     .catch(() => {
       setError('Update-Pruefung fehlgeschlagen')
       console.error('[update-manager] checkForUpdates fehlgeschlagen')

@@ -1,9 +1,11 @@
-import { memo, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import type { Category, ConfigEntry, EntryStatus, Scope } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { Pill } from '../../components/Pill'
+import { useStore } from '../../state/store'
 import { useVirtualRows } from '../../lib/useVirtualRows'
 import { OverviewEntry } from './OverviewEntry'
+import { categoryLabel } from './category-label'
 
 // Read-only Praesentationsteile der Config-Sektion (1:1 Prototyp-Optik).
 // Phase 1: NUR Anzeige — keine CRUD-/Reconcile-/Notiz-Pfade.
@@ -46,6 +48,7 @@ function markHits(text: string, q: string) {
 }
 
 export const EntryRow = memo(function EntryRow({ cat, entry, showCat, highlight, inFile, onClick }: RowProps) {
+  const { ui } = useStore()
   const hl = highlight ?? ''
   return (
     <div className="row" onClick={onClick}>
@@ -53,7 +56,7 @@ export const EntryRow = memo(function EntryRow({ cat, entry, showCat, highlight,
       <div className="row-main">
         <div className="row-name">
           <span className="mono">{markHits(entry.name, hl)}</span>
-          {showCat && <span className="row-path">· {cat.label}</span>}
+          {showCat && <span className="row-path">· {categoryLabel(ui.displayMode, cat)}</span>}
           {inFile && (
             <span className="row-infile" title="Der Suchbegriff steht im Datei-Inhalt (Schlüssel/Felder), nicht im Namen.">
               {Icon.search}Treffer im Datei-Inhalt
@@ -116,8 +119,10 @@ function ScopeGroup({
         {enabled && <div style={{ height: virtual.beforeHeight }} />}
         {indexes.map((i) => {
           const e = list[i]
+          // onOpen direkt durchreichen (Teilplan C): ein Inline-Arrow pro Zeile
+          // wuerde die Callback-Referenz bei jedem Render brechen.
           return (
-          <OverviewEntry key={e.id} cat={cat} entry={e} onOpen={(id) => onOpen(id)} />
+          <OverviewEntry key={e.id} cat={cat} entry={e} onOpen={onOpen} />
           )
         })}
         {enabled && <div style={{ height: virtual.afterHeight }} />}
@@ -150,7 +155,9 @@ function hitKey(hit: SearchHit): string {
   return hit.llm + hit.cat.id + hit.entry.id
 }
 
-function SearchHitRow({
+// memo + stabiler onClick (Teilplan C): EntryRow ist memoized — ein frischer
+// Inline-Handler pro Render wuerde das memo aushebeln.
+const SearchHitRow = memo(function SearchHitRow({
   hit,
   query,
   onOpen
@@ -159,17 +166,22 @@ function SearchHitRow({
   query: string
   onOpen(llm: string, catId: string, entryId: string): void
 }) {
+  const { llm, cat, entry } = hit
+  const handleClick = useCallback(
+    () => onOpen(llm, cat.id, entry.id),
+    [onOpen, llm, cat.id, entry.id]
+  )
   return (
     <EntryRow
-      cat={hit.cat}
-      entry={hit.entry}
+      cat={cat}
+      entry={entry}
       showCat
       highlight={query}
       inFile={hit.inFile}
-      onClick={() => onOpen(hit.llm, hit.cat.id, hit.entry.id)}
+      onClick={handleClick}
     />
   )
-}
+})
 
 export interface SearchHit {
   // Familie des Treffers (claude/codex/…) — fuer cross-family-Oeffnen noetig.
@@ -186,7 +198,8 @@ const STATUS_LABEL: Record<EntryStatus, string> = {
   stale: 'veraltet',
   conflict: 'Konflikte',
   dup: 'Duplikate',
-  archived: 'archiviert'
+  archived: 'archiviert',
+  acknowledged: 'bestätigt'
 }
 
 // Baut den Treffer-Untertitel: zeigt aktiven Status-Filter und/oder Suchbegriff.

@@ -16,7 +16,7 @@ import { invalidConfigEntry } from './scan-invalid-entry'
 const ROOTS = configRoots()
 const CLAUDE_JSON = join(dirname(ROOTS.claudeHome), '.claude.json')
 const CODEX_TOML = join(ROOTS.codexHome, 'config.toml')
-const SHARED_PLUGINS_DIR = join(ROOTS.sharedClaude, 'plugins')
+const SHARED_PLUGINS_DIR = ROOTS.sharedClaude ? join(ROOTS.sharedClaude, 'plugins') : null
 
 // SSOT-Vertrag: Quellen wie ~/.claude.json und config.toml sind echte Secret-
 // WERT-Klassen (isSecretPathForRead === true). mcp-scan parst sie AUSSCHLIESSLICH
@@ -212,6 +212,7 @@ function collectTomlServers(lines: string[]): { name: string; transport: string 
 // NIE Secret-Werte lesen — nur Namen + Transport-Schluessel.
 function scanSharedMcp(): Category | null {
   try {
+    if (!SHARED_PLUGINS_DIR) return notConfiguredSharedMcp()
     if (!existsSync(SHARED_PLUGINS_DIR)) return null
     const servers: { name: string; transport: string }[] = []
     const entries = readdirSync(SHARED_PLUGINS_DIR, { withFileTypes: true })
@@ -230,6 +231,14 @@ function scanSharedMcp(): Category | null {
   } catch (err) {
     console.error('[scan:mcp-shared]', err instanceof Error ? err.message : 'scan-error')
     return null
+  }
+}
+
+function notConfiguredSharedMcp(): Category {
+  return {
+    id: 'plugins', label: 'Plugins / MCP', icon: 'plug', path: '',
+    blurb: 'Shared-Konfiguration ist nicht eingerichtet.',
+    entries: [{ id: 'mcp-shared-not-configured', name: 'Shared-Ordner nicht eingerichtet', status: 'stale', scope: 'shared', path: '', desc: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.', updated: '' }]
   }
 }
 

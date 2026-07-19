@@ -239,20 +239,9 @@
   .struktur-body {
     padding: 1rem;
   }
-
-  .struktur-row {
-    flex-wrap: wrap;
-  }
-
-  .struktur-row .row-meta {
-    justify-content: flex-start;
-    max-width: none;
-    width: 100%;
-    padding-left: 52px;
-  }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1120px) {
   .struktur-row {
     flex-wrap: wrap;
   }

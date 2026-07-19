@@ -99,7 +99,7 @@ html[data-structure="lines"] .ref-search, html[data-structure="emboss"] .ref-sea
 .ref-notes { margin-top: 22px; display: flex; flex-direction: column; gap: 8px; }
 .ref-note { display: flex; align-items: flex-start; gap: 9px; font-size: 12.5px; font-weight: 700; color: var(--warm-gray); line-height: 1.5; }
 .ref-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .rf-line { grid-template-columns: 1fr; gap: 2px; }
   .ref-row { grid-template-columns: 1fr; gap: 5px; }
   .ref-expert-details code { max-width: 220px; }

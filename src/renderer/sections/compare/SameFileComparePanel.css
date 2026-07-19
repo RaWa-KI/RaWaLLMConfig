@@ -120,7 +120,7 @@
 .cmp-same-place span,
 .cmp-same-empty { color: var(--text-lt); }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .cmp-same-head,
   .cmp-same-places { grid-template-columns: 1fr; }
   .cmp-same-head { flex-direction: column; }

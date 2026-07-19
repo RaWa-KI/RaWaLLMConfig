@@ -12,6 +12,7 @@ import type {
   ManualRequiredItem
 } from '@shared/contract-integrity'
 import type { MoveVersionedRequest, RenameRequest } from '@shared/contract-write-rename'
+import { pathsEqual } from '@shared/path-compare'
 import { safeStat } from './reference-pairs'
 import { scanReferences } from './reference-scan'
 import { computePlanHash } from './plan-hash'
@@ -23,14 +24,12 @@ function fail(reason: string): IpcResult<IntegrityPlan> {
 }
 
 /**
- * Ob from und to auf demselben Laufwerk/Root liegen (case-insensitiv).
+ * Ob from und to auf demselben Laufwerk/Root liegen (plattformgerecht).
  * Cross-Volume-Moves sind nicht sicher rückrollbar (renameSync→EXDEV), daher
  * blockieren wir sie vor jeder Mutation.
  */
 function sameVolume(a: string, b: string): boolean {
-  const rootA = parse(resolve(a)).root.toLowerCase()
-  const rootB = parse(resolve(b)).root.toLowerCase()
-  return rootA === rootB
+  return pathsEqual(parse(resolve(a)).root, parse(resolve(b)).root, process.platform)
 }
 
 /** Dedupliziert ReferenceOps nach (filePath, oldValue, newValue). */
@@ -83,6 +82,44 @@ function buildRenameFsOps(req: RenameRequest): IntegrityFsOp[] | string {
   return ops
 }
 
+interface ReferenceAggregate {
+  ops: ReferenceOp[]
+  blockers: IntegrityBlocker[]
+  manual: ManualRequiredItem[]
+  scannedFiles: number
+  truncated: boolean
+}
+
+async function scanFsOps(
+  fsOps: IntegrityFsOp[],
+  operationSources: string[],
+  opts: { allowedRoots?: string[] }
+): Promise<ReferenceAggregate> {
+  const aggregate: ReferenceAggregate = {
+    ops: [], blockers: [], manual: [], scannedFiles: 0, truncated: false
+  }
+  for (const fsOp of fsOps) {
+    if (fsOp.to && !sameVolume(fsOp.from, fsOp.to)) {
+      aggregate.blockers.push({
+        code: 'cross-volume-rollback-not-proven',
+        path: fsOp.from,
+        reason:
+          'Verschieben ueber Laufwerksgrenzen — sicherer Rollback nicht beweisbar; bitte manuell verschieben.'
+      })
+    }
+    const scanResult = await scanReferences(fsOp.from, fsOp.to ?? '', {
+      ...opts,
+      operationSources
+    })
+    aggregate.ops.push(...scanResult.ops)
+    aggregate.blockers.push(...scanResult.blockers)
+    aggregate.manual.push(...scanResult.manualRequired)
+    aggregate.scannedFiles += scanResult.scannedFiles
+    if (scanResult.truncated) aggregate.truncated = true
+  }
+  return aggregate
+}
+
 // ── Haupt-Export ──────────────────────────────────────────────────────────
 
 /**
@@ -107,46 +144,15 @@ export async function planMove(
     fsOps = result
   }
 
-  // Pro fsOp scannen und aggregieren
-  const allOps: ReferenceOp[] = []
-  const allBlockers: IntegrityBlocker[] = []
-  const allManual: ManualRequiredItem[] = []
-  let scannedFiles = 0
-  let truncated = false
-
   // Alle Quellen der Operation (für Ambiguity-Ausschluss bei Spiegelungen)
   const operationSources = fsOps.map((o) => o.from)
-
-  for (const fsOp of fsOps) {
-    // Cross-Volume-Gate: Move über Laufwerksgrenzen ist nicht sicher
-    // rückrollbar (copy+rm Quelle, aber renameSync-Rollback scheitert mit
-    // EXDEV). Blocker statt Ausführung → das Blocker-Gate in apply-integrity
-    // verhindert jede Mutation.
-    if (fsOp.to && !sameVolume(fsOp.from, fsOp.to)) {
-      allBlockers.push({
-        code: 'cross-volume-rollback-not-proven',
-        path: fsOp.from,
-        reason:
-          'Verschieben ueber Laufwerksgrenzen — sicherer Rollback nicht beweisbar; bitte manuell verschieben.'
-      })
-    }
-    const scanResult = await scanReferences(fsOp.from, fsOp.to ?? '', {
-      ...opts,
-      operationSources
-    })
-    allOps.push(...scanResult.ops)
-    allBlockers.push(...scanResult.blockers)
-    allManual.push(...scanResult.manualRequired)
-    scannedFiles += scanResult.scannedFiles
-    if (scanResult.truncated) truncated = true
-  }
-
-  const referenceOps = dedupeOps(allOps)
+  const scanned = await scanFsOps(fsOps, operationSources, opts)
+  const referenceOps = dedupeOps(scanned.ops)
   const operationId = randomUUID()
   const planHash = computePlanHash(kind, fsOps, referenceOps, {
-    blockers: allBlockers,
-    manualRequired: allManual,
-    truncated
+    blockers: scanned.blockers,
+    manualRequired: scanned.manual,
+    truncated: scanned.truncated
   })
 
   return {
@@ -156,10 +162,10 @@ export async function planMove(
       kind,
       fsOps,
       referenceOps,
-      blockers: allBlockers,
-      manualRequired: allManual,
-      scannedFiles,
-      truncated
+      blockers: scanned.blockers,
+      manualRequired: scanned.manual,
+      scannedFiles: scanned.scannedFiles,
+      truncated: scanned.truncated
     },
     error: null
   }

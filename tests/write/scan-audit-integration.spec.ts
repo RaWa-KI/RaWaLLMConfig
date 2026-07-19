@@ -61,5 +61,8 @@ test('scanAll exposes C-04/C-10 scanner findings as audit family categories', ()
     expect(cats.get(id)?.entries.length, `${id} entries`).toBeGreaterThan(0)
     expect(cats.get(id)?.entries.every((entry) => entry.status === 'conflict')).toBe(true)
   }
-  expect(app.llms.some((llm) => llm.id === 'audit')).toBe(true)
+  // Masterplan Teil E (E-WP3 L2): audit ist Register-only — die Daten bleiben
+  // (Assertions oben), aber die Familie bekommt keinen Pseudo-Tab mehr; die
+  // Befunde erscheinen einmalig unter „Abdeckung & Register".
+  expect(app.llms.some((llm) => llm.id === 'audit')).toBe(false)
 })

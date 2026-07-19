@@ -14,6 +14,7 @@ import type {
   ReadFullResult
 } from '@shared/contract-write'
 import { applyWrite } from './services/apply'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { readFullCore } from './services/read-full'
 import {
   isWriteEnabled,
@@ -45,7 +46,11 @@ function handleApply(req: WriteRequest): WriteResult {
     return { data: null, error: 'invalid-request' }
   }
   if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
-  return applyWrite(req, getWriteContext())
+  const result = applyWrite(req, getWriteContext())
+  // Erfolgreiche Mutation invalidiert die Scan-Caches (Teilplan B) — sonst
+  // wuerde reloadConfig direkt nach dem Schreiben den Vorschreib-Stand liefern.
+  if (result.data && !result.error) markScanCachesStale('write:apply')
+  return result
 }
 
 // write:status — aktuellen Schreibstatus liefern (kein Secret, kein Pfad).

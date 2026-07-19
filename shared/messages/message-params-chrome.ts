@@ -7,6 +7,10 @@ export type ChromeMessageParamsMap = {
   "chrome.detail.struktur": undefined
   "chrome.detail.prefs": undefined
   "chrome.detail.quellen": undefined
+  "chrome.nav.more": undefined
+  "chrome.nav.moreOpen": undefined
+  "chrome.nav.moreClose": undefined
+  "chrome.nav.overflowLabel": undefined
   "chrome.action.export": undefined
   "chrome.action.exportTitle": undefined
   "chrome.action.backupImportTitle": undefined

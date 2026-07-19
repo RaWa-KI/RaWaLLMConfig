@@ -17,74 +17,101 @@
   box-shadow: var(--card-shadow-sm);
 }
 
+.ov-head .display-mode-switch {
+  justify-self: end;
+}
+
+.ov-head .section-switch.display-mode-switch > .sec-btn { display: inline-flex; }
+
 .ov-mark {
   width: 48px;
   height: 48px;
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: var(--sage);
-  color: #fff;
+  background: transparent;
+  color: var(--terra);
+  border: 1px solid var(--terra);
+}
+
+html[data-structure="retro"] .ov-mark {
   border: 2px solid var(--ink);
   box-shadow: 3px 3px 0 var(--ink-2);
 }
 
 .ov-head h1 {
-  font-size: 28px;
+  font-size: var(--font-size-h1);
   line-height: 1;
-  font-weight: 900;
+  font-weight: var(--font-weight-headline);
 }
 
-.ov-head p,
-.ov-next p,
-.ov-task-body,
-.ov-task-meaning,
-.ov-task-status {
-  color: var(--warm-gray);
-  font-size: 13px;
-  font-weight: 750;
+/* Register-Container (F-WP2d D2/D3, lines-Achse): 1px-Aussenlinie + 1px-
+   Trennlinien zwischen den Zeilen, KEIN Schatten, keine Tint-Karten. */
+.ov-reg {
+  background: var(--bg-card);
+  border: var(--card-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
-.ov-head-warn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--amber-lt);
-  color: var(--amber-d);
-  font-size: 12px;
-  font-weight: 900;
+.ov-reg > * + * {
+  border-top: 1px solid var(--border);
 }
 
-.ov-head-warn svg,
-.ov-metric svg,
-.ov-task svg {
-  width: 16px;
-  height: 16px;
+/* Status-Punkt in Registerzeilen: ok = --sage, offen = --amber (Signal),
+   neutral/navigational = --warm-gray. */
+.ov-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
 }
 
-.ov-metrics,
-.ov-tasks {
+.ov-dot.ok { background: var(--sage); }
+.ov-dot.open { background: var(--amber); }
+.ov-dot.idle { background: var(--warm-gray); }
+
+.ov-status {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  justify-items: start;
 }
 
-.ov-metric {
+.ov-status-summary {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.ov-readiness {
+  justify-self: stretch;
+}
+
+.ov-readiness-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 64px;
-  padding: 14px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
+  padding: 11px 16px;
 }
 
-.ov-metric.ready { color: var(--sage-d); }
-.ov-metric.incomplete { color: var(--papa-d); }
-.ov-metric.warning { color: var(--amber-d); }
+.ov-readiness-name {
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.ov-readiness-state {
+  margin-left: auto;
+  color: var(--text-lt);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ov-zone-paths {
+  display: grid;
+  gap: 12px;
+}
 
 .ov-next {
   display: flex;
@@ -92,89 +119,83 @@
   justify-content: space-between;
   gap: 16px;
   padding: 18px 20px;
-  background: var(--sage-lt);
-  border: 2px solid color-mix(in oklab, var(--sage), transparent 45%);
+  background: color-mix(in oklab, var(--terra) 7%, var(--bg-card));
+  border: 2px solid color-mix(in oklab, var(--terra) 38%, var(--border));
   border-radius: var(--radius-sm);
 }
 
-.ov-next h2 {
-  font-size: 18px;
-  line-height: 1.1;
-  font-weight: 900;
+.ov-next p {
+  color: var(--warm-gray);
+  font-size: var(--font-size-meta);
+  font-weight: 750;
 }
 
+/* Bereichs-Navigation als Registerzeilen (F-WP2d D3) — keine Karten mehr. */
 .ov-task {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  align-items: center;
   gap: 12px;
-  align-items: start;
-  min-height: 132px;
-  padding: 16px;
+  width: 100%;
+  padding: 11px 16px;
   text-align: left;
-  background: var(--bg-card);
-  border: var(--card-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--card-shadow-sm);
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
 }
 
 .ov-task:hover {
-  transform: translateY(-1px);
-}
-
-.ov-task.primary {
-  border-color: color-mix(in oklab, var(--sage), #000 12%);
-}
-
-.ov-task-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--terra-lt);
-  color: var(--terra-d);
+  background: var(--bg);
 }
 
 .ov-task-copy {
   display: flex;
   min-width: 0;
+  flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
 .ov-task-title {
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.1;
-  font-weight: 900;
+  font-size: 14.5px;
+  line-height: 1.2;
+  font-weight: var(--font-weight-headline);
 }
 
-.ov-task-status {
+.ov-task-body {
   color: var(--text-lt);
+  font-size: 12.5px;
+  font-weight: 700;
 }
 
-.ov-task-meaning {
-  color: var(--text);
+.ov-task-state {
+  flex: none;
+  color: var(--text-lt);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ov-task-arrow {
+  flex: none;
+  color: var(--warm-gray);
+}
+
+.ov-task-arrow svg {
+  width: 16px;
+  height: 16px;
 }
 
 .ov-task-expert {
   display: grid;
   gap: 3px;
-  margin-top: 4px;
+  margin-top: 6px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
   color: var(--warm-gray);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.ov-task-arrow {
-  color: var(--warm-gray);
-}
-
-.expert-jump .ov-task-icon {
-  background: var(--papa-lt);
-  color: var(--papa-d);
+  font-size: var(--font-size-eyebrow);
+  font-weight: var(--font-weight-meta);
 }
 
 .llm-actions {
@@ -199,14 +220,7 @@
   padding: 8px;
 }
 
-@media (max-width: 1100px) {
-  .ov-metrics,
-  .ov-tasks {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .ov-head,
   .ov-next {
     grid-template-columns: 1fr;
@@ -215,17 +229,12 @@
   .ov-head {
     display: flex;
     align-items: flex-start;
+    flex-wrap: wrap;
   }
 
-  .ov-head-warn,
   .ov-next .btn {
     width: 100%;
     justify-content: center;
-  }
-
-  .ov-metrics,
-  .ov-tasks {
-    grid-template-columns: 1fr;
   }
 
 }

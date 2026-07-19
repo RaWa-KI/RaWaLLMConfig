@@ -114,6 +114,7 @@ export interface StoreActions {
   reloadConfig(): void
   // Vergleichs-Auswahl: einzelne Entry-ID togglen / Auswahl leeren (immutable).
   toggleCompare(id: string): void
+  setCompareSelection(ids: string[]): void
   clearCompare(): void
   setComparePreset(preset: CoverageComparePreset): void
   clearComparePreset(): void

@@ -30,7 +30,8 @@ const STATUS_PILL: Record<ConfigEntry['status'], { text: string; cls: string }> 
   stale: { text: 'veraltet', cls: 'abw' },
   conflict: { text: 'Konflikte', cls: 'abw' },
   dup: { text: 'Duplikate', cls: 'abw' },
-  archived: { text: 'archiviert', cls: 'abw' }
+  archived: { text: 'archiviert', cls: 'abw' },
+  acknowledged: { text: 'bestätigt', cls: 'same' }
 }
 
 // Letztes Pfad-Segment als Datei-Anzeige-/Umbenennen-Basisname.

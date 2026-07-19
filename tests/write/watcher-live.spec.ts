@@ -54,6 +54,29 @@ test('watcher-live liefert daemon+sources+changelogs aus Scope-B-Fixtures', asyn
   expect(w.changelogs[0].tool).toBe('claude-code')
 })
 
+test('watcher-live zeigt Index-Dateien nicht als Changelog-Feed-Eintraege', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'rawallm-watcher-index-only-'))
+  const referencesDir = join(root, 'references')
+  const trackingDir = join(root, 'tracking')
+  mkdirSync(join(referencesDir, 'codex-changelog'), { recursive: true })
+  mkdirSync(trackingDir, { recursive: true })
+  writeFileSync(
+    join(referencesDir, 'codex-changelog', 'Codex_Changelog_Index.md'),
+    '# Codex Changelog Index\n', 'utf8'
+  )
+  writeFileSync(
+    join(trackingDir, 'toolchain-daemon-state.json'),
+    JSON.stringify({
+      'codex-cli': { local_version: '0.143.0', remote_latest: '0.143.0' }
+    }), 'utf8'
+  )
+
+  const roots = { referencesDir, trackingDir }
+  assertSandbox(roots)
+  const w = await scanWatcherLive(roots)
+  expect(w.changelogs).toEqual([])
+})
+
 test('Read-Scope ist auf die injizierten Roots begrenzt (kein Read ausserhalb Scope-B)', async () => {
   const roots = makeScopeB()
   // Es darf NUR aus references/tracking gelesen werden — security/signals/briefings

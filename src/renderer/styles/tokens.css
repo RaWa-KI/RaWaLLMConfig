@@ -1,26 +1,37 @@
 /* ============================================================
-   Design-Tokens — RawaSuite "warmes Papier-Retro" (1:1 Prototyp)
-   Themes + Struktur- + Dichte-Achsen via [data-*] am <html>.
+   Design-Tokens — lokale Konfigurationswerkstatt.
+   Ruhige Papier-/Tintenflächen; Themes + Struktur- + Dichte-Achsen via [data-*].
    ============================================================ */
 :root {
   /* Flaechen & Text (Default hell) */
-  --bg:        #faf8f5;
-  --bg-card:   #ffffff;
-  --text:      #3a2e26;
-  --text-lt:   #7a6e66;
-  --warm-gray: #9a8a7c;
-  --border:    #ede8e0;
-  --shadow:    rgba(224,112,64,.13);
+  --bg:        #f3f0e9;
+  --bg-card:   #fbfaf6;
+  --text:      #292b2c;
+  --text-lt:   #626764;
+  --warm-gray: #7f847e;
+  --border:    #d6d4cb;
+  --shadow:    rgba(41,43,44,.08);
   --ring:      #ffffff;
   --toast-bg:  var(--text);
   --toast-text:#ffffff;
 
-  /* Warmer Akzent + Status-Farben */
-  --terra:     #e07040;
-  --sage:      #5a8a6a;
-  --amber:     #c79447;
-  --papa:      #4a7eb5;   /* blau — Duplikat/Info */
-  --lisa:      #c46ab0;   /* violett — Archiv */
+  /* Farbrollen (Schaerfung "Kontrollbuch", 2026-07-18, Owner-Go — verbindlich,
+     Quelle: design_handoff_startseite_redesign/README.md):
+     Papier-Grund  --bg / --bg-card
+     Tinte         --text / --text-lt / --warm-gray — auch Ersatz fuer fruehere
+                   --papa-Infotoene in Ueberblick-Badges/-Info-Flaechen
+     EIN Akzent    --terra  — primaere Aktionen, aktive Filter-Chips, Stempel-Kontur
+     EIN Signal    --amber  — "zu pruefen"/Fehler, Status-Punkt offen,
+                   Stempel "N DINGE ANSEHEN"
+     --sage        NUR Stempel "ALLES IN ORDNUNG" + Status-Punkt ok
+     --papa        entfaellt in Ueberblick-Badge-/Info-Rollen; Variable bleibt
+                   fuer andere Sektionen (z. B. Duplikat/Info)
+     --lisa        Archiv-Rolle (andere Sektionen) */
+  --terra:     #a6533d;
+  --sage:      #4d7860;
+  --amber:     #a9782f;
+  --papa:      #386b91;   /* blau — Duplikat/Info ausserhalb Ueberblick */
+  --lisa:      #85537c;   /* violett — Archiv */
   --terra-lt:  color-mix(in oklab, var(--terra) 16%, var(--bg-card));
   --terra-d:   color-mix(in oklab, var(--terra) 82%, #000);
   --sage-lt:   color-mix(in oklab, var(--sage) 16%, var(--bg-card));
@@ -32,36 +43,60 @@
   --lisa-lt:   color-mix(in oklab, var(--lisa) 15%, var(--bg-card));
   --lisa-d:    color-mix(in oklab, var(--lisa) 82%, #000);
 
-  --radius:    18px;
-  --radius-sm: 11px;
+  --radius:    10px;
+  --radius-sm: 6px;
 
   /* Ink (Retro-Raender / Schatten) */
   --ink:   color-mix(in oklab, var(--border), #000 22%);
   --ink-2: color-mix(in oklab, var(--border), #000 12%);
 
   /* Karten-Form (Retro default) */
-  --card-border:    2.5px solid var(--ink);
-  --card-shadow:    5px 5px 0 var(--ink-2);
-  --card-shadow-sm: 4px 4px 0 var(--ink-2);
+  --card-border:    1px solid var(--border);
+  --card-shadow:    0 1px 2px var(--shadow);
+  --card-shadow-sm: 0 1px 1px var(--shadow);
+
+  --font-ui: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  /* Display-/Etikettenschrift NUR fuer H1/H2 + Zustands-Stempel (Body bleibt
+     --font-ui): lokale Oswald-WOFF2 via fonts.css, danach System-Condensed. */
+  --font-display: "Oswald", "Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue Condensed", sans-serif-condensed, sans-serif;
+  --font-data: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+
+  /* Typo-Skala (Referenz: Startseite-Redesign, design_handoff README).
+     rem-Basis (16px), damit OS-/Browser-Textskalierung greift; px nur als Kommentar.
+     Kern-Hierarchie (ov-head h1, view-title, group-head h3) nutzt die Tokens.
+     Headlines zusaetzlich letter-spacing -0.01em; Eyebrow uppercase + .08em. */
+  --font-size-h1:      1.875rem;   /* 30px */
+  --font-size-h2:      1.3125rem;  /* 21px */
+  --font-size-body:    0.90625rem; /* 14.5px */
+  --font-size-meta:    0.8125rem;  /* 13px */
+  --font-size-eyebrow: 0.75rem;    /* 12px */
+  --font-weight-body:     700;
+  --font-weight-meta:     800;
+  --font-weight-headline: 900;
 
   /* Dichte (per data-density umgeschaltet) */
   --pad:   20px;
   --gap:   16px;
   --row-pad: 13px 15px;
 
-  --grain-opacity: .14;
+  --grain-opacity: .035;
   --grain-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* Overlay/Scrim (Dialoge, Drawer) — Basis-Textfarbe 45 % Deckkraft */
   --overlay-bg: color-mix(in srgb, var(--text) 45%, transparent);
+
+  /* Fokus-Ring (Tastatur, :focus-visible): ruhiger 2px-Akzentring mit Offset.
+     Struktur-Themes (retro/emboss) koennen bei Bedarf ueberschreiben. */
+  --focus-ring: 2px solid var(--terra);
 }
 
 /* THEMES */
 html[data-theme="papier"] {
-  --bg:#ece3d6; --bg-card:#f6f0e6; --text:#473f37; --text-lt:#857c6f;
-  --warm-gray:#998e7e; --border:#ded4c4; --shadow:rgba(120,92,60,.10);
+  --bg:#ece3d6; --bg-card:#f6f0e6; --text:#473f37; --text-lt:#7a6e66;
+  --warm-gray:#998e7e; --border:#ded4c4; --shadow:rgba(71,63,55,.08);
   --ring:#f6f0e6; --toast-bg:#473f37; --toast-text:#f6f0e6;
-  --terra:#bd6c50; --sage:#5f886c; --amber:#bf9242; --papa:#4f7da8; --lisa:#a85f9a;
+  --terra:#b0563c; --sage:#5f886c; --amber:#bf9242; --papa:#4f7da8; --lisa:#85537c;
+  --radius:18px; --radius-sm:11px;
 }
 html[data-theme="greige"] {
   --bg:#ddd6ca; --bg-card:#e8e2d7; --text:#423d35; --text-lt:#7d756a;
@@ -84,16 +119,16 @@ html[data-theme="espresso"] {
 
 /* STRUKTUR-ACHSE */
 html[data-structure="retro"] {
-  --card-border:    2.5px solid var(--ink);
-  --card-shadow:    5px 5px 0 var(--ink-2);
-  --card-shadow-sm: 4px 4px 0 var(--ink-2);
-  --grain-opacity:  .14;
+  --card-border:    1px solid var(--ink);
+  --card-shadow:    2px 2px 0 color-mix(in oklab, var(--ink-2), transparent 55%);
+  --card-shadow-sm: 1px 1px 0 color-mix(in oklab, var(--ink-2), transparent 55%);
+  --grain-opacity:  .035;
 }
 html[data-structure="lines"] {
   --card-border:    1px solid color-mix(in oklab,var(--border),#000 16%);
   --card-shadow:    none;
   --card-shadow-sm: none;
-  --grain-opacity:  .05;
+  --grain-opacity:  0;
 }
 html[data-structure="emboss"] {
   --card-border:    none;

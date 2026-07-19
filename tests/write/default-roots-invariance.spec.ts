@@ -18,10 +18,12 @@
 // (Skip bleibt im Report sichtbar). Mit gemountetem E: wird 'local' REAL geprueft.
 // Read-only, kein App-Code.
 import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { scanAll } from '../../src/main/scan/scan-index'
 import { scanSystem } from '../../src/main/scan/sys-scan'
 import { GGUF_ROOT } from '../../src/main/scan/llm-scan'
+import { configRoots } from '../../src/main/services/config-roots'
 
 type App = ReturnType<typeof scanAll>
 
@@ -37,7 +39,14 @@ const REQUIRED_FAMILIES = ['claude', 'codex', 'userglobal', 'local'] as const
 const CORE_CATEGORIES: Record<string, string[]> = {
   claude: ['skills', 'rules', 'teams', 'hooks', 'settings', 'instructions', 'plugins'],
   codex: ['codex-instructions', 'codex-settings', 'codex-hooks'],
-  shared: ['shared-agents', 'shared-rules', 'shared-skills'],
+  // Owner-Entscheid 2026-07-17: Config liegt nur userglobal (~/.claude, ~/.codex)
+  // und WS-lokal. Der Shared-Trunk fuehrt keine eigenen agents/rules/skills-Configs
+  // mehr; die leeren Bestandsdirs sind Soll, kein Read-Regress (Beleg: .shared-Git
+  // trackt .claude/rules nie; harte-regeln & Co. leben in ~/.claude/rules und sind
+  // ueber claude/rules gepinnt). Gepinnt bleiben die realen Trunk-Bestaende
+  // plugins/tools; shared-agents speist sich allein aus Plugin-Agenten und ist
+  // damit ueber shared-plugins mit abgedeckt.
+  shared: ['shared-plugins', 'shared-tools'],
   userglobal: ['userglobal-claude-skills', 'userglobal-codex-settings', 'userglobal-codex-hooks'],
   local: ['gguf-models', 'llm-endpoints'],
 }
@@ -45,6 +54,9 @@ const CORE_CATEGORIES: Record<string, string[]> = {
 // Precondition: GGUF-Modellverzeichnis (Wechsellaufwerk E:) gemountet?
 // Ohne E: ist comingSoon (Familie 'local' leer) der legitime Scanner-Zustand.
 const hasGguf = existsSync(GGUF_ROOT)
+const defaultRoots = configRoots()
+const hasProviderDefaults = existsSync(join(defaultRoots.claudeHome, 'CLAUDE.md'))
+  && existsSync(join(defaultRoots.codexHome, 'AGENTS.md'))
 
 function famCount(app: App, fam: string): number {
   return (app.data[fam]?.categories ?? []).reduce((n, c) => n + c.entries.length, 0)
@@ -71,6 +83,7 @@ test('Determinismus: zwei Default-Scans liefern identische Zahlen', async () => 
 
 // (b) Vollstaendigkeit: jede aktive Core-Familie hat >0 Kategorien und >0 Eintraege.
 test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintraege)', async () => {
+  test.skip(!hasProviderDefaults, 'reale CLAUDE.md-/AGENTS.md-Defaults fehlen')
   const app = scanAll()
   for (const fam of REQUIRED_FAMILIES) {
     // 'local' braucht Wechsellaufwerk E: — ohne Mount ist comingSoon
@@ -89,6 +102,7 @@ test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintra
 
 // (c) Kern-Kategorien je Familie sind nicht leer (faengt selektive Read-Regression).
 test('Kern-Kategorien je Familie nicht leer (Read-Regression-Fang)', () => {
+  test.skip(!hasProviderDefaults, 'reale CLAUDE.md-/AGENTS.md-Defaults fehlen')
   const app = scanAll()
   for (const [fam, ids] of Object.entries(CORE_CATEGORIES)) {
     if (fam === 'shared' && famCount(app, fam) === 0) continue
@@ -119,6 +133,7 @@ test('Familie local: GGUF-Modelle + Endpoints befuellt (braucht Laufwerk E:)', (
 // kein generisches Secret-Pattern (sk-/ghp_/lange base64) darf roh auftauchen;
 // wo code existiert UND maskiert wurde, muss die ••• -Maske erscheinen.
 test('Secret-Hygiene: keine rohen Secret-Werte in code-Vorschauen', () => {
+  test.skip(!hasProviderDefaults, 'reale CLAUDE.md-/AGENTS.md-Defaults fehlen')
   const app = scanAll()
   // Generische Roh-Secret-Pattern (KEINE echten Werte — nur Form-Heuristik).
   const RAW_SECRET_RX = /(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{16,})/

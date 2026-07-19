@@ -5,6 +5,7 @@ import { COMPARE_MESSAGE_PARAM_NAMES } from './message-param-names-compare'
 import { CHROME_MESSAGE_PARAM_NAMES } from './message-param-names-chrome'
 import { OVERVIEW_MESSAGE_PARAM_NAMES } from './message-param-names-overview'
 import { CONFIG_WARNINGS_MESSAGE_PARAM_NAMES } from './message-param-names-config-warnings'
+import { CONFIG_MESSAGE_PARAM_NAMES } from './message-param-names-config'
 
 export type MessageParamNames = {
   [K in MessageKey]: MessageParamsMap[K] extends undefined
@@ -19,4 +20,5 @@ export const MESSAGE_PARAM_NAMES: MessageParamNames = {
   ...CHROME_MESSAGE_PARAM_NAMES,
   ...OVERVIEW_MESSAGE_PARAM_NAMES,
   ...CONFIG_WARNINGS_MESSAGE_PARAM_NAMES,
+  ...CONFIG_MESSAGE_PARAM_NAMES,
 }

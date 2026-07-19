@@ -1,112 +1,154 @@
-// EnvMigrateButton.tsx — Env-Anlege-Funktion (Cluster G, Tier 1, sicherheitskritisch).
-// Erscheint NUR wenn CredentialMeta.varSuggestion gesetzt ist (nackter Secret-Wert).
-// Ruft Bridge envCreate({path, varName}) — KEIN value-Feld (Main liest Wert selbst).
-// Status-Anzeige: gesetzt / umgestellt / Fehler — NIEMALS der echte Secret-Wert.
-// Einhängung im Drawer erfolgt durch WP-D; diese Datei nur exportieren.
+// EnvMigrateButton.tsx — sichere, plattformbewusste Env-Anlege-Funktion.
+// Der Renderer sendet nur Pfad und Variablennamen; der Wert bleibt im Main.
 import { useState } from 'react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { useStore } from '../../state/store'
+import { msg } from '../../lib/messages'
 import type { CredentialMeta, EnvMigrateResultData } from '@shared/contract-write'
-import type { IpcResult } from '@shared/contract'
+import type { IpcResult, System } from '@shared/contract'
 
 interface EnvMigrateButtonProps {
-  /** Absoluter Pfad der Config-Datei (nur Name, nie Inhalt). */
   filePath: string
-  /** Credential-Metadaten aus ReadFullResultData.credential. */
   cred: CredentialMeta
 }
 
 type MigrateStatus = 'idle' | 'busy' | 'done' | 'partial' | 'error'
+type EnvPlatform = 'windows' | 'linux' | 'unsupported'
 
-const CONFIRM_DETAIL =
-  'Die User-Env-Variable wird angelegt und die Config-Zeile auf ${VAR} umgestellt. ' +
-  'Ein Pre-Snapshot wird zuerst erstellt (backup-first). ' +
-  'Der Wert wird nur im Main-Prozess verarbeitet — nie im Chat oder Log sichtbar.'
+function browserPlatform(): EnvPlatform {
+  if (typeof navigator === 'undefined') return 'windows'
+  const value = navigator.platform.toLowerCase()
+  if (value.includes('linux')) return 'linux'
+  if (value.includes('mac')) return 'unsupported'
+  return 'windows'
+}
 
-// Komponente ist nur sichtbar wenn ein varSuggestion vorliegt und Wert noch nicht Var-Ref.
-export function EnvMigrateButton({ filePath, cred }: EnvMigrateButtonProps) {
+export function envPlatformFromSystem(system: System | null): EnvPlatform {
+  const cpu = system?.areas.find((area) => area.id === 'hardware')
+    ?.entries.find((entry) => entry.id === 'cpu')
+  const token = cpu?.desc.trim().split(/\s+/, 1)[0]?.toLowerCase()
+  if (token === 'linux') return 'linux'
+  if (token === 'darwin') return 'unsupported'
+  if (token?.startsWith('win')) return 'windows'
+  return browserPlatform()
+}
+
+function targetText(platform: Exclude<EnvPlatform, 'unsupported'>): string {
+  return platform === 'linux'
+    ? msg('envMigrate.target.linux')
+    : msg('envMigrate.target.windows')
+}
+
+function confirmDetail(platform: Exclude<EnvPlatform, 'unsupported'>, varName: string): string {
+  const params = { varRef: `\${${varName}}` }
+  return platform === 'linux'
+    ? msg('envMigrate.confirm.detail.linux', params)
+    : msg('envMigrate.confirm.detail.windows', params)
+}
+
+function migrationError(error: string | null): string {
+  if (error?.startsWith('backup-')) return msg('envMigrate.error.backup')
+  if (error === 'config-rewrite-failed-env-rolled-back') return msg('envMigrate.error.rollback')
+  if (error === 'config-rewrite-failed-env-partial') return msg('envMigrate.error.partial')
+  if (error === 'env-platform-unsupported') return msg('envMigrate.error.unsupported')
+  return msg('envMigrate.error.generic')
+}
+
+function useEnvMigration(filePath: string, varName: string) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [status, setStatus] = useState<MigrateStatus>('idle')
   const [detail, setDetail] = useState<string | null>(null)
-
-  // Bedingung: nur rendern wenn nackter Secret vorhanden und VAR-Vorschlag existiert.
-  if (!cred.hasSecret || !cred.varSuggestion || cred.alreadyVarRef) return null
-
-  const varName = cred.varSuggestion
 
   async function onConfirm() {
     setConfirmOpen(false)
     setStatus('busy')
     setDetail(null)
     try {
-      const res: IpcResult<EnvMigrateResultData> = await window.electronAPI!.envCreate({ path: filePath, varName })
-      if (res.error || !res.data) {
+      const result: IpcResult<EnvMigrateResultData> = await window.electronAPI!
+        .envCreate({ path: filePath, varName })
+      if (result.error || !result.data) {
         setStatus('error')
-        setDetail(res.error ?? 'Unbekannter Fehler')
+        setDetail(migrationError(result.error))
         return
       }
-      const { varSet, rewritten } = res.data
-      if (varSet && rewritten) {
+      if (result.data.varSet && result.data.rewritten) {
         setStatus('done')
-        setDetail(`${varName} gesetzt + Config umgestellt.`)
-      } else if (varSet) {
+        setDetail(msg('envMigrate.status.done', { varName }))
+      } else if (result.data.varSet) {
         setStatus('partial')
-        setDetail(`${varName} gesetzt. Config-Rewrite nicht abgeschlossen.`)
+        setDetail(msg('envMigrate.status.partial', { varName }))
       } else {
         setStatus('error')
-        setDetail('Env-Variable konnte nicht gesetzt werden.')
+        setDetail(msg('envMigrate.error.generic'))
       }
     } catch {
       setStatus('error')
-      setDetail('Unerwarteter Fehler beim Env-Migrate.')
+      setDetail(msg('envMigrate.error.generic'))
     }
   }
 
-  const busy = status === 'busy'
+  return { confirmOpen, setConfirmOpen, status, detail, onConfirm }
+}
 
+function MigrationStatus(props: { status: MigrateStatus; detail: string | null }) {
+  if (props.status === 'busy') {
+    return <span className="emb-status emb-busy">{msg('envMigrate.status.busy')}</span>
+  }
+  if (props.status === 'done') {
+    return <span className="emb-status emb-ok">✓ {props.detail}</span>
+  }
+  if (props.status === 'partial') {
+    return <span className="emb-status emb-warn">⚠ {props.detail}</span>
+  }
+  if (props.status === 'error') {
+    return (
+      <span className="emb-status emb-err">
+        ✕ {msg('envMigrate.status.error', { detail: props.detail ?? msg('envMigrate.error.generic') })}
+      </span>
+    )
+  }
+  return null
+}
+
+function EnvMigrateAction(props: {
+  filePath: string
+  varName: string
+  platform: Exclude<EnvPlatform, 'unsupported'>
+}) {
+  const state = useEnvMigration(props.filePath, props.varName)
+  const target = targetText(props.platform)
   return (
     <span className="emb-wrap">
-      {status === 'idle' && (
+      {state.status === 'idle' && (
         <button
           className="emb-btn"
-          title={`User-Env anlegen: ${varName}`}
-          onClick={() => setConfirmOpen(true)}
+          title={msg('envMigrate.action.title', { target, varName: props.varName })}
+          onClick={() => state.setConfirmOpen(true)}
         >
-          Env anlegen ({varName})
+          {msg('envMigrate.action', { varName: props.varName })}
         </button>
       )}
-
-      {status === 'busy' && (
-        <span className="emb-status emb-busy">Anlegen …</span>
-      )}
-
-      {status === 'done' && (
-        <span className="emb-status emb-ok" title={detail ?? undefined}>
-          ✓ {varName} gesetzt
-        </span>
-      )}
-
-      {status === 'partial' && (
-        <span className="emb-status emb-warn" title={detail ?? undefined}>
-          ⚠ {varName} gesetzt (Config manuell prüfen)
-        </span>
-      )}
-
-      {status === 'error' && (
-        <span className="emb-status emb-err" title={detail ?? undefined}>
-          ✕ Fehler: {detail}
-        </span>
-      )}
-
+      <MigrationStatus status={state.status} detail={state.detail} />
       <ConfirmDialog
-        open={confirmOpen}
-        title={`User-Env anlegen: ${varName}?`}
-        detail={CONFIRM_DETAIL}
-        targetPath={filePath}
-        confirmLabel="Anlegen"
-        busy={busy}
-        onConfirm={() => void onConfirm()}
-        onCancel={() => setConfirmOpen(false)}
+        open={state.confirmOpen}
+        title={msg('envMigrate.confirm.title', { target, varName: props.varName })}
+        detail={confirmDetail(props.platform, props.varName)}
+        targetPath={props.filePath}
+        confirmLabel={msg('envMigrate.confirm.button')}
+        busy={state.status === 'busy'}
+        onConfirm={() => void state.onConfirm()}
+        onCancel={() => state.setConfirmOpen(false)}
       />
     </span>
   )
+}
+
+export function EnvMigrateButton({ filePath, cred }: EnvMigrateButtonProps) {
+  const { system } = useStore()
+  if (!cred.hasSecret || !cred.varSuggestion || cred.alreadyVarRef) return null
+  const platform = envPlatformFromSystem(system.data)
+  if (platform === 'unsupported') {
+    return <span className="emb-status emb-warn">{msg('envMigrate.unavailable.macos')}</span>
+  }
+  return <EnvMigrateAction filePath={filePath} varName={cred.varSuggestion} platform={platform} />
 }

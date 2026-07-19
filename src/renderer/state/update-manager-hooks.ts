@@ -75,13 +75,22 @@ function useUpdateCheck(
       showToast(msg('update.toast.bridgeUnavailable'), 'warn')
       return
     }
-    const res = await runUpdateAction(
-      () => window.electronAPI!.updatesCheck(),
-      setBusy,
-      showToast,
-      msg('update.toast.checkComplete')
-    )
-    if (res.data !== null) await refresh()
+    setBusy(true)
+    try {
+      const res = await window.electronAPI!.updatesCheck()
+      if (res.error || res.data === null) {
+        showToast(res.error ?? msg('update.toast.actionFailed'), 'warn')
+      } else if (res.data.noPlatformAsset) {
+        showToast(msg('update.toast.noPlatformAsset'), 'warn')
+      } else {
+        showToast(msg('update.toast.checkComplete'), 'check')
+      }
+      if (res.data !== null) await refresh()
+    } catch {
+      showToast(msg('update.toast.bridgeError'), 'warn')
+    } finally {
+      setBusy(false)
+    }
   }, [refresh, setBusy, showToast])
 }
 

@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import type { Category, DiffLabels, DuplicateSet } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import { SEITE, PILL, diffLabels, seiteForFamily } from '@shared/dup-labels'
+import { PILL, diffLabels, seiteForFamily } from '@shared/dup-labels'
 import { buildKnownPaths } from './known-paths'
 import { folderPathOf } from './manifest-path'
+import { categoryLabel } from './category-label'
 import { DirDiffView } from './DirDiffView'
 import { DupRowActions } from './DupRowActions'
 import { DupRowRename } from './DupRowRename'
@@ -95,6 +96,9 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
   const knownPaths = useMemo(() => buildKnownPaths(config.data, ui.llm, ''), [config.data, ui.llm])
   const fileCount = d.dir ? d.dir.files.length : 1
   const kind = d.dir ? 'Ordner' : 'Datei'
+  // Kategorie-Anzeigename je DisplayMode (Teil E): simple = Alltagsname, expert =
+  // technisches Label — ueber die zentrale Projektion (category-label.ts).
+  const catLabel = categoryLabel(ui.displayMode, cat)
   // Seite lokal aus der Familie ableiten (keine cross-component Prop): bestimmt
   // die echte Gegenseite der Familien-Chips (Shared ↔ Claude/Codex/Workspace).
   const seite = seiteForFamily(ui.llm)
@@ -105,13 +109,7 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
   const sharedPath = d.dir ? folderPathOf(d.trunk.path) : d.trunk.path
   const claudePath = d.dir ? folderPathOf(d.mirror.path) : d.mirror.path
   if (renaming) {
-    return (
-      <div className="dup-entry-head dup-entry-renaming">
-        <span className={'chev-btn' + (open ? ' open' : '')}>{Icon.chev}</span>
-        <span className="deh-icon">{d.dir ? Icon[cat.icon] : Icon.diff}</span>
-        <DupRowRename currentName={d.name} sharedPath={sharedPath} claudePath={claudePath} kind={kind} onDone={onDoneRename} />
-      </div>
-    )
+    return <DupEntryHeadRename d={d} cat={cat} open={open} sharedPath={sharedPath} claudePath={claudePath} kind={kind} onDoneRename={onDoneRename} />
   }
   return (
     <div className="dup-entry-head-row">
@@ -124,7 +122,7 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
             <LoadHintBadge path={d.trunk.path} />
             <FamilyChips seite={seite} />
           </span>
-          <span className="deh-desc">{entryType(d, fileCount, cat)}</span>
+          <span className="deh-desc">{entryType(d, fileCount, catLabel)}</span>
         </span>
         <span className="deh-meta">
           <VerdictBadge d={d} fileCount={fileCount} />
@@ -146,21 +144,55 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
 // Familien-Chips (Sprach-Anker Shared/<echte Seite>). Texte zentral aus
 // dup-labels.ts — machen die zwei verglichenen Seiten im Kopf direkt sichtbar.
 // Die Gegenseite folgt der echten Familie (Claude/Codex/Workspace), nicht fest Claude.
+function DupEntryHeadRename({
+  d,
+  cat,
+  open,
+  sharedPath,
+  claudePath,
+  kind,
+  onDoneRename
+}: {
+  d: DuplicateSet
+  cat: Category
+  open: boolean
+  sharedPath?: string
+  claudePath?: string
+  kind: 'Datei' | 'Ordner'
+  onDoneRename(): void
+}) {
+  // Rename-Variante des Eintrags-Kopfs (HR27-Split aus DupEntryHead): RenameInline
+  // ersetzt den Kopf, der Toggle ist bewusst kein toter Button.
+  return (
+    <div className="dup-entry-head dup-entry-renaming">
+      <span className={'chev-btn' + (open ? ' open' : '')}>{Icon.chev}</span>
+      <span className="deh-icon">{d.dir ? Icon[cat.icon] : Icon.diff}</span>
+      <DupRowRename currentName={d.name} sharedPath={sharedPath} claudePath={claudePath} kind={kind} onDone={onDoneRename} />
+    </div>
+  )
+}
+
 function FamilyChips({ seite }: { seite: 'claude' | 'codex' | 'workspace' }) {
   return (
     <span className="deh-fams">
-      <span className="deh-fam shared">{SEITE.shared}</span>
-      <span className={'deh-fam ' + seite}>{SEITE[seite]}</span>
+      <span className="deh-fam shared">Gemeinsame Version</span>
+      <span className={'deh-fam ' + seite}>{familyChipLabel(seite)}</span>
     </span>
   )
 }
 
+function familyChipLabel(seite: 'claude' | 'codex' | 'workspace'): string {
+  if (seite === 'workspace') return 'Deine Workspace-Kopie'
+  return `Deine ${seite === 'claude' ? 'Claude' : 'Codex'}-Version`
+}
+
 // Typ-/Zaehler-Text im Kopf: „<Kategorie> · Ordner · N Dateien" bzw.
-// „<Kategorie> · Datei". Kategorie-Wahrheit aus cat.label statt fest „Skill".
-function entryType(d: DuplicateSet, fileCount: number, cat: Category): string {
-  if (!d.dir) return `${cat.label} · Datei`
+// „<Kategorie> · Datei". Kategorie-Wahrheit ist der projizierte Anzeigename
+// (categoryLabel, Teil E) statt fest „Skill".
+function entryType(d: DuplicateSet, fileCount: number, catLabel: string): string {
+  if (!d.dir) return `${catLabel} · Datei`
   const dateien = fileCount === 1 ? '1 Datei' : `${fileCount} Dateien`
-  return `${cat.label} · Ordner · ${dateien}`
+  return `${catLabel} · Ordner · ${dateien}`
 }
 
 // Verdikt-Badge im Kopf (v4 .deh-meta .pill). Owner: keine Null-Werte. Texte

@@ -1,5 +1,5 @@
 import type { AppData } from '@shared/contract'
-import { scanAll } from '../scan/scan-index'
+import { scanAll, scanAllAsync } from '../scan/scan-index'
 
 export interface ConfigSnapshotOptions {
   force?: boolean
@@ -111,7 +111,10 @@ export function createConfigScanCache(scan: ConfigScanner = scanAll): ConfigScan
   }
 }
 
-const defaultConfigScanCache = createConfigScanCache()
+// Default-Cache nutzt den gechunkten Async-Scan (Teilplan B): der kalte
+// Vollscan blockiert den Main-Event-Loop nicht mehr durchgaengig — IPC bleibt
+// waehrend des Scans antwortfaehig. scanAll (sync) bleibt Test-/Referenzpfad.
+const defaultConfigScanCache = createConfigScanCache(scanAllAsync)
 
 export function getConfigSnapshot(options: ConfigSnapshotOptions = {}): Promise<AppData> {
   return defaultConfigScanCache.getSnapshot(options)

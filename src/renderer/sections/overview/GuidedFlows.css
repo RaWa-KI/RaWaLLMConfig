@@ -62,8 +62,8 @@
 }
 
 .ov-flow-choice.active {
-  border-color: color-mix(in oklab, var(--sage), #000 12%);
-  background: var(--sage-lt);
+  border-color: color-mix(in oklab, var(--terra), #000 12%);
+  background: var(--terra-lt);
 }
 
 .ov-flow-choice svg,
@@ -98,7 +98,7 @@
 }
 
 .ov-flow-steps b {
-  color: var(--sage-d);
+  color: var(--text-lt);
   font-size: 12px;
   font-weight: 900;
 }
@@ -130,7 +130,7 @@
   font-weight: 750;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .ov-flow-steps li {
     grid-template-columns: 1fr;
   }

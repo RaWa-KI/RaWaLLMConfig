@@ -1,0 +1,67 @@
+.ov-coverage {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: var(--card-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.ov-coverage-head,
+.ov-coverage-filters,
+.ov-coverage-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ov-coverage-head { justify-content: space-between; }
+.ov-coverage-head h2 { color: var(--text); font-size: 16px; font-weight: 900; }
+.ov-coverage-head span { color: var(--text-lt); font-size: 13px; font-weight: 900; }
+
+.ov-coverage-filters { flex-wrap: wrap; }
+.ov-coverage-filters button {
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-lt);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ov-coverage-filters button.active { background: var(--terra); border-color: var(--terra); color: #fff; }
+
+.ov-coverage-list { display: grid; gap: 0; }
+.ov-coverage-row { border-top: 1px solid var(--border); }
+.ov-coverage-toggle {
+  width: 100%;
+  gap: 12px;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+}
+.ov-coverage-toggle:hover { background: var(--bg); }
+.ov-coverage-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
+.ov-coverage-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.ov-coverage-sub { color: var(--text-lt); font-size: 12.5px; font-weight: 700; }
+.ov-coverage-badge { margin-left: auto; padding: 3px 7px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-lt); font-size: 11px; }
+.ov-coverage-chevron { display: inline-flex; color: var(--warm-gray); transition: transform .15s ease; }
+.ov-coverage-chevron.expanded { transform: rotate(90deg); }
+.ov-coverage-details { display: grid; gap: 4px; padding: 0 0 10px; color: var(--text-lt); font-size: 12px; font-weight: 750; }
+.ov-coverage-details span { overflow-wrap: anywhere; color: var(--warm-gray); font-family: var(--font-data); }
+.ov-coverage-more { justify-self: start; }
+
+/* „So lassen"-Aktion (E-WP3): Button + Disabled-Hinweis in der Detailzeile. */
+.ov-coverage-ack { display: flex; align-items: center; gap: 8px; margin: 0; }
+.ov-coverage-details .ov-coverage-ack-hint { font-family: var(--font-ui); font-size: 11px; font-weight: 750; }
+
+.ov-coverage-ack-line {
+  color: var(--warm-gray);
+  font-size: var(--font-size-meta);
+  font-weight: 750;
+}

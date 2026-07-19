@@ -35,6 +35,9 @@ export const IPC_WRITE = {
   // Graph-Ignore-Scopes (WP-B4): read-only Lesen + gated Schreiben je Scope
   graphReadIgnores: 'graph:readIgnores',
   graphWriteIgnore: 'graph:writeIgnore',
+  // Abdeckungs-Bestaetigungen: read-only Liste + gated, wertfreier Ack-Key.
+  coverageReadAcks: 'coverage:readAcks',
+  coverageWriteAck: 'coverage:writeAck',
   // Vergleichs-Aggregator (read-only): multi-way Zeilenabgleich ueber N Kandidaten
   compareMulti: 'compare:multi',
   // Archiv/Restore (v1): read-only Liste der Backups + gated Einzeldatei-Restore.

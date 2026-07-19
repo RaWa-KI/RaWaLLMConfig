@@ -152,6 +152,30 @@ function BackupPathRow({ value, onPick, onReset }: {
   )
 }
 
+const ROOT_FIELDS = [
+  ['roots.sharedClaude', 'Gemeinsamer Konfigurationsordner'],
+  ['roots.workspaceParent', 'Arbeitsbereich-Ordner'],
+  ['roots.projectRoot', 'RaWaLLMConfig-Ordner']
+] as const
+
+function RootRows({ prefs, onSet }: { prefs: Record<string, PrefValue>; onSet(key: string, value: string): void }) {
+  async function pick(key: string): Promise<void> {
+    const result = await window.electronAPI?.pickFolder()
+    if (result?.data) onSet(key, result.data)
+  }
+  return <div className="root-rows">
+    <div className="tweak-label">Verzeichnisse</div>
+    <p className="tweak-help">Wählen Sie nur abweichende Orte. Änderungen gelten nach dem Neustart der App.</p>
+    {ROOT_FIELDS.map(([key, label]) => {
+      const value = String(prefs[key] ?? '')
+      return <div className="backup-row" key={key}>
+        <div><div className="tweak-label">{label}</div><code className="backup-path">{value || 'Vorhandener Standardpfad'}</code></div>
+        <div className="backup-actions"><button type="button" className="pill ghost" onClick={() => void pick(key)}>{Icon.folder} Ordner wählen</button>{value && <button type="button" className="pill ghost" onClick={() => onSet(key, '')}>Standard</button>}</div>
+      </div>
+    })}
+  </div>
+}
+
 function usePrefsStoreHint(): string | null {
   const [storeHint, setStoreHint] = useState<string | null>(null)
   useEffect(() => {
@@ -221,6 +245,7 @@ export function PrefsSection() {
           onPick={() => void pickArchiveRoot()}
           onReset={() => void setPref('archiveRoot', '')}
         />
+        <RootRows prefs={prefs} onSet={(key, value) => void setPref(key, value)} />
       </div>
     </main>
   )

@@ -15,6 +15,7 @@ import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { applyDirAction } from './services/apply'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
 import { WRITE_DISABLED_REASON } from './ipc-write'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { guarded, guardedAsync } from './lib/guarded'
 
 // Handler: Verzeichnis archivieren (HR7-Move nach Archiv-Root).
@@ -22,7 +23,9 @@ function handleArchiveDir(req: DirActionRequest): DirActionResult {
   if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
   if (!req || typeof req.path !== 'string') return { data: null, error: 'invalid-request' }
   const ctx = getWriteContext()
-  return applyDirAction({ action: 'archive-dir', path: req.path }, ctx)
+  const result = applyDirAction({ action: 'archive-dir', path: req.path }, ctx)
+  if (result.data && !result.error) markScanCachesStale('write:archive-dir')
+  return result
 }
 
 // Handler: Verzeichnis verschieben (move-dir). Finding A: dieser Kanal wird nur
@@ -41,6 +44,7 @@ async function handleMoveDir(req: DirActionRequest): Promise<DirActionResult> {
   const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
+  markScanCachesStale('write:move-dir')
   return {
     data: {
       action: 'move-dir',
@@ -64,6 +68,7 @@ async function handleReconcileFolder(req: DirReconcileRequest): Promise<DirRecon
   const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
+  markScanCachesStale('write:reconcile-folder')
   return {
     data: {
       trunkPath: req.trunkPath,

@@ -42,6 +42,20 @@ corepack pnpm test
 corepack pnpm build
 ```
 
+## Branch-to-Release Workflow
+
+Use a focused working branch for each change. Open the pull request from that
+branch; the required review and the repository CI workflow must pass before
+merge. Merge only the reviewed, sanitized source change into the release
+branch. Cut a public release from that sanitized source export after the
+release checks pass.
+
+After code, configuration, loader, hook, agent, skill, or workflow changes,
+run the narrow `doc-updater` pass for affected existing documentation. It uses
+`.claude/docs-code-mapping.json` when present; otherwise the owner supplies a
+manual scope. The pass updates only affected docs, does not create a new
+workflow document, and does not commit.
+
 Public releases are cut from a sanitized source export. Private workspace
 history, governance files, local app data, and session artifacts are not part
 of the public source set.

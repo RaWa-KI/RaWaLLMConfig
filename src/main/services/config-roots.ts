@@ -6,51 +6,29 @@
 // Sandbox, Writes sind bereits dorthin confined). Env wird bei JEDEM Aufruf
 // gelesen (reine Funktion der Env) -> Tests setzen/loeschen Env und rufen direkt.
 // KEINE Secret-Werte, KEIN Schreiben.
-import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import fs from 'node:fs'
 import type { ProviderRoot } from '@shared/contract-provider'
+import { normalizePathForCompare } from '@shared/path-compare'
 import { filterProviderRoots } from '../scan/integration-filter'
-
-// Die vier kanonischen Config-Wurzeln. claudeHome/codexHome sind die Tool-Home-
-// Verzeichnisse; sharedClaude ist der Trunk; projectRoot ist dieser WS.
-export interface ConfigRoots {
-  claudeHome: string
-  codexHome: string
-  sharedClaude: string
-  projectRoot: string
-}
-
-// Leere/whitespace-only Env als "nicht gesetzt" behandeln (gleiche Semantik wie
-// write-mode.nonEmpty — Sandbox nur bei echtem Wert).
-function sandboxRoot(): string | undefined {
-  const v = process.env.RAWALLM_SANDBOX_ROOT
-  if (!v) return undefined
-  const s = v.trim()
-  return s.length > 0 ? s : undefined
-}
-
-// Reale Wurzeln (Default) — exakt die heutigen Scanner-Hardcodes. Aenderung hier
-// veraendert das M1-Lese-Ergebnis; daher unveraendert lassen.
-function realRoots(): ConfigRoots {
-  const home = homedir()
-  return {
-    claudeHome: join(home, '.claude'),
-    codexHome: join(home, '.codex'),
-    sharedClaude: join(home, 'Desktop', 'Projekte', '.shared', '.claude'),
-    projectRoot: join(home, 'Desktop', 'Projekte', 'RaWaLLMConfig')
-  }
-}
-
-// Sandbox-Wurzeln (Owner-M2). Layout 1:1 wie real, nur unter <sandbox>.
-function sandboxRoots(root: string): ConfigRoots {
-  return {
-    claudeHome: join(root, '.claude'),
-    codexHome: join(root, '.codex'),
-    sharedClaude: join(root, '.shared', '.claude'),
-    projectRoot: join(root, 'project')
-  }
-}
+import {
+  discoverConfigRoots,
+  realRoots,
+  sandboxRoot,
+  sandboxRoots
+} from './config-root-resolution'
+import type { ConfigRoots } from './config-root-resolution'
+export {
+  discoverConfigRoots,
+  setRootPrefsProvider,
+  setRootExistsProvider
+} from './config-root-resolution'
+export type {
+  ConfigRootDiscovery,
+  ConfigRoots,
+  RootDiscovery,
+  RootSource
+} from './config-root-resolution'
 
 /**
  * Die vier Config-Wurzeln aufloesen. DEFAULT = reale Home-Pfade (M1 unveraendert);
@@ -58,7 +36,15 @@ function sandboxRoots(root: string): ConfigRoots {
  */
 export function configRoots(): ConfigRoots {
   const sb = sandboxRoot()
-  return sb ? sandboxRoots(sb) : realRoots()
+  if (sb) return sandboxRoots(sb)
+  const defaults = realRoots()
+  const discovered = discoverConfigRoots()
+  return {
+    claudeHome: defaults.claudeHome,
+    codexHome: defaults.codexHome,
+    sharedClaude: discovered.sharedClaude.value,
+    projectRoot: discovered.projectRoot.value
+  }
 }
 
 /** Aktiver Sandbox-Root (oder null im Default). Fuer prefs-/archive-Confinement. */
@@ -74,6 +60,10 @@ export function activeSandboxRoot(): string | null {
 // Zyklus config-roots -> source-store).
 let _userSourceRootsProvider: () => string[] = () => []
 let _userSourceProviderRootsProvider: () => Record<string, string[]> = () => ({})
+
+function pathKey(value: string): string {
+  return normalizePathForCompare(value, process.platform)
+}
 
 /** Provider fuer die persistierten Nutzer-Quellen setzen (Main-Bootstrap). */
 export function setUserSourceRootsProvider(fn: () => string[]): void {
@@ -103,16 +93,16 @@ export function userSourceRootsForProvider(providerId: string): string[] {
 
 /**
  * Die Allowlist-Wurzeln: die vier Basis-Wurzeln (Reihenfolge stabil) plus additiv
- * die aktiven Nutzer-Quellen, dedupliziert (case-insensitiv, Basis zuerst; eine
+ * die aktiven Nutzer-Quellen, plattformgerecht dedupliziert (Basis zuerst; eine
  * Quelle die schon Basis ist faellt weg). Ohne gesetzten Provider -> exakt die
  * vier Basis-Wurzeln (Invarianz).
  */
 export function configRootList(): string[] {
   const base = configWatchRootList()
-  const seen = new Set(base.map((p) => p.toLowerCase()))
+  const seen = new Set(base.map(pathKey))
   const out = [...base]
   for (const extra of userSourceRoots()) {
-    const key = (extra || '').toLowerCase()
+    const key = pathKey(extra || '')
     if (!key || seen.has(key)) continue
     seen.add(key)
     out.push(extra)
@@ -130,10 +120,10 @@ export function configRootList(): string[] {
  */
 function appendUserRoots(baseRoots: string[], providerId?: string): string[] {
   if (!providerId) return baseRoots
-  const seen = new Set(baseRoots.map((p) => p.toLowerCase()))
+  const seen = new Set(baseRoots.map(pathKey))
   const out = [...baseRoots]
   for (const extra of userSourceRootsForProvider(providerId)) {
-    const key = (extra || '').toLowerCase()
+    const key = pathKey(extra || '')
     if (!key || seen.has(key)) continue
     seen.add(key)
     out.push(extra)
@@ -148,7 +138,7 @@ function appendUserRoots(baseRoots: string[], providerId?: string): string[] {
  */
 export function configWatchRootList(): string[] {
   const r = configRoots()
-  return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot]
+  return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot].filter((root): root is string => root !== null)
 }
 
 export function resolveRoots(roots: ProviderRoot[], providerId?: string): string[] {
@@ -157,7 +147,7 @@ export function resolveRoots(roots: ProviderRoot[], providerId?: string): string
     // fixedRoot gewinnt; sonst configRoots()[rootKey]; ist beides leer
     // (metadaten-only Cloud-Provider, Teil D) -> '' (Engine laeuft trotzdem,
     // die CustomCategory ignoriert die Basis).
-    const base = root.fixedRoot ?? (root.rootKey ? r[root.rootKey] : '')
+    const base = root.fixedRoot ?? (root.rootKey ? r[root.rootKey] ?? '' : '')
     return root.subPath ? join(base, root.subPath) : base
   })
   const filteredRoots = filterProviderRoots(providerId, baseRoots)
@@ -183,11 +173,11 @@ function isLocalAbsolutePath(pathValue: string): boolean {
 
 // Parent-Verzeichnis, das die Sub-WS-Ordner enthaelt (Default = real, Sandbox =
 // Eltern von <sandbox>/project). Die Registry liegt unter <parent>/.shared/...
-function projectsParent(): string {
+function projectsParent(): string | null {
   const sb = sandboxRoot()
   // Sandbox: project liegt unter <sandbox>/project -> Parent = <sandbox>.
   // Default: projectRoot ist .../Projekte/RaWaLLMConfig -> Parent = .../Projekte.
-  return sb ? sb : dirname(realRoots().projectRoot)
+  return sb ?? discoverConfigRoots().workspaceParent.value
 }
 
 // Registry-Pfad (relativ zum Parent). Im Sandbox-Modus existiert sie i.d.R.
@@ -232,10 +222,11 @@ function readRegistryRoots(parent: string): WorkspaceRoot[] {
  */
 export function workspaceRoots(): WorkspaceRoot[] {
   const parent = projectsParent()
+  if (!parent) return []
   const out: WorkspaceRoot[] = [{ root: parent, label: 'Projekte (Parent)' }]
-  const seen = new Set<string>([parent.toLowerCase()])
+  const seen = new Set<string>([pathKey(parent)])
   for (const w of readRegistryRoots(parent)) {
-    const key = w.root.toLowerCase()
+    const key = pathKey(w.root)
     if (seen.has(key)) continue
     seen.add(key)
     out.push(w)

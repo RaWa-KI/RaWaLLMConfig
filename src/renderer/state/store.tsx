@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { EntryStatus } from '@shared/contract'
-import type { DisplayMode, ImportDialogState, Mode, Section, Selection, StoreValue, ToastMsg } from './types'
+import type { DisplayMode, ImportDialogState, Mode, Section, Selection, StoreActions, StoreValue, ToastMsg, UiState } from './types'
 import { useComparePresetState } from './compare-preset'
 import { useConfigLoad } from './useConfigLoad'
 
@@ -13,7 +13,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useStoreUiEffects(ui, config.data, system.data)
   useLazyDataEffects(ui, system, watcher, loadSystem, loadWatcher)
   const actions = useStoreActions(ui, loadAll, loadConfig)
-  const value: StoreValue = { config, system, watcher, ui: ui.state, actions }
+  // Stabiler Context-Value (Teilplan C): Slices, ui.state und actions sind
+  // memoized — der Value aendert seine Referenz nur bei echten Aenderungen.
+  const value = useMemo<StoreValue>(
+    () => ({ config, system, watcher, ui: ui.state, actions }),
+    [config, system, watcher, ui.state, actions]
+  )
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
 
@@ -36,7 +41,12 @@ function useStoreUiState() {
   const [compareSel, setCompareSel] = useState<Set<string>>(() => new Set())
   const { comparePreset, setComparePreset, clearComparePreset } = useComparePresetState()
   useEffect(() => persistDisplayMode(displayMode), [displayMode])
-  const state = { section, llm, catId, mode, displayMode, search, statusFilter, sysArea, sel, toast, compareSel, comparePreset, importDialog }
+  // Stabiles state-Objekt (Teilplan C): Referenz aendert sich nur, wenn einer
+  // der Einzelwerte kippt — haelt den Context-Value ruhig.
+  const state = useMemo<UiState>(
+    () => ({ section, llm, catId, mode, displayMode, search, statusFilter, sysArea, sel, toast, compareSel, comparePreset, importDialog }),
+    [section, llm, catId, mode, displayMode, search, statusFilter, sysArea, sel, toast, compareSel, comparePreset, importDialog]
+  )
   return {
     state,
     setSection,
@@ -58,36 +68,46 @@ function useStoreUiState() {
 
 type StoreUi = ReturnType<typeof useStoreUiState>
 
-function useStoreActions(ui: StoreUi, loadAll: () => Promise<void>, loadConfig: () => Promise<void>) {
+function useStoreActions(ui: StoreUi, loadAll: () => Promise<void>, loadConfig: () => Promise<void>): StoreActions {
+  // Nur die stabilen Setter/Callbacks als Deps: das actions-Objekt behaelt seine
+  // Referenz ueber Renders (Teilplan C) statt bei jedem Render neu zu entstehen.
+  const {
+    setSection, setLlm, setCatId, setMode, setDisplayMode, setSearch, setStatusFilter, setSysArea,
+    setSel, setToast, setImportDialog, setCompareSel, setComparePreset, clearComparePreset
+  } = ui
   const showToast = useCallback((msg: string, icon?: string) => {
-    ui.setToast({ msg, icon })
-    window.setTimeout(() => ui.setToast(null), 2600)
-  }, [ui])
-  return {
+    setToast({ msg, icon })
+    window.setTimeout(() => setToast(null), 2600)
+  }, [setToast])
+  return useMemo<StoreActions>(() => ({
     setSection: (s: Section) => {
-      ui.setSection(s); ui.setSel(null); ui.setCompareSel(new Set()); ui.clearComparePreset()
+      setSection(s); setSel(null); setCompareSel(new Set()); clearComparePreset()
     },
-    setLlm: ui.setLlm,
+    setLlm,
     setCatId: (id: string | null) => {
-      ui.setCatId(id); ui.setCompareSel(new Set()); ui.clearComparePreset()
+      setCatId(id); setCompareSel(new Set()); clearComparePreset()
     },
-    setMode: ui.setMode,
-    setDisplayMode: ui.setDisplayMode,
-    setSearch: ui.setSearch,
-    toggleStatusFilter: (s: EntryStatus) => ui.setStatusFilter((cur) => (cur === s ? null : s)),
-    setSysArea: ui.setSysArea,
-    openEntry: (catId: string, entryId: string) => ui.setSel({ catId, entryId }),
-    closeEntry: () => ui.setSel(null),
+    setMode,
+    setDisplayMode,
+    setSearch,
+    toggleStatusFilter: (s: EntryStatus) => setStatusFilter((cur) => (cur === s ? null : s)),
+    setSysArea,
+    openEntry: (catId: string, entryId: string) => setSel({ catId, entryId }),
+    closeEntry: () => setSel(null),
     showToast,
     reload: () => void loadAll(),
     reloadConfig: () => void loadConfig(),
-    toggleCompare: (id: string) => ui.setCompareSel((cur) => toggleSet(cur, id)),
-    clearCompare: () => ui.setCompareSel(new Set()),
-    setComparePreset: ui.setComparePreset,
-    clearComparePreset: ui.clearComparePreset,
-    openImportDialog: ui.setImportDialog,
-    closeImportDialog: () => ui.setImportDialog(null)
-  }
+    toggleCompare: (id: string) => setCompareSel((cur) => toggleSet(cur, id)),
+    setCompareSelection: (ids: string[]) => setCompareSel(new Set(ids)),
+    clearCompare: () => setCompareSel(new Set()),
+    setComparePreset,
+    clearComparePreset,
+    openImportDialog: setImportDialog,
+    closeImportDialog: () => setImportDialog(null)
+  }), [
+    setSection, setLlm, setCatId, setMode, setDisplayMode, setSearch, setStatusFilter, setSysArea,
+    setSel, setImportDialog, setCompareSel, setComparePreset, clearComparePreset, showToast, loadAll, loadConfig
+  ])
 }
 
 function readDisplayMode(): DisplayMode {

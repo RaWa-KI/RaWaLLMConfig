@@ -8,6 +8,23 @@ const packagePath = resolve(repoRoot, 'package.json')
 const lockPath = resolve(repoRoot, 'pnpm-lock.yaml')
 const outputPath = resolve(repoRoot, 'docs/THIRD-PARTY-NOTICES.md')
 
+// Vendored (nicht npm-verwaltete) Drittkomponenten. Nicht aus package.json/
+// lockfile ableitbar — Quelle der Wahrheit ist diese Liste.
+const VENDORED_ASSETS = [
+  {
+    name: 'Nunito (WOFF2, Subsets latin + latin-ext, Gewichte 400-900)',
+    source: 'fontsource nunito@5.2.7 via jsDelivr, vendored nach src/renderer/assets/fonts/ (OFL.txt liegt dort)',
+    license: 'OFL-1.1',
+    copyright: 'Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)'
+  },
+  {
+    name: 'Oswald (WOFF2, Subsets latin + latin-ext, Gewichte 600/700)',
+    source: 'fontsource oswald@5.2.8 via jsDelivr, vendored nach src/renderer/assets/fonts/ (OFL-oswald.txt liegt dort)',
+    license: 'OFL-1.1',
+    copyright: 'Copyright 2016 The Oswald Project Authors (https://github.com/googlefonts/oswald)'
+  }
+]
+
 async function readJson(pathText) {
   return JSON.parse(await readFile(pathText, 'utf8'))
 }
@@ -88,6 +105,18 @@ function renderTable(rows) {
   return [header, sep, ...body.map((line) => `| ${line} |`)].join('\n')
 }
 
+function renderVendoredTable(assets) {
+  const header = '| Asset | Source | License | Copyright |'
+  const sep = '|---|---|---|---|'
+  const body = assets.map((asset) => [
+    asset.name,
+    asset.source,
+    asset.license,
+    asset.copyright
+  ].map(escapeCell).join(' | '))
+  return [header, sep, ...body.map((line) => `| ${line} |`)].join('\n')
+}
+
 async function renderNotices() {
   const pkg = await readJson(packagePath)
   const lockText = await readFile(lockPath, 'utf8')
@@ -108,6 +137,10 @@ async function renderNotices() {
     'Public Alpha gate: this file is a reproducible top-level notice, not a complete legal review.',
     '',
     renderTable(rows),
+    '',
+    '## Vendored assets (not npm-managed)',
+    '',
+    renderVendoredTable(VENDORED_ASSETS),
     ''
   ].join('\n')
 }

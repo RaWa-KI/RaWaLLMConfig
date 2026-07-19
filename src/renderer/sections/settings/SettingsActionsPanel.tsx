@@ -1,12 +1,12 @@
-import type { DisplayMode } from '../../state/types'
 import { Icon } from '../../components/Icon'
 import { ImportTargetDialog } from '../../components/ImportTargetDialog'
+import { useDisplayModeSwitch } from '../../components/useDisplayModeSwitch'
 import { exportBundle, exportConflictBundle } from '../../lib/export'
 import { parseImportSource, applyImportItems } from '../../lib/import'
 import { knownRootsFromConfig } from '../../lib/known-roots'
 import { msg, msgText } from '../../lib/messages'
 import { useStore } from '../../state/store'
-import { settingsExpertList } from '../../../../shared/messages/ux-copy'
+import { DisplayModeControl } from './DisplayModeControl'
 
 type StoreActions = ReturnType<typeof useStore>['actions']
 type ImportDialog = ReturnType<typeof useStore>['ui']['importDialog']
@@ -15,6 +15,10 @@ type ConfigData = ReturnType<typeof useStore>['config']['data']
 export function SettingsActionsPanel() {
   const { config, system, watcher, ui, actions } = useStore()
   const importHandlers = useImportHandlers(config.data, ui.importDialog, actions)
+  // Teilplan F: optimistischer Modus — Schalter und abhaengige Karte folgen
+  // demselben sofort sichtbaren Zustand; der Endzustand ist identisch (keine
+  // Logikaenderung am Modus).
+  const { active: displayMode, onSelect: onDisplayMode } = useDisplayModeSwitch()
 
   return (
     <>
@@ -24,42 +28,36 @@ export function SettingsActionsPanel() {
             <span className="prefs-ic">{Icon.gear}</span>
             <h3>{msgText('settings.tab.tweaks')}</h3>
           </div>
-          <DisplayModeSwitch active={ui.displayMode} onSelect={actions.setDisplayMode} />
-          <p className="settings-mode-impact">
-            {ui.displayMode === 'simple' ? msgText('simpleMode.backupHint') : msgText('expertDetails.rawDetails')}
-          </p>
-          {ui.displayMode === 'expert' && (
-            <ul className="settings-expert-list">
-              {settingsExpertList().map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          )}
+          <DisplayModeControl active={displayMode} onSelect={onDisplayMode} />
         </div>
-        <div className="settings-action-card">
-          <div className="settings-action-head">
-            <span className="prefs-ic">{Icon.save}</span>
-            <h3>{msgText('chrome.action.backupImportTitle')}</h3>
+        {displayMode === 'expert' && (
+          <div className="settings-action-card">
+            <div className="settings-action-head">
+              <span className="prefs-ic">{Icon.save}</span>
+              <h3>{msgText('chrome.action.backupImportTitle')}</h3>
+            </div>
+            <p>{msgText('chrome.action.exportTitle')}</p>
+            <div className="settings-action-row">
+              <button type="button" className="btn ghost sm" onClick={() => {
+                exportBundle({ config: config.data, system: system.data, watcher: watcher.data })
+                actions.showToast(msgText('chrome.toast.exportCreated'), 'save')
+              }}>
+                {Icon.save}{msgText('chrome.action.export')}
+              </button>
+              <button type="button" className="btn ghost sm" onClick={() => {
+                const count = exportConflictBundle({ config: config.data, system: system.data, watcher: watcher.data })
+                actions.showToast(
+                  count > 0 ? msg('chrome.toast.conflictsExported', { count: String(count) }) : msgText('chrome.toast.noConflicts'),
+                  count > 0 ? 'save' : 'check'
+                )
+              }}>
+                {Icon.warn}{msgText('chrome.action.conflicts')}
+              </button>
+              <ImportFileButton onImport={importHandlers.onImport} />
+            </div>
+            <p>{msgText('chrome.action.importTitle')}</p>
           </div>
-          <p>{msgText('chrome.action.exportTitle')}</p>
-          <div className="settings-action-row">
-            <button type="button" className="btn ghost sm" onClick={() => {
-              exportBundle({ config: config.data, system: system.data, watcher: watcher.data })
-              actions.showToast(msgText('chrome.toast.exportCreated'), 'save')
-            }}>
-              {Icon.save}{msgText('chrome.action.export')}
-            </button>
-            <button type="button" className="btn ghost sm" onClick={() => {
-              const count = exportConflictBundle({ config: config.data, system: system.data, watcher: watcher.data })
-              actions.showToast(
-                count > 0 ? msg('chrome.toast.conflictsExported', { count: String(count) }) : msgText('chrome.toast.noConflicts'),
-                count > 0 ? 'save' : 'check'
-              )
-            }}>
-              {Icon.warn}{msgText('chrome.action.conflicts')}
-            </button>
-            <ImportFileButton onImport={importHandlers.onImport} />
-          </div>
-          <p>{msgText('chrome.action.importTitle')}</p>
-        </div>
+        )}
       </section>
       {ui.importDialog && (
         <ImportTargetDialog
@@ -70,29 +68,6 @@ export function SettingsActionsPanel() {
         />
       )}
     </>
-  )
-}
-
-function DisplayModeSwitch(props: { active: DisplayMode; onSelect(mode: DisplayMode): void }) {
-  return (
-    <div className="section-switch display-mode-switch" aria-label={msgText('simpleMode.showDetails')}>
-      <DisplayModeButton mode="simple" active={props.active} onSelect={props.onSelect} />
-      <DisplayModeButton mode="expert" active={props.active} onSelect={props.onSelect} />
-    </div>
-  )
-}
-
-function DisplayModeButton(props: { mode: DisplayMode; active: DisplayMode; onSelect(mode: DisplayMode): void }) {
-  const label = props.mode === 'simple' ? msgText('simpleMode.label') : msgText('expertDetails.label')
-  return (
-    <button
-      type="button"
-      className={'sec-btn compact' + (props.active === props.mode ? ' on' : '')}
-      onClick={() => props.onSelect(props.mode)}
-      aria-pressed={props.active === props.mode}
-    >
-      {label}
-    </button>
   )
 }
 

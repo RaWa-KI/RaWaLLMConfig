@@ -1,5 +1,6 @@
 // load-classifier.ts — Scanner-Wahrheit fuer Ladeverhalten + Token-Schaetzung.
 import type { ConfigEntry, LoadMode } from '@shared/contract'
+import { normalizePathForCompare, pathsEqual } from '@shared/path-compare'
 import type { FrontmatterArtifact } from './frontmatter-schema'
 
 const AVG_CHARS_PER_TOKEN = 4
@@ -8,11 +9,13 @@ type EntryFields = Record<string, string> | undefined
 
 function baseName(filePath: string): string {
   const norm = filePath.replace(/\\/g, '/')
-  return norm.slice(norm.lastIndexOf('/') + 1).toLowerCase()
+  return norm.slice(norm.lastIndexOf('/') + 1)
 }
 
-function hasSegment(filePath: string, segment: string): boolean {
-  return (`/${filePath.replace(/\\/g, '/').toLowerCase()}/`).includes(`/${segment}/`)
+function hasSegment(filePath: string, segment: string, platform: string): boolean {
+  const normalizedPath = normalizePathForCompare(filePath, platform)
+  const normalizedSegment = normalizePathForCompare(segment, platform)
+  return (`/${normalizedPath}/`).includes(`/${normalizedSegment}/`)
 }
 
 function hasField(fields: EntryFields, key: string): boolean {
@@ -31,15 +34,15 @@ export function classifyLoadMode(
   filePath: string,
   fields?: EntryFields,
   kind: FrontmatterArtifact = 'generic',
+  platform: string = process.platform,
 ): LoadMode {
-  const lower = filePath.replace(/\\/g, '/').toLowerCase()
-  const base = baseName(lower)
-  if (base === 'agents.md' || base === 'claude.md' || base === 'claude.local.md') return 'immer'
-  if (kind === 'claude-skill' || kind === 'codex-skill' || hasSegment(lower, 'skills')) return 'bei-bedarf'
-  if (kind === 'claude-agent' || kind === 'codex-agent' || hasSegment(lower, 'agents')) return 'bei-bedarf'
-  if (kind === 'claude-rule' || hasSegment(lower, 'rules')) return hasField(fields, 'paths') ? 'bedingt' : 'immer'
-  if (base === 'settings.json' || base === 'config.toml') return 'immer'
-  if (hasSegment(lower, 'hooks') || base === 'hooks.json') return 'bei-bedarf'
+  const base = baseName(filePath)
+  if (['AGENTS.md', 'CLAUDE.md', 'CLAUDE.local.md'].some((name) => pathsEqual(base, name, platform))) return 'immer'
+  if (kind === 'claude-skill' || kind === 'codex-skill' || hasSegment(filePath, 'skills', platform)) return 'bei-bedarf'
+  if (kind === 'claude-agent' || kind === 'codex-agent' || hasSegment(filePath, 'agents', platform)) return 'bei-bedarf'
+  if (kind === 'claude-rule' || hasSegment(filePath, 'rules', platform)) return hasField(fields, 'paths') ? 'bedingt' : 'immer'
+  if (['settings.json', 'config.toml'].some((name) => pathsEqual(base, name, platform))) return 'immer'
+  if (hasSegment(filePath, 'hooks', platform) || pathsEqual(base, 'hooks.json', platform)) return 'bei-bedarf'
   return 'unbekannt'
 }
 

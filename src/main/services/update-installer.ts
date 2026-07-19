@@ -5,6 +5,7 @@
 import { statSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import { spawn } from 'node:child_process'
+import { assetSpecFor, currentUpdatePlatform, type PlatformAssetSpec } from './update-platform'
 
 // Timeout-Konstante (ms). Gilt als Sicherheitsnetz, falls 'spawn'-Event
 // ausbleibt (z.B. OS-Fehler nach Child-Start ohne sofortigen 'error').
@@ -24,7 +25,8 @@ const NSIS_SILENT: readonly string[] = [
  * Keine MZ-/SHA256-Pruefung — die liegt in update-source-local (nach Copy).
  */
 export function verifyInstaller(
-  filePath: string
+  filePath: string,
+  spec: PlatformAssetSpec = assetSpecFor(currentUpdatePlatform())
 ): { valid: boolean; error: string | null } {
   try {
     const st = statSync(filePath)
@@ -34,8 +36,8 @@ export function verifyInstaller(
     if (st.size === 0) {
       return { valid: false, error: 'empty' }
     }
-    if (extname(filePath).toLowerCase() !== '.exe') {
-      return { valid: false, error: 'not-exe' }
+    if (extname(filePath).toLowerCase() !== spec.extension) {
+      return { valid: false, error: spec.wrongFormatError }
     }
     return { valid: true, error: null }
   } catch {

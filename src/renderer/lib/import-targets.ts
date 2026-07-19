@@ -3,6 +3,12 @@
 // Ableitung. KEIN Write, KEIN fs/path — nur String-Heuristik. Single Source der
 // Allowlist-Primitive; Secret-Klassifikation kommt aus @shared/secret-class
 // (SSOT); import.ts importiert beides hier (kein Duplikat).
+import {
+  isPathEqualOrUnder,
+  normalizePathForCompare,
+  rendererPathComparisonPlatformFor,
+  splitPathForPlatform,
+} from '@shared/path-compare'
 import { isSecretPathForWrite } from '@shared/secret-class'
 
 // Status eines Import-Eintrags nach Gate-Klassifikation.
@@ -26,11 +32,12 @@ export const ALLOWED_ROOT_SEGMENTS = ['.claude', '.codex', '.shared']
 // WS-Root, der KEIN Allowlist-Segment traegt. isAllowedRoot muss diese Wurzel
 // mit-akzeptieren, sonst weicht die Renderer-Vorpruefung vom Main-Scope ab und
 // verwirft (skipped-foreign) Pfade, die der Main schreiben wuerde (B1). Klein-
-// geschrieben; segments() lowercased ohnehin.
-export const PROJECT_ROOT_SEGMENT = 'rawallmconfig'
+// geschrieben; segments() normalisiert plattformgerecht.
+export const PROJECT_ROOT_SEGMENT = 'RaWaLLMConfig'
 
-export function segments(p: string): string[] {
-  return p.replace(/\\/g, '/').toLowerCase().split('/').filter(Boolean)
+export function segments(p: string, platform: string = rendererPathComparisonPlatformFor(p)): string[] {
+  return splitPathForPlatform(p, platform).segments
+    .map((segment) => normalizePathForCompare(segment, platform))
 }
 
 // Vorpruefung = Write-Strenge: importiert die Single-Source @shared/secret-class
@@ -40,10 +47,12 @@ export function segments(p: string): string[] {
 // isSecretPath (import.ts nutzt ihn an 4 Stellen).
 export const isSecretPath = isSecretPathForWrite
 
-export function isAllowedRoot(p: string): boolean {
-  const segs = segments(p)
+export function isAllowedRoot(p: string, platform: string = rendererPathComparisonPlatformFor(p)): boolean {
+  const segs = segments(p, platform)
+  const allowedSegments = ALLOWED_ROOT_SEGMENTS.map((segment) => normalizePathForCompare(segment, platform))
+  const projectRootSegment = normalizePathForCompare(PROJECT_ROOT_SEGMENT, platform)
   // Main-Scope: .claude/.codex/.shared ODER der projectRoot (.../RaWaLLMConfig).
-  return segs.some((s) => ALLOWED_ROOT_SEGMENTS.includes(s) || s === PROJECT_ROOT_SEGMENT)
+  return segs.some((segment) => allowedSegments.includes(segment) || segment === projectRootSegment)
 }
 
 // Relatives Ziel (Basename/Anzeigename) vor dem Anhaengen an die gewaehlte Wurzel
@@ -69,26 +78,38 @@ export function sanitizeRelTarget(name: string): string {
 // (2) sonst die knownRoot, deren Allowlist-Segment im sourcePath vorkommt;
 // (3) sonst Fallback knownRoots[0]. So landet `.codex`-Pfad unter `.codex`,
 //     `.shared/.claude`-Pfad unter der `.shared`-Wurzel, nicht unter `.claude`.
-export function suggestedRootFor(sourcePath: string | undefined, knownRoots: string[]): string {
+export function suggestedRootFor(
+  sourcePath: string | undefined,
+  knownRoots: string[],
+  platform?: string
+): string {
   const fallback = knownRoots[0] ?? ''
-  if (!sourcePath || !isAllowedRoot(sourcePath)) return fallback
-  const src = segments(sourcePath).join('/')
+  if (!sourcePath) return fallback
+  const comparisonPlatform = platform ?? rendererPathComparisonPlatformFor(sourcePath, ...knownRoots)
+  if (!isAllowedRoot(sourcePath, comparisonPlatform)) return fallback
   const prefixHit = knownRoots
-    .filter((r) => src.startsWith(segments(r).join('/') + '/') || src === segments(r).join('/'))
-    .sort((a, b) => segments(b).length - segments(a).length)[0]
+    .filter((root) => isPathEqualOrUnder(sourcePath, root, comparisonPlatform))
+    .sort((a, b) => segments(b, comparisonPlatform).length - segments(a, comparisonPlatform).length)[0]
   if (prefixHit) return prefixHit
-  const srcSegs = segments(sourcePath)
-  const seg = ALLOWED_ROOT_SEGMENTS.find((s) => srcSegs.includes(s))
-  const match = seg ? knownRoots.find((r) => segments(r).includes(seg)) : undefined
+  const srcSegs = segments(sourcePath, comparisonPlatform)
+  const allowedSegments = ALLOWED_ROOT_SEGMENTS.map((segment) => normalizePathForCompare(segment, comparisonPlatform))
+  const segment = allowedSegments.find((candidate) => srcSegs.includes(candidate))
+  const match = segment
+    ? knownRoots.find((root) => segments(root, comparisonPlatform).includes(segment))
+    : undefined
   return match ?? fallback
 }
 
 // Klassifiziert einen Eintrag (Pfad zur Pruefung, Inhalt fuer no-content).
 // `hasContent` entkoppelt die Inhalts-Pruefung (Bundle: writable+content:string;
 // rohe .md: nicht-leerer Text).
-export function classifyImport(checkPath: string, hasContent: boolean): ImportStatus {
+export function classifyImport(
+  checkPath: string,
+  hasContent: boolean,
+  platform: string = rendererPathComparisonPlatformFor(checkPath)
+): ImportStatus {
   if (isSecretPath(checkPath)) return 'skipped-secret'
-  if (!isAllowedRoot(checkPath)) return 'skipped-foreign'
+  if (!isAllowedRoot(checkPath, platform)) return 'skipped-foreign'
   if (!hasContent) return 'skipped-no-content'
   return 'ready'
 }

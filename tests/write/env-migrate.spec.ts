@@ -7,10 +7,30 @@
 // Fake-Recorder — KEIN Spec mutiert die reale User-Env oder spawnt
 // powershell.exe. Fixture-Werte sind offensichtliche Dummies, keine Secrets.
 import { test, expect } from '@playwright/test'
-import { readFileSync, existsSync } from 'node:fs'
-import { envMigrate } from '../../src/main/services/env-migrate'
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  readlinkSync,
+  renameSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { dirname, join } from 'node:path'
+import {
+  envMigrate,
+  rewriteConfigLine,
+  windowsEnvAdapter,
+} from '../../src/main/services/env-migrate'
 import { findCredentialLine } from '../../src/main/services/credential-detect'
+import { NODE_FAILED_TEMP_FS } from '../../src/main/services/env-migrate-failed-temp'
 import { setWriteEnabledRuntime } from '../../src/main/services/write-mode'
+import { enCoreMessages } from '../../shared/messages/en-core'
 import { makeSandbox, seedFile } from './fixtures'
 
 // Schreibmodus deterministisch AN (In-App-Toggle); danach Env-Fallback zuruek.
@@ -35,6 +55,94 @@ function makeUnsetRecorder(result = true) {
   }
   return { calls, unsetEnv }
 }
+
+function rewriteFs(stage?: 'write' | 'sync' | 'rename') {
+  return {
+    ...NODE_FAILED_TEMP_FS,
+    mode: (path: string) => statSync(path).mode,
+    write: (path: string, content: string, mode: number, onOwned: () => void) => {
+      const fd = openSync(path, 'wx', mode)
+      onOwned()
+      try { writeFileSync(fd, content, 'utf8') } finally { closeSync(fd) }
+      if (stage === 'write') throw new Error('write-failed')
+    },
+    sync: (path: string) => {
+      const fd = openSync(path, 'r+')
+      try { fsyncSync(fd) } finally { closeSync(fd) }
+      if (stage === 'sync') throw new Error('sync-failed')
+    },
+    rename: (from: string, to: string) => {
+      if (stage === 'rename' && !to.endsWith('artifact.tmp')) throw new Error('rename-failed')
+      renameSync(from, to)
+    },
+  }
+}
+
+for (const stage of ['write', 'sync', 'rename'] as const) {
+  test(`Config-Rewrite ${stage}-Fehler bewahrt Datei und archiviert Temp`, () => {
+    const sb = makeSandbox()
+    const body = 'API_TOKEN=dummy-atomic-secret\n'
+    const file = seedFile(sb, '.env', body)
+
+    expect(rewriteConfigLine(file, 'API_TOKEN', {
+      fs: rewriteFs(stage),
+      tempToken: () => stage,
+    })).toBe(false)
+    expect(readFileSync(file, 'utf8')).toBe(body)
+    const failedRoot = join(dirname(file), '_failed')
+    const reservation = readdirSync(failedRoot)
+    expect(reservation).toHaveLength(1)
+    const artifact = join(failedRoot, reservation[0], 'artifact.tmp')
+    expect(readFileSync(artifact, 'utf8'))
+      .toBe('API_TOKEN=${API_TOKEN}\n')
+    if (process.platform !== 'win32') expect(statSync(artifact).mode & 0o777).toBe(0o600)
+  })
+}
+
+test('Config-Rewrite erhaelt den bestehenden Dateimodus', () => {
+  const sb = makeSandbox()
+  const file = seedFile(sb, '.env', 'API_TOKEN=dummy-mode-secret\n')
+  const before = statSync(file).mode & 0o777
+
+  expect(rewriteConfigLine(file, 'API_TOKEN')).toBe(true)
+  expect(statSync(file).mode & 0o777).toBe(before)
+})
+
+test('Config-Rewrite lehnt Symlink vor Mutation wertfrei ab', () => {
+  const sb = makeSandbox()
+  const target = seedFile(sb, 'real.env', 'API_TOKEN=dummy-link-secret\n')
+  const link = join(dirname(target), 'linked.env')
+  symlinkSync('real.env', link, 'file')
+
+  expect(rewriteConfigLine(link, 'API_TOKEN')).toBe(false)
+  expect(lstatSync(link).isSymbolicLink()).toBe(true)
+  expect(readlinkSync(link)).toBe('real.env')
+  expect(readFileSync(target, 'utf8')).toBe('API_TOKEN=dummy-link-secret\n')
+  expect(readdirSync(dirname(target)).sort()).toEqual(['linked.env', 'real.env'])
+})
+
+test('Windows-Adapter setzt process.env sofort und stellt es beim Rollback wieder her', () => {
+  const env: NodeJS.ProcessEnv = { EXISTING_KEY: 'before' }
+  const persisted: string[] = []
+  const adapter = windowsEnvAdapter({
+    env,
+    getPersistent: () => ({ exists: false }),
+    setPersistent: (name) => { persisted.push(`set:${name}`); return true },
+    unsetPersistent: (name) => { persisted.push(`unset:${name}`); return true },
+  })
+
+  expect(adapter.set('EXISTING_KEY', 'dummy-runtime-value')).toBe(true)
+  expect(env.EXISTING_KEY).toBe('dummy-runtime-value')
+  expect(adapter.unset('EXISTING_KEY')).toBe(true)
+  expect(env.EXISTING_KEY).toBe('before')
+  expect(adapter.set('NEW_KEY', 'dummy-new-runtime')).toBe(true)
+  expect(adapter.unset('NEW_KEY')).toBe(true)
+  expect(env.NEW_KEY).toBeUndefined()
+  expect(persisted).toEqual(['set:EXISTING_KEY', 'unset:EXISTING_KEY', 'set:NEW_KEY', 'unset:NEW_KEY'])
+  expect(enCoreMessages['envMigrate.target.linux'])
+    .toBe('~/.profile, takes effect after signing in again')
+  expect(enCoreMessages['envMigrate.confirm.detail.linux']).not.toContain('system-wide')
+})
 
 // (1) Kernbeweis QUAL-HOCH-02: config.toml mit `model = …` als ERSTER `=`-Zeile
 // — migriert wird die Credential-Zeile (api_key), model bleibt byte-identisch.

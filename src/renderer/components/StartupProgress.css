@@ -84,7 +84,7 @@
   background: var(--papa);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .startup-progress {
     width: calc(100% - 24px);
     margin-top: 8px;

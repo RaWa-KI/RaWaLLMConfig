@@ -28,6 +28,7 @@ import { discoverSources } from './services/source-discovery'
 import { discoverLocalModels } from './scan/llm-discovery'
 import { setUserSourceProviderRootsProvider, setUserSourceRootsProvider } from './services/config-roots'
 import { isWriteEnabled } from './services/write-mode'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { guarded, guardedAsync } from './lib/guarded'
 
 // Gecachter Store (Default-Pfad, einmal erzeugt). Lazy, damit app.getPath erst
@@ -52,7 +53,11 @@ async function guardMutate(
   fn: () => Promise<SourceMutateResult>
 ): Promise<SourceMutateResult> {
   try {
-    return await fn()
+    const result = await fn()
+    // Quellen-Aenderungen aendern die Scan-Roots -> Scan-Caches invalidieren
+    // (Teilplan B). Ausnahme: das Onboarding-Flag hat keinen Scan-Bezug.
+    if (result.ok && label !== 'sources:setOnboardingDone') markScanCachesStale(`write:${label}`)
+    return result
   } catch (err) {
     console.error('[ipc-sources]', `${label}: ${err instanceof Error ? err.message : 'fail'}`)
     return { ok: false, error: 'Quellen-Aenderung fehlgeschlagen', backupPath: null, sources: [] }

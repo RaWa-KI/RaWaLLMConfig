@@ -6,13 +6,17 @@
 import path from 'node:path'
 import os from 'node:os'
 import type { AppData, Category, ConfigEntry, LlmConfig, LlmDef, Machine, Snapshot } from '@shared/contract'
-import { scanMcp, mcpNames } from './mcp-scan'
-import { scanRegistry } from './engine/build-data'
+import { isPathEqualOrUnder } from '@shared/path-compare'
+import { scanMcp } from './mcp-scan'
+import { markMcpConflicts } from './mcp-conflicts'
+import { scanRegistry, scanRegistryAsync } from './engine/build-data'
 import { isProviderScanEnabled } from './integration-filter'
 import { buildAuditConfig } from './scan-audit-categories'
 import { findDuplicates } from '../services/dedupe'
 import { buildCoverage } from '../services/coverage'
 import { configRoots } from '../services/config-roots'
+import { coverageEntryKey, createCoverageAckStore } from '../services/coverage-ack-store'
+import { yieldToEventLoop } from '../lib/yield-loop'
 
 // FIX 1: Familie-zu-Kategorie-ID-Map — jede Familie hat ihre eigene Plugins-
 // Kategorie-ID (nicht hardcodiert auf 'plugins'). Ohne diese Map greift
@@ -47,7 +51,7 @@ function mergeMcp(
   // status:'conflict' damit der Renderer sie hervorheben kann.
   // FIX 2: existing (reiche scanDir-Kategorie) als Basis behalten; MCP-Eintraege
   // nur additiv/konflikt-markiert einmischen — kein Ersetzen durch mcpCat als Basis.
-  const mergedCat = markConflicts(cat, existing)
+  const mergedCat = markMcpConflicts(cat, existing)
   // scan-03: buildCategory setzt immer id:'plugins'; kein Plugin-Ordner (existing=null)
   // liefert mcpCat direkt zurueck — familien-spezifische ID muss nachgezogen werden.
   mergedCat.id = pluginsId
@@ -59,69 +63,9 @@ function mergeMcp(
   }
 }
 
-// Vergleicht MCP-Merge-Kategorie mit bestehender Plugin-Scanner-Kategorie.
-// FIX 2: scanCat (reiche Ordner-Sicht mit entry.code/fields/path) bleibt Basis.
-// MCP-only-Eintraege werden additiv angehaengt; gemeinsame Eintraege behalten
-// den reichen scanCat-Eintrag und erhalten keinen conflict-Status.
-// Eintraege nur in einer Sicht erhalten status:'conflict'.
-function markConflicts(mcpCat: Category, scanCat: Category | null): Category {
-  // Kein existing scanCat: MCP-Kategorie unveraendert uebernehmen
-  if (!scanCat) return mcpCat
-
-  const mcpSet = mcpNames(mcpCat)
-  const scanSet = mcpNames(scanCat)
-
-  // Eintraege die nur im MCP-Merge vorhanden (fehlen im Ordner-Scan)
-  const onlyInMcp = new Set([...mcpSet].filter((n) => !scanSet.has(n)))
-  // Eintraege die nur im Ordner-Scan vorhanden (nicht im MCP-Register)
-  const onlyInScan = new Set([...scanSet].filter((n) => !mcpSet.has(n)))
-
-  if (onlyInMcp.size === 0 && onlyInScan.size === 0) {
-    // Kein Konflikt: reiche scanCat unveraendert zurueckgeben (FIX 2: nicht mcpCat)
-    return scanCat
-  }
-
-  // FIX 2: Basis = scanCat-Eintraege (reich: code/fields/path erhalten).
-  // Ordner-Eintraege die nur im Ordner-Scan: Konflikt-Status setzen.
-  // F4: Plugin-INVENTAR-Eintraege (fields.typ === 'installed_plugins.json') sind
-  // KEINE MCP-Server — ein installiertes Plugin ohne MCP-Register-Eintrag ist
-  // kein Konflikt. Sie behalten ihren Status (keine only-in-scan-Markierung),
-  // sonst entstehen Falschpositive (37 Plugins -> 39 statt 2 Konflikte).
-  const mergedEntries: ConfigEntry[] = scanCat.entries.map((e) => {
-    const isPluginInventory = e.fields?.typ === 'installed_plugins.json'
-    if (onlyInScan.has(e.name) && !isPluginInventory) {
-      return {
-        ...e,
-        status: 'conflict',
-        desc: e.desc,
-        conflictReason: 'Nur im Plugin-Ordner — fehlt im MCP-Register',
-      }
-    }
-    return e
-  })
-
-  // MCP-only-Eintraege additiv anhaengen mit Konflikt-Status
-  for (const e of mcpCat.entries) {
-    if (onlyInMcp.has(e.name)) {
-      mergedEntries.push({
-        ...e,
-        status: 'conflict',
-        desc: e.desc,
-        conflictReason: 'Nur im MCP-Register — fehlt im Plugin-Ordner',
-      })
-    }
-  }
-
-  // FIX 2: { ...scanCat } als Basis (nicht mcpCat) — Label/Icon/blurb der
-  // reichen scanDir-Kategorie bleiben erhalten.
-  return { ...scanCat, entries: mergedEntries }
-}
-
 function isUnderRoot(rawPath: string, rawRoot: string): boolean {
   if (!rawPath || !rawRoot) return false
-  const filePath = path.resolve(rawPath).toLowerCase()
-  const rootPath = path.resolve(rawRoot).toLowerCase()
-  return filePath === rootPath || filePath.startsWith(rootPath + path.sep)
+  return isPathEqualOrUnder(path.resolve(rawPath), path.resolve(rawRoot), process.platform)
 }
 
 function cloneUserEntry(entry: ConfigEntry, source: string, sourceLabel: string): ConfigEntry {
@@ -173,7 +117,12 @@ function buildUserglobal(data: Record<string, LlmConfig>): LlmConfig {
 // mergeMcp/buildUserglobal sind additiv exportiert (B-5: Build-Data-Equivalence-
 // Spec konstruiert daraus die legacyBuildData()-Referenz) — Logik unveraendert.
 function buildData(): Record<string, LlmConfig> {
-  const data = scanRegistry()
+  return enrichData(scanRegistry())
+}
+
+// Gemeinsame Nachbereitung (MCP-Merge, userglobal, Coverage-Acks) fuer den
+// synchronen und den gechunkten Async-Pfad — identische Reihenfolge/Ergebnisse.
+function enrichData(data: Record<string, LlmConfig>): Record<string, LlmConfig> {
   try {
     const mcp = scanMcp()
     mergeMcp(data.claude, mcp, 'claude')
@@ -183,7 +132,28 @@ function buildData(): Record<string, LlmConfig> {
     console.error('[scan:mcp]', err instanceof Error ? err.message : 'scan-error')
   }
   data.userglobal = buildUserglobal(data)
+  applyCoverageAcks(data, new Set(createCoverageAckStore().readKeys()))
   return data
+}
+
+// Async-Variante (Teilplan B): scanRegistryAsync yielded zwischen den Familien;
+// zwischen den schweren Phasen (MCP-Merge, Dedupe/Coverage) wird ebenfalls
+// abgegeben, damit der Main-Event-Loop IPC zwischenschlachten kann.
+async function buildDataAsync(): Promise<Record<string, LlmConfig>> {
+  const data = await scanRegistryAsync()
+  await yieldToEventLoop()
+  return enrichData(data)
+}
+
+export function applyCoverageAcks(data: Record<string, LlmConfig>, acknowledged: ReadonlySet<string>): void {
+  for (const [familyId, family] of Object.entries(data)) {
+    for (const category of family.categories) {
+      for (const entry of category.entries) {
+        const key = coverageEntryKey(familyId, category.id, entry.id)
+        if (entry.status === 'conflict' && acknowledged.has(key)) entry.status = 'acknowledged'
+      }
+    }
+  }
 }
 
 // B-5: additive Exporte fuer den Build-Data-Equivalence-Spec. mergeMcp +
@@ -211,7 +181,8 @@ function buildLlms(data: Record<string, LlmConfig>): LlmDef[] {
   ].filter((def) => visible(def, data[def.id]))
   const knownIds = new Set(known.map((l) => l.id))
   const extras: LlmDef[] = Object.keys(data)
-    .filter((id) => !knownIds.has(id))
+    // audit = Register-only (Masterplan Teil E): Daten bleiben, kein Familien-Tab.
+    .filter((id) => !knownIds.has(id) && id !== 'audit')
     .filter((id) => visible({ id, glyph: '', name: '', sub: '', color: '', path: '' }, data[id]))
     .map((id) => ({ id, glyph: '◆', name: id, sub: 'Nutzerdefiniert', color: 'var(--amber)', path: id, scanError: data[id]?.scanError }))
   return [...known, ...extras]
@@ -253,6 +224,35 @@ export function scanAll(): AppData {
   // Spiegelungs-Matrix (Cross-Tool-Abdeckung) — nur auf der shared-Familie.
   // buildCoverage kapselt eigene Fehler (try/catch -> []); fehlendes Feld laesst
   // den Renderer unveraendert.
+  try {
+    if (data.shared) data.shared.coverage = buildCoverage(data)
+  } catch (err) {
+    console.error('[scan:coverage]', err instanceof Error ? err.message : 'coverage-error')
+  }
+  data.audit = buildAuditConfig()
+  return {
+    snapshot: buildSnapshot(),
+    machines: buildMachines(),
+    llms: buildLlms(data),
+    data
+  }
+}
+
+// Gechunkte Async-Variante (Teilplan B): gleiche Aggregation wie scanAll, aber
+// mit Event-Loop-Yields zwischen Familien-Scans und Nachbereitungs-Phasen.
+// Der Main-Prozess bleibt dadurch waehrend des kalten Vollscans IPC-antwortfaehig
+// (Onboarding-Gate, readWatcher, Quellen) — kein Worker noetig (Profil: ~0,6–1,7 s
+// Scan, kein dauerhafter Mehr-Sekunden-Stall nach Chunking). Wird vom Default-
+// Config-Scan-Cache verwendet; scanAll bleibt fuer Sync-Tests/Equivalence erhalten.
+export async function scanAllAsync(): Promise<AppData> {
+  const data = await buildDataAsync()
+  await yieldToEventLoop()
+  try {
+    findDuplicates(data)
+  } catch (err) {
+    console.error('[scan:dedupe]', err instanceof Error ? err.message : 'dedupe-error')
+  }
+  await yieldToEventLoop()
   try {
     if (data.shared) data.shared.coverage = buildCoverage(data)
   } catch (err) {

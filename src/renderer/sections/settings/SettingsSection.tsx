@@ -8,6 +8,7 @@ import { SourcesSection } from '../quellen/SourcesSection'
 import { IntegrationsSection } from '../integrations/IntegrationsSection'
 import { msg, msgText } from '../../lib/messages'
 import type { MessageKey } from '@shared/messages'
+import { useStore } from '../../state/store'
 import { SettingsActionsPanel } from './SettingsActionsPanel'
 import { readOverviewFocus } from '../overview/overview-navigation'
 import './SettingsSection.css'
@@ -41,11 +42,17 @@ function SettingsTabs({ tab, onTab }: { tab: SettingsTab; onTab(v: SettingsTab):
 }
 
 export function SettingsSection({ onReopenOnboarding }: { onReopenOnboarding: () => void }) {
+  const { ui } = useStore()
+  const expert = ui.displayMode === 'expert'
   const [tab, setTab] = useState<SettingsTab>(() => initialTab())
+  // Modus-Weiche (D2): Simple sieht nur den Darstellungs-Tab (tweaks); die
+  // uebrigen Tabs (updates/sources/modules) sind Experten-Bereiche. Im
+  // Expert-Modus unveraendert alle Tabs.
+  const activeTab: SettingsTab = expert ? tab : 'tweaks'
   return (
     <section className="main settings-main">
       <div className="settings-head">
-        <SettingsTabs tab={tab} onTab={setTab} />
+        {expert && <SettingsTabs tab={activeTab} onTab={setTab} />}
         <button type="button" className="btn ghost settings-onboarding" onClick={onReopenOnboarding}>
           {Icon.refresh}
           {msg('settings.reopenOnboarding')}
@@ -53,14 +60,14 @@ export function SettingsSection({ onReopenOnboarding }: { onReopenOnboarding: ()
       </div>
       <FocusNotice section="settings" />
       <SettingsActionsPanel />
-      {tab === 'tweaks' && <PrefsSection />}
-      {tab === 'updates' && (
+      {activeTab === 'tweaks' && <PrefsSection />}
+      {activeTab === 'updates' && (
         <UpdateManagerProvider>
           <UpdateManagerPanel />
         </UpdateManagerProvider>
       )}
-      {tab === 'sources' && <SourcesSection />}
-      {tab === 'modules' && <IntegrationsSection />}
+      {activeTab === 'sources' && <SourcesSection />}
+      {activeTab === 'modules' && <IntegrationsSection />}
     </section>
   )
 }

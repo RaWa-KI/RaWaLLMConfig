@@ -2,7 +2,7 @@
 // Rohdateien sind absichtlich unterschiedlich; fuer die Coverage zaehlt, ob
 // der Codex-Adapter die Agent-Metadaten und Instruktionen der Shared-Quelle traegt.
 import fs from 'node:fs'
-import path from 'node:path'
+import { normalizePathForCompare } from '@shared/path-compare'
 
 interface MarkdownAgent {
   fm: Record<string, string>
@@ -20,14 +20,14 @@ function isMarkdownTomlPair(a: string, b: string): boolean {
   return /\.md$/i.test(a) && /\.toml$/i.test(b)
 }
 
-function looksLikeAgentPair(mdPath: string, tomlPath: string): boolean {
-  const md = mdPath.toLowerCase()
-  const toml = tomlPath.toLowerCase()
+function looksLikeAgentPair(mdPath: string, tomlPath: string, platform: string): boolean {
+  const md = normalizePathForCompare(mdPath, platform)
+  const toml = normalizePathForCompare(tomlPath, platform)
   return (
-    toml.includes(`${path.sep}.codex${path.sep}agents${path.sep}`) &&
+    toml.includes('/.codex/agents/') &&
     (
-      md.includes(`${path.sep}.shared${path.sep}.claude${path.sep}agents${path.sep}`) ||
-      md.includes(`${path.sep}.shared${path.sep}.claude${path.sep}plugins${path.sep}`)
+      md.includes('/.shared/.claude/agents/') ||
+      md.includes('/.shared/.claude/plugins/')
     )
   )
 }
@@ -93,13 +93,17 @@ function bodyIsCarried(markdown: MarkdownAgent, codex: CodexAgent): boolean {
   return true
 }
 
-export function isSemanticallySameAgentAdapter(refPath: string, otherPath: string): boolean {
+export function isSemanticallySameAgentAdapter(
+  refPath: string,
+  otherPath: string,
+  platform: string = process.platform
+): boolean {
   const [mdPath, tomlPath] = isMarkdownTomlPair(refPath, otherPath)
     ? [refPath, otherPath]
     : isMarkdownTomlPair(otherPath, refPath)
       ? [otherPath, refPath]
       : []
-  if (!mdPath || !tomlPath || !looksLikeAgentPair(mdPath, tomlPath)) return false
+  if (!mdPath || !tomlPath || !looksLikeAgentPair(mdPath, tomlPath, platform)) return false
   try {
     const markdown = parseMarkdownAgent(fs.readFileSync(mdPath, 'utf8'))
     const codex = parseCodexAgent(fs.readFileSync(tomlPath, 'utf8'))

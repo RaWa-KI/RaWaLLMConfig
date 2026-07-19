@@ -1,5 +1,5 @@
-// Icon-Set — 1:1 portiert aus _entpackt/claude-config/icons.jsx (window.Icon).
-// Schlanke 1.8px-Stroke-Linien, Retro-Look. Read-only, nur Anzeige.
+// Gemeinsames Icon-Set mit schlanken 1.8px-Stroke-Linien.
+// Die visuelle Wirkung folgt den aktiven Theme-/Struktur-Tokens.
 import type { ReactElement, ReactNode } from 'react'
 
 // Gemeinsame SVG-Huelle: stroke 1.8, currentColor, runde Enden.

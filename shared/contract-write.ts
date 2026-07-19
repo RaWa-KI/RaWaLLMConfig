@@ -63,7 +63,7 @@ export type WriteResult = IpcResult<WriteResultData>
 // keinen Datei-Inhalt, keinen Secret-Wert.
 export interface WriteActionLog {
   ts: string
-  action: WriteAction | 'archive-dir' | 'move-dir' | 'reconcile-folder' | 'readfull-reveal' | 'restore' | 'system-write' | 'env-migrate' | 'prefs-set' | 'source-mutate' | 'graph-write-ignore'
+  action: WriteAction | 'archive-dir' | 'move-dir' | 'reconcile-folder' | 'readfull-reveal' | 'restore' | 'system-write' | 'env-migrate' | 'prefs-set' | 'source-mutate' | 'graph-write-ignore' | 'coverage-write-ack'
   path: string
   result: 'ok' | 'error'
   detail?: string
@@ -236,6 +236,8 @@ export type EnvMigrateResult = IpcResult<EnvMigrateResultData>
 export interface StrukturScanRequest {
   // optional: welche Roots gescannt werden (default: alle 4 konfigurierten Roots)
   roots?: string[]
+  // force: Ergebnis-Cache im Main umgehen (explizites „Neu scannen" in der UI).
+  force?: boolean
 }
 
 export type StrukturFindingStatus = 'ok' | 'warn' | 'misplaced' | 'duplicate'

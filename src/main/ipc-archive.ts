@@ -14,6 +14,7 @@ import type {
 } from '@shared/contract-archive'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { WRITE_DISABLED_REASON } from './ipc-write'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { listBackups, restoreBackup } from './services/archive-restore'
 
 // Liste der Backups (read-only). Archiv-Root kommt aus dem Write-Kontext
@@ -36,11 +37,13 @@ function handleArchiveRestore(req: ArchiveRestoreRequest): ArchiveRestoreResult 
   }
   try {
     const ctx = getWriteContext()
-    return restoreBackup(req, {
+    const result = restoreBackup(req, {
       archiveRoot: ctx.archiveRoot,
       auditPath: ctx.auditPath,
       allowedRoots: ctx.allowedRoots
     })
+    if (result.data && !result.error) markScanCachesStale('write:archive-restore')
+    return result
   } catch (err) {
     console.error('[ipc-archive:restore]', err instanceof Error ? err.message : 'fail')
     return { data: null, error: 'Wiederherstellung fehlgeschlagen' }

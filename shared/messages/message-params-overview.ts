@@ -7,16 +7,22 @@ export type OverviewMessageParamsMap = {
   "overview.status.ready": { totalCount: string }
   "overview.status.partial": { readyCount: string; totalCount: string }
   "overview.status.incomplete": { readyCount: string; totalCount: string }
+  "overview.stamp.allClear": undefined
+  "overview.stamp.attention": { count: string }
   "overview.metric.openTopics.none": undefined
   "overview.metric.openTopics.some": { topics: string }
   "overview.metric.setup.ready": undefined
   "overview.metric.setup.needed": { count: string; total: string }
+  "overview.readiness.state.ready": undefined
+  "overview.readiness.state.incomplete": undefined
+  "overview.readiness.state.warning": { count: string }
   "overview.topic.config": undefined
   "overview.topic.system": undefined
   "overview.topic.watcher": undefined
   "overview.topic.appErrors": undefined
   "overview.nextAction": undefined
   "overview.expertEntry": undefined
+  "overview.zone.areaPaths": undefined
   "help.nav.title": undefined
   "help.mode.simple": undefined
   "help.mode.expert": undefined
@@ -51,6 +57,7 @@ export type OverviewMessageParamsMap = {
   "simpleMode.hideDetails": undefined
   "simpleMode.backupHint": undefined
   "simpleMode.riskHint": undefined
+  "simpleMode.switchGroup": undefined
   "expertDetails.label": undefined
   "expertDetails.primaryTerm": { term: string }
   "expertDetails.meaning": { meaning: string }
@@ -76,9 +83,23 @@ export type OverviewMessageParamsMap = {
   "diagnostics.card.meaning": { issue: string }
   "diagnostics.card.nextStep": { action: string }
   "diagnostics.card.viewDetails": undefined
+  "diagnostics.card.openInExpert": undefined
+  "diagnostics.row.toggle": undefined
   "diagnostics.panel.title": undefined
   "diagnostics.panel.intro": undefined
   "diagnostics.panel.more": { hiddenCount: string }
+  "coverage.panel.title": undefined
+  "coverage.panel.intro": undefined
+  "coverage.filter.onDemand": undefined
+  "coverage.filter.confirmed": undefined
+  "coverage.filter.all": undefined
+  "coverage.badge.onDemand": undefined
+  "coverage.badge.confirmed": undefined
+  "coverage.more": undefined
+  "coverage.confirmed.simpleLine": { count: string }
+  "coverage.action.ack": undefined
+  "coverage.action.ackError": undefined
+  "coverage.action.ackDisabled": undefined
   "diagnostics.severity.info": undefined
   "diagnostics.severity.warning": undefined
   "diagnostics.severity.error": undefined

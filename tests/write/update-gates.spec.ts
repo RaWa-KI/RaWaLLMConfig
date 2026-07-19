@@ -7,7 +7,33 @@ import { readdirSync, existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { makeSandbox, seedFile } from './fixtures'
-import { checkMzHeader, checkExactSize, sha256Hex, moveToFailed } from '../../src/main/services/update-gates'
+import {
+  checkExactSize,
+  checkMagicHeader,
+  checkMzHeader,
+  moveToFailed,
+  sha256Hex,
+} from '../../src/main/services/update-gates'
+
+test.describe('checkMagicHeader', () => {
+  test('ELF-Signatur (0x7f 45 4c 46) -> true', () => {
+    const sb = makeSandbox()
+    const p = seedFile(sb, 'ok.AppImage', Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x00]).toString())
+    expect(checkMagicHeader(p, [0x7f, 0x45, 0x4c, 0x46])).toBe(true)
+  })
+
+  test('abweichende Signatur -> false', () => {
+    const sb = makeSandbox()
+    const p = seedFile(sb, 'zip.AppImage', 'PK' + 'x'.repeat(64))
+    expect(checkMagicHeader(p, [0x7f, 0x45, 0x4c, 0x46])).toBe(false)
+  })
+
+  test('Windows-MZ gegen Linux-ELF-Spec -> false', () => {
+    const sb = makeSandbox()
+    const p = seedFile(sb, 'windows.AppImage', 'MZ' + 'x'.repeat(64))
+    expect(checkMagicHeader(p, [0x7f, 0x45, 0x4c, 0x46])).toBe(false)
+  })
+})
 
 test.describe('checkMzHeader', () => {
   test('MZ-Signatur (0x4d 0x5a) -> true', () => {

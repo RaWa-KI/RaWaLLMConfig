@@ -40,7 +40,20 @@ export function Drawer() {
       <div className={'drawer-back' + (show ? ' show' : '')} onClick={actions.closeEntry}></div>
       <aside className={'drawer' + (show ? ' show' : '')}>
         {found && (
-          <DrawerInner cat={found.cat} entry={found.entry} tab={tab} setTab={setTab} close={actions.closeEntry} />
+          <DrawerInner
+            cat={found.cat}
+            entry={found.entry}
+            tab={tab}
+            setTab={setTab}
+            close={actions.closeEntry}
+            displayMode={ui.displayMode}
+            openCompare={() => {
+              const ids = found.cat.entries.filter((candidate) => candidate.path).map((candidate) => candidate.id)
+              actions.setCompareSelection(ids)
+              actions.closeEntry()
+              actions.setMode('compare')
+            }}
+          />
         )}
       </aside>
     </>
@@ -53,6 +66,8 @@ interface InnerProps {
   tab: Tab
   setTab: (t: Tab) => void
   close: () => void
+  displayMode: 'simple' | 'expert'
+  openCompare(): void
 }
 
 const TABS: [Tab, string][] = [
@@ -61,7 +76,7 @@ const TABS: [Tab, string][] = [
   ['detail', 'Detail & Edit']
 ]
 
-function DrawerInner({ cat, entry, tab, setTab, close }: InnerProps) {
+function DrawerInner({ cat, entry, tab, setTab, close, displayMode, openCompare }: InnerProps) {
   return (
     <>
       <div className="drawer-head">
@@ -82,11 +97,11 @@ function DrawerInner({ cat, entry, tab, setTab, close }: InnerProps) {
           </button>
         ))}
       </div>
-      <ConflictBanner entry={entry} showResolution={() => setTab('detail')} />
+      <ConflictBanner entry={entry} displayMode={displayMode} openCompare={openCompare} />
       <div className="drawer-body">
         {tab === 'overview' && <OverviewTab entry={entry} />}
         {tab === 'config' && <ConfigTab entry={entry} />}
-        {tab === 'detail' && <DrawerDetailTab cat={cat} entry={entry} />}
+        {tab === 'detail' && <DrawerDetailTab cat={cat} entry={entry} onCompare={openCompare} />}
       </div>
     </>
   )
@@ -95,7 +110,15 @@ function DrawerInner({ cat, entry, tab, setTab, close }: InnerProps) {
 // Konflikt-Banner: reiterunabhaengig sichtbar, sobald der Eintrag im Konflikt
 // steht und einen Klartext-Grund traegt (was kollidiert, warum). Analog zum
 // bewaehrten EntryDetailPanel-Banner (.edp-conflict).
-function ConflictBanner({ entry, showResolution }: { entry: ConfigEntry; showResolution: () => void }) {
+function ConflictBanner({
+  entry,
+  displayMode,
+  openCompare,
+}: {
+  entry: ConfigEntry
+  displayMode: 'simple' | 'expert'
+  openCompare(): void
+}) {
   if (entry.status !== 'conflict' || !entry.conflictReason) return null
   return (
     <div className="drawer-conflict" role="alert">
@@ -104,10 +127,10 @@ function ConflictBanner({ entry, showResolution }: { entry: ConfigEntry; showRes
         <span className="drawer-conflict-summary">
           <b>Konflikt:</b> Dieser Eintrag passt nicht zu allen Stellen, die zusammengehören.
         </span>
-        <span className="drawer-conflict-reason">{entry.conflictReason}</span>
+        {displayMode === 'expert' && <span className="drawer-conflict-reason">{entry.conflictReason}</span>}
       </span>
-      <button type="button" className="drawer-conflict-action" onClick={showResolution}>
-        Lösungswege anzeigen
+      <button type="button" className="drawer-conflict-action" onClick={openCompare}>
+        Unterschiede ansehen
       </button>
     </div>
   )

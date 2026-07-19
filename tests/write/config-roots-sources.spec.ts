@@ -1,10 +1,11 @@
 // config-roots-sources.spec.ts — additive Einspeisung der Nutzer-Quellen in
-// configRootList() (WP-C1). Prueft: (a) ohne Provider exakt die vier Basis-
+// configRootList() (WP-C1). Prueft: (a) ohne Provider exakt die verfuegbaren Basis-
 // Wurzeln (Invarianz, byte-identisch); (b) mit Provider erscheinen die Quellen
 // additiv HINTEN; (c) eine Quelle die schon Basis ist wird dedupliziert. Der
 // Provider wird in afterEach IMMER auf () => [] zurueckgesetzt (kein Leak in
 // andere Specs/Invarianz-Tests). Reine Env/Provider-Funktion, kein FS, kein App-Code.
 import { test, expect } from '@playwright/test'
+import { pathsEqual } from '../../shared/path-compare'
 import {
   configRootList, configRoots, configWatchRootList,
   resolveRoots,
@@ -19,8 +20,7 @@ function clearEnv(): void {
 }
 
 function baseRoots(): string[] {
-  const r = configRoots()
-  return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot]
+  return configWatchRootList()
 }
 
 test.afterEach(() => {
@@ -30,7 +30,7 @@ test.afterEach(() => {
   clearEnv()
 })
 
-test('(a) ohne Provider -> exakt die vier Basis-Wurzeln (Invarianz)', () => {
+test('(a) ohne Provider -> exakt die verfuegbaren Basis-Wurzeln (Invarianz)', () => {
   clearEnv()
   expect(configRootList()).toEqual(baseRoots())
   expect(userSourceRoots()).toEqual([])
@@ -39,8 +39,9 @@ test('(a) ohne Provider -> exakt die vier Basis-Wurzeln (Invarianz)', () => {
 test('(b) mit Provider -> Quellen additiv HINTEN angehaengt', () => {
   clearEnv()
   setUserSourceRootsProvider(() => ['D:\\Extra\\One', 'D:\\Extra\\Two'])
+  const base = baseRoots()
   const list = configRootList()
-  expect(list.slice(0, 4)).toEqual(baseRoots())
+  expect(list.slice(0, base.length)).toEqual(base)
   expect(list).toContain('D:\\Extra\\One')
   expect(list).toContain('D:\\Extra\\Two')
   expect(list[list.length - 1]).toBe('D:\\Extra\\Two')
@@ -54,18 +55,20 @@ test('(b2) Live-Watcher bleibt auf Basis-Wurzeln begrenzt', () => {
   expect(configWatchRootList()).not.toContain('D:\\Extra\\WideRoot')
 })
 
-test('(c) Quelle die schon Basis ist wird dedupliziert (case-insensitiv)', () => {
+test('(c) Quelle die schon Basis ist wird plattformgerecht dedupliziert', () => {
   clearEnv()
   const claudeHome = configRoots().claudeHome
-  setUserSourceRootsProvider(() => [claudeHome.toUpperCase(), 'D:\\Extra\\Neu'])
+  const caseVariant = claudeHome.toUpperCase()
+  setUserSourceRootsProvider(() => [caseVariant, 'D:\\Extra\\Neu'])
   const list = configRootList()
-  // claudeHome darf nicht doppelt auftauchen; nur die Basis-Variante zaehlt.
-  expect(list.filter((p) => p.toLowerCase() === claudeHome.toLowerCase())).toHaveLength(1)
+  expect(list.filter((path) => pathsEqual(path, claudeHome, process.platform))).toHaveLength(1)
   expect(list).toContain('D:\\Extra\\Neu')
-  expect(list).toHaveLength(5)
+  const caseVariantIsDistinct = process.platform !== 'win32' && caseVariant !== claudeHome
+  expect(list).toHaveLength(baseRoots().length + (caseVariantIsDistinct ? 2 : 1))
+  if (caseVariantIsDistinct) expect(list).toContain(caseVariant)
 })
 
-test('(d) defekter Provider -> Fehler faellt auf Basis-4 zurueck', () => {
+test('(d) defekter Provider -> Fehler faellt auf Basis-Wurzeln zurueck', () => {
   clearEnv()
   setUserSourceRootsProvider(() => { throw new Error('boom') })
   expect(configRootList()).toEqual(baseRoots())

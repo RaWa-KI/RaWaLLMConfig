@@ -1,52 +1,119 @@
+/* Config-Warnungen als Kontrollbuch-Registerzeilen (F-WP6, Muster wie
+   ov-diag-row in DiagnosisCards.css): 1px-Register statt Amber-Tint-Karten,
+   amber nur als Signal-Punkt, Details per Progressive Disclosure. */
 .cfg-diag {
-  display: grid;
-  gap: 8px;
   margin: 0 0 14px;
+  background: var(--bg-card);
+  border: var(--card-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cfg-diag > * + * {
+  border-top: 1px solid var(--border);
 }
 
 .cfg-diag-summary {
   margin-bottom: 16px;
 }
 
-.cfg-diag-item {
+.cfg-diag-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+}
+
+.cfg-diag-toggle {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 8px 11px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cfg-diag-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.cfg-diag-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cfg-diag-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.cfg-diag-sub {
+  color: var(--text-lt);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.cfg-diag-chev {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--warm-gray);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cfg-diag-chevron {
+  display: inline-flex;
+  transition: transform .15s ease;
+}
+
+.cfg-diag-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.cfg-diag-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cfg-diag-details {
   display: grid;
-  grid-template-columns: 24px 1fr;
-  gap: 9px;
-  align-items: start;
-  padding: 10px 12px;
-  border: 1px solid var(--amber);
-  border-radius: 8px;
-  background: var(--amber-lt);
-  color: var(--ink);
+  gap: 6px;
+  margin: 0 16px 14px 37px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
-.cfg-diag-icon {
-  color: var(--amber-d);
-  line-height: 1;
-}
-
-.cfg-diag-item strong,
-.cfg-diag-item span span,
-.cfg-diag-item em {
+.cfg-diag-details span,
+.cfg-diag-details em {
   display: block;
-}
-
-.cfg-diag-item strong {
   font-size: 12px;
 }
 
-.cfg-diag-item b {
+.cfg-diag-details b {
   margin-right: 4px;
   font-weight: 700;
 }
 
-.cfg-diag-item span span,
-.cfg-diag-item em {
-  margin-top: 3px;
-  font-size: 12px;
-}
-
-.cfg-diag-item em {
+.cfg-diag-details em {
   color: var(--warm-gray);
   font-style: normal;
   overflow-wrap: anywhere;

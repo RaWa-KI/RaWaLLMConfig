@@ -8,6 +8,7 @@ import type {
   UpdateRelease,
   UpdateSourceKind,
 } from '@shared/contract-updates'
+import type { PlatformAssetSpec } from './update-platform'
 
 export type { UpdateSourceKind } from '@shared/contract-updates'
 
@@ -27,6 +28,7 @@ export type MaybePromise<T> = T | Promise<T>
 export interface UpdateStageRequest {
   info: UpdateInfo
   destPath: string
+  platformSpec?: PlatformAssetSpec
   onProgress?: (copied: number, total: number) => void
 }
 

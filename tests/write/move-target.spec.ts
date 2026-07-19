@@ -6,7 +6,14 @@
 // Stil exakt wie import-targets.spec.ts / dedupe-cat.spec.ts. Inhalte sind Dummy.
 import { test, expect } from '@playwright/test'
 import { buildKnownPaths } from '../../src/renderer/sections/config/known-paths'
-import { resolveFamilyRoot, buildQuickPath, isAbsolutePath } from '../../src/renderer/sections/config/move-target'
+import {
+  buildQuickPath,
+  endsOnFolder,
+  ensureFileTarget,
+  isAbsolutePath,
+  lastSegment,
+  resolveFamilyRoot,
+} from '../../src/renderer/sections/config/move-target'
 import type { AppData, ConfigEntry, Category, LlmConfig, Snapshot, Machine, LlmDef } from '../../shared/contract'
 
 // Reale, absolute Familien-Wurzeln (Windows-Laufwerk, wie im echten knownPaths
@@ -126,4 +133,60 @@ test('buildQuickPath(claude, ...) bleibt absolut unter .claude und trifft NICHT 
   expect(isAbsolutePath(file)).toBe(true)
   // 'claude' darf den Trunk-`.shared/.claude` NICHT als Wurzel verwenden.
   expect(file.includes('.shared/.claude')).toBe(false)
+})
+
+test('resolveFamilyRoot erhaelt POSIX-, Drive- und UNC-Praefixe', () => {
+  expect(resolveFamilyRoot('codex', ['/home/u/.codex/agents'], 'linux'))
+    .toBe('/home/u/.codex')
+  expect(resolveFamilyRoot('codex', ['C:\\Users\\u\\.codex\\agents'], 'win32'))
+    .toBe('C:/Users/u/.codex')
+  expect(resolveFamilyRoot('codex', ['\\\\server\\share\\.codex\\agents'], 'win32'))
+    .toBe('//server/share/.codex')
+})
+
+test('buildQuickPath erhaelt POSIX-, Drive- und UNC-Praefixe', () => {
+  expect(buildQuickPath('codex', 'agents', 'Datei', 'neu.md', ['/home/u/.codex'], 'linux'))
+    .toBe('/home/u/.codex/agents/neu.md')
+  expect(buildQuickPath('codex', 'agents', 'Datei', 'neu.md', ['C:\\Users\\u\\.codex'], 'win32'))
+    .toBe('C:/Users/u/.codex/agents/neu.md')
+  expect(buildQuickPath('codex', 'agents', 'Ordner', 'neu', ['\\\\server\\share\\.codex'], 'win32'))
+    .toBe('//server/share/.codex/agents/neu/')
+})
+
+test('POSIX-Doppel-Slash ist kein UNC und bleibt case-sensitiv', () => {
+  expect(resolveFamilyRoot('codex', ['//srv/Home/.codex/agents'], 'linux'))
+    .toBe('//srv/Home/.codex')
+  expect(resolveFamilyRoot('codex', ['//srv/Home/.CODEX/agents'], 'linux'))
+    .toBeUndefined()
+  expect(resolveFamilyRoot('codex', ['//SERVER/Share/.CODEX/agents'], 'win32'))
+    .toBe('//SERVER/Share/.CODEX')
+})
+
+test('POSIX behandelt eingebetteten und trailing Backslash in Segmenten als literal', () => {
+  expect(lastSegment('/home/u/dir\\child', 'linux')).toBe('dir\\child')
+  expect(lastSegment('/home/u/report.md\\', 'linux')).toBe('report.md\\')
+})
+
+test('POSIX-Dateiendung mit literal Backslash bleibt ein Datei-Ziel', () => {
+  const knownFolders = new Set<string>()
+  const fileWithBackslash = '/home/u/report.md\\suffix'
+  const fileWithTrailingBackslash = '/home/u/report.md\\'
+  expect(endsOnFolder(fileWithBackslash, 'target.md', knownFolders, 'linux')).toBe(false)
+  expect(endsOnFolder(fileWithTrailingBackslash, 'target.md', knownFolders, 'linux')).toBe(false)
+  expect(ensureFileTarget(fileWithBackslash, 'target.md', 'Datei', knownFolders, 'linux'))
+    .toBe(fileWithBackslash)
+  expect(ensureFileTarget('/home/u/folder\\', 'target.md', 'Datei', knownFolders, 'linux'))
+    .toBe('/home/u/folder\\/target.md')
+})
+
+test('Windows behaelt Slash- und Backslash-Segment-/Trailing-Verhalten', () => {
+  const knownFolders = new Set<string>()
+  expect(lastSegment('C:/tmp/folder/file.md', 'win32')).toBe('file.md')
+  expect(lastSegment('C:\\tmp\\folder\\file.md', 'win32')).toBe('file.md')
+  expect(endsOnFolder('C:/tmp/folder/', 'target.md', knownFolders, 'win32')).toBe(true)
+  expect(endsOnFolder('C:\\tmp\\folder\\', 'target.md', knownFolders, 'win32')).toBe(true)
+  expect(ensureFileTarget('C:/tmp/folder/', 'target.md', 'Datei', knownFolders, 'win32'))
+    .toBe('C:/tmp/folder/target.md')
+  expect(ensureFileTarget('C:\\tmp\\folder\\', 'target.md', 'Datei', knownFolders, 'win32'))
+    .toBe('C:\\tmp\\folder/target.md')
 })

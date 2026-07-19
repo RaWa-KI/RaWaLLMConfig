@@ -16,7 +16,7 @@
 }
 
 .mi-wrap .view-title h2 {
-  font-size: 17px;
+  font-size: var(--font-size-h2);
   font-weight: 900;
 }
 
@@ -149,11 +149,11 @@
   min-height: 30px;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1120px) {
   .mi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .mi-wrap .view-head { align-items: flex-start; flex-direction: column; }
   .mi-grid { grid-template-columns: 1fr; }
 }

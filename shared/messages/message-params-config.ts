@@ -1,0 +1,29 @@
+export type ConfigMessageParamsMap = {
+  "config.mode.duplicates": undefined
+  "config.mode.duplicates.simple": undefined
+  "config.mode.duplicates.expert": undefined
+  "config.category.agents": undefined
+  "config.category.agents.simple": undefined
+  "config.category.hooks": undefined
+  "config.category.hooks.simple": undefined
+  "config.category.instructions": undefined
+  "config.category.instructions.simple": undefined
+  "config.category.rules": undefined
+  "config.category.rules.simple": undefined
+  "config.category.settings": undefined
+  "config.category.settings.simple": undefined
+  "config.category.skills": undefined
+  "config.category.skills.simple": undefined
+  "config.category.teams": undefined
+  "config.category.teams.simple": undefined
+  "config.category.plugins": undefined
+  "config.category.plugins.simple": undefined
+  "config.category.tools": undefined
+  "config.category.tools.simple": undefined
+  "config.category.mcp": undefined
+  "config.category.mcp.simple": undefined
+  "config.category.gguf-models": undefined
+  "config.category.gguf-models.simple": undefined
+  "config.category.llm-endpoints": undefined
+  "config.category.llm-endpoints.simple": undefined
+}

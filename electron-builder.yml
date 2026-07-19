@@ -14,6 +14,9 @@ electronVersion: "42.3.3"
 
 icon: build/icon.ico
 
+toolsets:
+  appimage: "1.0.2"
+
 # Kein asarUnpack noetig: mariadb (pure-JS-Connector) hat keine nativen .node-Bindings.
 # Geprueft: node_modules/mariadb/** => kein *.node gefunden.
 # DB-Integration ist graceful-optional (Phase-1-read-only-App startet auch ohne DB).
@@ -46,5 +49,22 @@ nsis:
   allowToChangeInstallationDirectory: true
   perMachine: false
   artifactName: "RaWaLLMConfig-Setup-${version}.${ext}"
+  shortcutName: RaWaLLMConfig
   createDesktopShortcut: true
   createStartMenuShortcut: true
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+    - target: rpm
+      arch:
+        - x64
+  icon: build/icon.png
+  category: Utility
+  maintainer: "RaWaLLMConfig contributors"
+  artifactName: "RaWaLLMConfig-${version}.${ext}"

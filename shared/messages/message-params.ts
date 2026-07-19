@@ -4,6 +4,7 @@ import type { CompareMessageParamsMap } from './message-params-compare'
 import type { ChromeMessageParamsMap } from './message-params-chrome'
 import type { OverviewMessageParamsMap } from './message-params-overview'
 import type { ConfigWarningsMessageParamsMap } from './message-params-config-warnings'
+import type { ConfigMessageParamsMap } from './message-params-config'
 
 export type MessageParamsMap =
   CoreMessageParamsMap
@@ -12,3 +13,4 @@ export type MessageParamsMap =
   & ChromeMessageParamsMap
   & OverviewMessageParamsMap
   & ConfigWarningsMessageParamsMap
+  & ConfigMessageParamsMap

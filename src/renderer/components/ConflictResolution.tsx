@@ -1,5 +1,6 @@
 import type { ConfigEntry } from '@shared/contract'
 import { Icon } from './Icon'
+import { useStore } from '../state/store'
 
 interface ConflictCopy {
   title: string
@@ -12,6 +13,7 @@ interface ConflictCopy {
 interface ConflictResolutionProps {
   entry: ConfigEntry
   onEdit?: () => void
+  onCompare(): void
 }
 
 function copyFor(reason: string): ConflictCopy {
@@ -51,7 +53,8 @@ function copyFor(reason: string): ConflictCopy {
   }
 }
 
-export function ConflictResolution({ entry, onEdit }: ConflictResolutionProps) {
+export function ConflictResolution({ entry, onEdit, onCompare }: ConflictResolutionProps) {
+  const { ui } = useStore()
   if (entry.status !== 'conflict' || !entry.conflictReason) return null
   const copy = copyFor(entry.conflictReason)
   return (
@@ -64,10 +67,16 @@ export function ConflictResolution({ entry, onEdit }: ConflictResolutionProps) {
         </div>
       </div>
       <p>{copy.meaning}</p>
-      <div className="conflict-guide-reason">
-        <b>Technischer Grund:</b> {entry.conflictReason}
-      </div>
+      {ui.displayMode === 'expert' && (
+        <div className="conflict-guide-reason">
+          <b>Technischer Grund:</b> {entry.conflictReason}
+        </div>
+      )}
       <div className="conflict-guide-actions">
+        <button type="button" className="btn-ghost conflict-edit-btn" onClick={onCompare}>
+          {Icon.diff}
+          <span>Unterschiede ansehen</span>
+        </button>
         {onEdit && (
           <button type="button" className="btn-ghost conflict-edit-btn" onClick={onEdit}>
             {Icon.edit}

@@ -9,6 +9,7 @@ import type {
   IntegrityBlocker,
   ManualRequiredItem
 } from '@shared/contract-integrity'
+import { normalizePathForCompare } from '@shared/path-compare'
 import {
   buildPairs,
   collectAllFiles,
@@ -70,13 +71,15 @@ function isAmbiguousWikilink(
   operationSources: string[]
 ): boolean {
   const target = wikiName(oldPath)
-  const normalizedOld = resolve(oldPath).toLowerCase()
-  const normalizedSources = operationSources.map((s) => resolve(s).toLowerCase())
+  const normalizedOld = normalizePathForCompare(resolve(oldPath), process.platform)
+  const normalizedSources = operationSources.map((source) => (
+    normalizePathForCompare(resolve(source), process.platform)
+  ))
 
   let foreignCount = 0
   for (const f of allFiles) {
     if (wikiName(f) !== target) continue
-    const nf = resolve(f).toLowerCase()
+    const nf = normalizePathForCompare(resolve(f), process.platform)
     // oldPath selbst und alle operationSources ausschließen
     if (nf === normalizedOld) continue
     if (normalizedSources.includes(nf)) continue

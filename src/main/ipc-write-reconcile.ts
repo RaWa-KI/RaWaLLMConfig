@@ -10,6 +10,7 @@ import type { ReconcileRequest, ReconcileResult } from '@shared/contract-write'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
 import { WRITE_DISABLED_REASON } from './ipc-write'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
 
 // reconcile: Owner-Entscheidung (keep-trunk|adopt-mirror) ausfuehren. KEIN
@@ -26,6 +27,7 @@ async function handleReconcile(req: ReconcileRequest): Promise<ReconcileResult> 
   const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
+  markScanCachesStale('write:reconcile')
   return {
     data: {
       trunkPath: req.trunkPath,

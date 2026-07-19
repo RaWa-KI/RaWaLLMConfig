@@ -21,6 +21,7 @@ import { registerListIpc } from './ipc-list'
 import { registerCompareMulti } from './ipc-compare'
 import { registerArchiveRestore } from './ipc-archive'
 import { registerSourcesIpc } from './ipc-sources'
+import { registerCoverageAckIpc } from './ipc-write-coverage-ack'
 import { recordWriteRegistrarFailure } from './services/write-mode'
 
 // Einen einzelnen Registrar sicher aufrufen (Fehler isoliert, Status ohne Details).
@@ -54,6 +55,7 @@ export async function registerWrite(): Promise<void> {
   safeRegister('compare', registerCompareMulti)
   safeRegister('archive', registerArchiveRestore)
   safeRegister('sources', registerSourcesIpc)
+  safeRegister('coverageAck', registerCoverageAckIpc)
   // Store einmalig aufloesen (MariaDB-Probe oder File-Fallback); kein Pool pro Request.
   try {
     await initPrefsStore()

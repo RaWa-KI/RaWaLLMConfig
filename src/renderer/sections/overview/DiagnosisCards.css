@@ -3,95 +3,149 @@
   gap: 12px;
 }
 
+.ov-zone-status {
+  display: grid;
+  gap: 12px;
+}
+
 .ov-diagnostics-head {
   display: grid;
   gap: 4px;
 }
 
-.ov-diagnostics-head h2,
-.ov-diagnosis h3 {
-  color: var(--text);
-  font-weight: 900;
-}
-
 .ov-diagnostics-head h2 {
+  color: var(--text);
   font-size: 18px;
+  font-weight: 900;
   line-height: 1.1;
 }
 
 .ov-diagnostics-head p,
-.ov-diagnostics-more,
-.ov-diagnosis p {
+.ov-diagnostics-more {
   color: var(--warm-gray);
   font-size: 13px;
   font-weight: 750;
 }
 
-.ov-diagnostics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+/* Diagnose-Registerzeilen (F-WP2d D3): Punkt links, Titel + Kurzzeile,
+   Aktion rechts, Aufklapp-Chevron — keine Tint-Karten mehr. */
+.ov-diag-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
 }
 
-.ov-diagnosis {
+.ov-diag-toggle {
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.ov-diagnosis.warning {
-  border-color: color-mix(in oklab, var(--amber), transparent 35%);
-}
-
-.ov-diagnosis.error {
-  border-color: color-mix(in oklab, var(--terra), transparent 25%);
-}
-
-.ov-diagnosis-top {
-  display: flex;
+  flex: 1;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  padding: 11px 8px 11px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.ov-diagnosis-icon,
-.ov-diagnosis-severity {
+.ov-diag-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warm-gray);
+}
+
+.ov-diag-row.warning .ov-diag-dot { background: var(--amber); }
+.ov-diag-row.error .ov-diag-dot { background: var(--terra); }
+
+.ov-diag-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ov-diag-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ov-diag-sub {
+  color: var(--text-lt);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ov-diag-action {
+  flex: none;
+}
+
+.ov-diag-chev {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--warm-gray);
+  font: inherit;
+  cursor: pointer;
 }
 
-.ov-diagnosis-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--amber-lt);
-  color: var(--amber-d);
+.ov-diag-chevron {
+  display: inline-flex;
+  transition: transform .15s ease;
 }
 
-.ov-diagnosis-severity {
-  min-height: 28px;
-  padding: 5px 9px;
+.ov-diag-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.ov-diag-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ov-diag-details {
+  display: grid;
+  gap: 10px;
+  margin: 0 16px 14px 37px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ov-diag-state {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-lt);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.ov-diag-severity {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--papa-lt);
-  color: var(--papa-d);
-  font-size: 12px;
+  background: transparent;
+  color: var(--text-lt);
+  font-size: 11px;
   font-weight: 900;
-}
-
-.ov-diagnosis h3 {
-  font-size: 16px;
-  line-height: 1.1;
 }
 
 .ov-diagnosis-next {
   display: grid;
   gap: 6px;
+  margin: 0;
   padding: 10px;
   border-radius: 8px;
   background: color-mix(in oklab, var(--bg), #fff 28%);
@@ -109,14 +163,11 @@
 }
 
 .ov-diagnosis-next dd {
+  margin: 0;
   color: var(--warm-gray);
   font-size: 12.5px;
   font-weight: 750;
   line-height: 1.35;
-}
-
-.ov-diagnosis .btn {
-  align-self: flex-start;
 }
 
 .ov-diagnosis-details {
@@ -127,16 +178,4 @@
   color: var(--warm-gray);
   font-size: 12px;
   font-weight: 800;
-}
-
-@media (max-width: 1100px) {
-  .ov-diagnostics-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 760px) {
-  .ov-diagnostics-grid {
-    grid-template-columns: 1fr;
-  }
 }

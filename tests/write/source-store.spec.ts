@@ -20,6 +20,10 @@ function storeOpts(sb: Sandbox): { storePath: string; archiveRoot: string; audit
   return { storePath, archiveRoot: sb.archiveRoot, auditPath: sb.auditPath }
 }
 
+function sourcePath(sb: Sandbox, name: string): string {
+  return join(sb.configDir, 'sources', name)
+}
+
 test('frischer Store: leerer Default ohne Datei (kein Crash)', async () => {
   const store = createSourceStore(storeOpts(makeSandbox()))
   expect(await store.listSources()).toEqual([])
@@ -27,24 +31,26 @@ test('frischer Store: leerer Default ohne Datei (kein Crash)', async () => {
 })
 
 test('add -> list zeigt Eintrag (id/label/enabled Default)', async () => {
-  const store = createSourceStore(storeOpts(makeSandbox()))
-  const out = await store.addSource({ root: 'D:\\Tools\\MyClaude', providerId: 'claude' })
+  const sb = makeSandbox()
+  const store = createSourceStore(storeOpts(sb))
+  const root = sourcePath(sb, 'MyClaude')
+  const out = await store.addSource({ root, providerId: 'claude' })
   expect(out.ok).toBe(true)
   expect(out.sources).toHaveLength(1)
   const s = out.sources[0]
-  expect(s.root).toBe('D:\\Tools\\MyClaude')
+  expect(s.root).toBe(root)
   expect(s.label).toBe('MyClaude')
   expect(s.enabled).toBe(true)
   expect(s.id.length).toBeGreaterThan(0)
   expect(await store.listSources()).toHaveLength(1)
 })
 
-test('Duplikat-root (case-insensitiv): kein Zweit-Eintrag, ok:true', async () => {
+test('Duplikat-root wird plattformgerecht erkannt', async () => {
   const store = createSourceStore(storeOpts(makeSandbox()))
   await store.addSource({ root: 'D:\\Tools\\Dup', providerId: 'claude' })
   const out = await store.addSource({ root: 'd:\\tools\\dup', providerId: 'codex' })
   expect(out.ok).toBe(true)
-  expect(out.sources).toHaveLength(1)
+  expect(out.sources).toHaveLength(process.platform === 'win32' ? 1 : 2)
 })
 
 test('remove entfernt die Quelle', async () => {

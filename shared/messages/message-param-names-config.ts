@@ -1,0 +1,32 @@
+import type { MessageParamNamesFor } from './message-param-names-types'
+import type { ConfigMessageParamsMap } from './message-params-config'
+
+export const CONFIG_MESSAGE_PARAM_NAMES = {
+  "config.mode.duplicates": [],
+  "config.mode.duplicates.simple": [],
+  "config.mode.duplicates.expert": [],
+  "config.category.agents": [],
+  "config.category.agents.simple": [],
+  "config.category.hooks": [],
+  "config.category.hooks.simple": [],
+  "config.category.instructions": [],
+  "config.category.instructions.simple": [],
+  "config.category.rules": [],
+  "config.category.rules.simple": [],
+  "config.category.settings": [],
+  "config.category.settings.simple": [],
+  "config.category.skills": [],
+  "config.category.skills.simple": [],
+  "config.category.teams": [],
+  "config.category.teams.simple": [],
+  "config.category.plugins": [],
+  "config.category.plugins.simple": [],
+  "config.category.tools": [],
+  "config.category.tools.simple": [],
+  "config.category.mcp": [],
+  "config.category.mcp.simple": [],
+  "config.category.gguf-models": [],
+  "config.category.gguf-models.simple": [],
+  "config.category.llm-endpoints": [],
+  "config.category.llm-endpoints.simple": [],
+} as const satisfies MessageParamNamesFor<ConfigMessageParamsMap>

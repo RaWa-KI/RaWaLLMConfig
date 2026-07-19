@@ -11,6 +11,7 @@ import { loadUserManifests } from '../providers/manifest-loader'
 import { scanProvider } from './scan-engine'
 import { ggufRoots, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } from '../llm-scan'
 import { isProviderScanEnabled } from '../integration-filter'
+import { yieldToEventLoop } from '../../lib/yield-loop'
 
 // Original-data-Key-Reihenfolge (scan-index.ts buildData, M1-Stand). findDuplicates/
 // buildCoverage iterieren data -> Reihenfolge zaehlt. Die Registry-Array-
@@ -90,6 +91,34 @@ export function scanRegistry(): Record<string, LlmConfig> {
   //    -> leer). Built-in gewinnt bei id-Kollision (kein Override der Bestaende).
   for (const m of loadUserManifests().manifests) {
     if (data[m.id]) continue
+    data[m.id] = scanIfEnabled(m)
+  }
+  return data
+}
+
+// Async-Variante (Teilplan B): identischer Scan, identische Reihenfolge — aber
+// VOR jedem Familien-Scan ein Event-Loop-Yield, damit der Main-Prozess waehrend
+// des kalten Vollscans weiter IPC beantwortet (keine Eingabeblockade). Die
+// Familien-Scanner selbst bleiben synchron (kein pauschaler I/O-Umbau).
+export async function scanRegistryAsync(): Promise<Record<string, LlmConfig>> {
+  const registry = providerRegistry()
+  const byId = new Map<string, ProviderManifest>()
+  for (const manifest of registry) byId.set(manifest.id, manifest)
+  const data: Record<string, LlmConfig> = {}
+  for (const id of DATA_ORDER) {
+    await yieldToEventLoop()
+    const m = byId.get(id)
+    data[id] = m ? scanIfEnabled(m) : emptyConfig()
+  }
+  data.local = applyLocalComingSoon(data.local)
+  for (const m of registry) {
+    if ((DATA_ORDER as readonly string[]).includes(m.id) || data[m.id]) continue
+    await yieldToEventLoop()
+    data[m.id] = scanIfEnabled(m)
+  }
+  for (const m of loadUserManifests().manifests) {
+    if (data[m.id]) continue
+    await yieldToEventLoop()
     data[m.id] = scanIfEnabled(m)
   }
   return data

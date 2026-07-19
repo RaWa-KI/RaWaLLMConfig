@@ -1,7 +1,6 @@
 // Datenmodell-Vertrag (Single Source of Truth) — Main + Renderer einig.
-// Spiegelt 1:1 die Shapes des Designer-Prototyps (_entpackt/claude-config),
-// damit die React-UI unveraendert bindet. Phase 1: strikt read-only.
-// Secrets werden NIE getragen — nur Namen/Status/Pfade.
+// Stabiler IPC-/Renderer-Vertrag; die visuelle Darstellung ist davon entkoppelt.
+// Scanner-Payloads tragen keine Secret-Werte, nur sichere Metadaten.
 
 import type { CoverageRow } from './contract-coverage'
 export type { CoverageState, CoverageCell, CoverageRow } from './contract-coverage'
@@ -11,7 +10,7 @@ export type { CoverageState, CoverageCell, CoverageRow } from './contract-covera
 import type { ReadFullRequest, ReadFullResult } from './contract-write'
 
 export type Scope = 'managed' | 'global' | 'project' | 'local' | 'shared'
-export type EntryStatus = 'active' | 'stale' | 'conflict' | 'dup' | 'archived'
+export type EntryStatus = 'active' | 'stale' | 'conflict' | 'dup' | 'archived' | 'acknowledged'
 export type SourceState = 'current' | 'recent' | 'update' | 'gated' | 'flag'
 export type DiffKind = 'ctx' | 'add' | 'del'
 export type Verdict = 'same' | 'diff'

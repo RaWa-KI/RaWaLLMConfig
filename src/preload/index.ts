@@ -4,6 +4,9 @@ import type { IntegrationsApi } from '@shared/channels-integrations'
 import { IPC_WRITE } from '@shared/channels-write'
 import { IPC_UPDATES, IPC_UPDATES_EVENTS } from '@shared/channels-updates'
 import { createIntegrationsApi } from './integrations-api'
+import { createDiagnosticsApi, type DiagnosticsApi } from './diagnostics-api'
+import { createErrorReportApi, type ErrorReportApi } from './error-report-api'
+import { createCoverageApi, type CoverageApi } from './coverage-api'
 import type {
   AppData,
   System,
@@ -241,9 +244,6 @@ const write: WriteApi = {
     ipcRenderer.invoke(IPC_WRITE.strukturScan, req)
 }
 
-// Update-Manager-Bridge (dritte Gruppe). onUpdatesProgress: einzige sanktionierte
-// ipcRenderer.on-Ausnahme — fixer Kanal, gibt Unsubscribe zurueck, kein roher
-// ipcRenderer exponiert (R6). Listener-Referenz gesichert fuer removeListener.
 const updates: UpdatesApi = {
   updatesCheck: (req?: UpdateCheckRequest) =>
     ipcRenderer.invoke(IPC_UPDATES.updatesCheck, req),
@@ -260,8 +260,6 @@ const updates: UpdatesApi = {
   }
 }
 
-// Config-Changed-Bridge (nur Event-Listener, kein Watcher-Service). Payload ist
-// strikt Metadaten: Familien, Root-Kinds, Zeitpunkt und optionaler Grund.
 const configWatcherFs: ConfigWatcherFsApi = {
   onConfigChanged: (cb: (p: ConfigChangedPayload) => void): (() => void) => {
     const listener = (_e: unknown, p: ConfigChangedPayload): void => cb(p)
@@ -270,9 +268,6 @@ const configWatcherFs: ConfigWatcherFsApi = {
   }
 }
 
-// Integrity-Transaktionsschicht (W4): Preview (read-only Dry-Run) + Apply (gated
-// im Main). Bridge ueber whitelisted Kanaele integrity:preview/integrity:apply,
-// kein roher ipcRenderer. Nie Secret-Werte, nur Plan/Status/Pfade.
 const integrity: IntegrityApi = {
   integrityPreview: (req: IntegrityPreviewRequest): Promise<IntegrityPreviewResult> =>
     ipcRenderer.invoke(IPC_WRITE.integrityPreview, req),
@@ -281,8 +276,10 @@ const integrity: IntegrityApi = {
 }
 
 const integrations = createIntegrationsApi(ipcRenderer)
+const diagnostics = createDiagnosticsApi(ipcRenderer)
+const coverage = createCoverageApi(ipcRenderer)
 
-const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & { integrations: IntegrationsApi } = {
+const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi } = {
   ...read,
   ...write,
   ...updates,
@@ -294,7 +291,10 @@ const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & Graph
   ...archive,
   ...sources,
   ...integrity,
-  integrations
+  ...diagnostics,
+  ...coverage,
+  integrations,
+  errorReport: createErrorReportApi(ipcRenderer)
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

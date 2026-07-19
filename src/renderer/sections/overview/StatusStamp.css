@@ -1,0 +1,28 @@
+/* Zustands-Stempel (F-WP2d D2) — lines-Achse: 1–2px Kontur, 2–3° rotiert,
+   KEIN Schatten, hoechstens 8%-Tint-Fuellung, Display-Font (D4).
+   offen = --amber-Kontur (Signal), ok = --sage-Kontur (einzige sage-Rolle
+   neben Status-Punkten, laut Farbdisziplin „Kontrollbuch"). */
+.status-stamp {
+  justify-self: start;
+  margin: 0;
+  padding: 10px 20px 9px;
+  transform: rotate(-2.5deg);
+  border: 2px solid var(--amber-d);
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--amber) 8%, var(--bg-card));
+  box-shadow: none;
+  color: var(--amber-d);
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-stamp.ok {
+  border-color: var(--sage-d);
+  background: color-mix(in oklab, var(--sage) 8%, var(--bg-card));
+  color: var(--sage-d);
+}

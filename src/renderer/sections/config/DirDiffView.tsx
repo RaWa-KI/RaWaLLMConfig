@@ -33,6 +33,9 @@ export function DirDiffView({ d, labels }: { d: DuplicateSet; labels: DiffLabels
   )
   if (!dir) return null
   const toggle = (rel: string) => setOpenRel((cur) => (cur === rel ? null : rel))
+  // DisplayMode-Weiche (Teil E): Datei-Diff-Tabelle (rel-Pfade, Pills, Drills) ist
+  // Expert; Zaehl-Summary und Ordner-Aktionen (write-gated) bleiben in beiden Modi.
+  const expert = ui.displayMode === 'expert'
   return (
     <div className="dir-diff">
       <div className="dir-diff-head">
@@ -40,20 +43,22 @@ export function DirDiffView({ d, labels }: { d: DuplicateSet; labels: DiffLabels
         <span className="dir-tag">Ordner-Vergleich</span>
       </div>
       <DirSummary dir={dir} labels={labels} />
-      <div className="dir-files">
-        {dir.files.map((f) => (
-          <DirFileRow
-            key={f.rel}
-            f={f}
-            labels={labels}
-            bases={bases}
-            knownPaths={knownPaths}
-            fileCount={dir.files.length}
-            open={openRel === f.rel}
-            onToggle={toggle}
-          />
-        ))}
-      </div>
+      {expert && (
+        <div className="dir-files">
+          {dir.files.map((f) => (
+            <DirFileRow
+              key={f.rel}
+              f={f}
+              labels={labels}
+              bases={bases}
+              knownPaths={knownPaths}
+              fileCount={dir.files.length}
+              open={openRel === f.rel}
+              onToggle={toggle}
+            />
+          ))}
+        </div>
+      )}
       <div className="diff-actions">
         {d.note && <span className="diff-note">{d.note}</span>}
         <DirReconcileActions d={d} dir={dir} knownPaths={knownPaths} />

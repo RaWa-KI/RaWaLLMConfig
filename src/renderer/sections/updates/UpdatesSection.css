@@ -24,6 +24,19 @@
   line-height: 1.55;
 }
 
+.watcher-impact {
+  margin-bottom: 16px;
+}
+
+.watcher-impact h3 {
+  margin: 0 0 8px;
+  color: var(--text-lt);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
 /* Daemon-Card innere Flex-Box */
 .dc-body {
   flex: 1;

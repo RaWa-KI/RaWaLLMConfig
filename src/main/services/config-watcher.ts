@@ -4,7 +4,8 @@ import path from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
 import { IPC_EVENTS } from '@shared/channels'
 import type { ConfigChangedPayload, ConfigFamily, ConfigRootKind } from '@shared/contract-watcher-fs'
-import { markConfigScanCacheStale } from './config-scan-cache'
+import { isPathEqualOrUnder, normalizePathForCompare } from '@shared/path-compare'
+import { markScanCachesStale } from './scan-invalidation'
 import { configRoots, configWatchRootList } from './config-roots'
 
 const DEBOUNCE_MS = 650
@@ -30,6 +31,10 @@ interface WatcherOptions {
   roots?: string[]
 }
 
+function pathKey(value: string): string {
+  return normalizePathForCompare(path.resolve(value), process.platform)
+}
+
 export function classifyConfigPath(filePath: string): RootMatch {
   for (const root of watchedRootMatches()) {
     if (isUnderRoot(filePath, root.path)) return { family: root.family, rootKind: root.rootKind }
@@ -39,16 +44,16 @@ export function classifyConfigPath(filePath: string): RootMatch {
 
 function watchedRootMatches(): WatchedRoot[] {
   const roots = configRoots()
-  const known: WatchedRoot[] = [
+  const known: Array<WatchedRoot | null> = [
     { path: roots.claudeHome, family: 'claude', rootKind: 'userglobal' },
     { path: roots.codexHome, family: 'codex', rootKind: 'userglobal' },
-    { path: roots.sharedClaude, family: 'shared', rootKind: 'shared' },
-    { path: roots.projectRoot, family: 'local', rootKind: 'project' }
+    roots.sharedClaude ? { path: roots.sharedClaude, family: 'shared', rootKind: 'shared' } : null,
+    roots.projectRoot ? { path: roots.projectRoot, family: 'local', rootKind: 'project' } : null
   ]
   const out: WatchedRoot[] = []
-  const knownByPath = new Map(known.map((root) => [path.resolve(root.path).toLowerCase(), root]))
+  const knownByPath = new Map(known.filter((root): root is WatchedRoot => root !== null).map((root) => [pathKey(root.path), root]))
   for (const rootPath of configWatchRootList()) {
-    const key = path.resolve(rootPath).toLowerCase()
+    const key = pathKey(rootPath)
     out.push(knownByPath.get(key) ?? { path: rootPath, family: 'local', rootKind: 'local' })
   }
   return out
@@ -104,7 +109,7 @@ export function stopConfigWatcher(): void {
 function queueChange(filePath: string, debounceMs = DEBOUNCE_MS): void {
   if (shouldIgnoreConfigPath(filePath)) return
   const match = classifyConfigPath(filePath)
-  markConfigScanCacheStale(WATCHER_REASON)
+  markScanCachesStale(WATCHER_REASON)
   pendingFamilies.add(match.family)
   pendingRootKinds.add(match.rootKind)
   if (debounceTimer) clearTimeout(debounceTimer)
@@ -134,7 +139,7 @@ function existingRoots(roots: string[]): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   for (const root of roots) {
-    const key = path.resolve(root).toLowerCase()
+    const key = pathKey(root)
     if (seen.has(key) || !existsSync(root)) continue
     seen.add(key)
     out.push(root)
@@ -144,7 +149,5 @@ function existingRoots(roots: string[]): string[] {
 
 function isUnderRoot(rawPath: string, rawRoot: string): boolean {
   if (!rawPath || !rawRoot) return false
-  const filePath = path.resolve(rawPath).toLowerCase()
-  const rootPath = path.resolve(rawRoot).toLowerCase()
-  return filePath === rootPath || filePath.startsWith(rootPath + path.sep)
+  return isPathEqualOrUnder(path.resolve(rawPath), path.resolve(rawRoot), process.platform)
 }

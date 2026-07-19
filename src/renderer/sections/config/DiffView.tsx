@@ -1,5 +1,6 @@
 import type { DiffLabels, DuplicateSet } from '@shared/contract'
 import { Icon } from '../../components/Icon'
+import { useStore } from '../../state/store'
 import { SECRET_PAAR } from '@shared/dup-labels'
 import { DirDiffView } from './DirDiffView'
 import { FALLBACK_LABELS, isOversizeFallback } from './diff-shared'
@@ -36,6 +37,7 @@ export function DiffView({ dups, labels }: { dups: DuplicateSet[]; labels?: Diff
 }
 
 function DiffSet({ d, labels }: { d: DuplicateSet; labels: DiffLabels }) {
+  const { ui } = useStore()
   // Voll-Inhalt beider Seiten laden (readFull, secret-guarded). Quelle fuer
   // Editieren UND read-only-Fallback, falls der Scanner keine lines lieferte.
   const c = usePairContent(d.trunk.path, d.mirror.path)
@@ -47,9 +49,43 @@ function DiffSet({ d, labels }: { d: DuplicateSet; labels: DiffLabels }) {
   // Editierbar nur wenn: Voll-Inhalt da, NICHT secret-classed (kein Secret-Round-
   // Trip), und kein gekappter Oversize-Diff.
   const editable = c.state === 'ready' && !secretPair && !isOversizeFallback(lines)
+  // DisplayMode-Weiche (Teil E): reine Diff-Zeilen (read-only Side-by-side) sind
+  // Experten-Information. Der editierbare MergeEditor bleibt in beiden Modi
+  // erreichbar (Merge-Aktion, Write-Gates unveraendert).
+  const expert = ui.displayMode === 'expert'
 
   return (
     <div className="diff-set">
+      <DiffSetHead d={d} secretPair={secretPair} />
+      {c.state === 'loading' && <div className="diff-loading">Lade Inhalt …</div>}
+      {c.state === 'protected' && (
+        <div className="diff-protected">
+          Kein Datei-Inhalt vergleichbar — Verzeichnis, geschützt oder nicht lesbar.
+        </div>
+      )}
+      {c.state === 'ready' &&
+        (editable ? (
+          <MergeEditor
+            trunkPath={d.trunk.path}
+            mirrorPath={d.mirror.path}
+            initialTrunk={c.trunk}
+            initialMirror={c.mirror}
+          />
+        ) : (
+          expert && <DiffReadOnly d={d} labels={labels} lines={lines} masked={c.masked} maskedCount={c.maskedCount} />
+        ))}
+      <div className="diff-actions">
+        <span className="diff-note">{d.note}</span>
+      </div>
+    </div>
+  )
+}
+
+// Kopf eines Paar-Diffs (HR27-Split aus DiffSet): Name + Verdikt-Badge; bei
+// secret-classed Paaren zusaetzlich der Sperr-Hinweis (read-only NUR-Anzeige).
+function DiffSetHead({ d, secretPair }: { d: DuplicateSet; secretPair: boolean }) {
+  return (
+    <>
       <div className="diff-set-head">
         <span className="ds-name">{d.name}</span>
         {secretPair ? (
@@ -68,26 +104,6 @@ function DiffSet({ d, labels }: { d: DuplicateSet; labels: DiffLabels }) {
           {SECRET_PAAR.aktionGesperrt}
         </div>
       )}
-      {c.state === 'loading' && <div className="diff-loading">Lade Inhalt …</div>}
-      {c.state === 'protected' && (
-        <div className="diff-protected">
-          Kein Datei-Inhalt vergleichbar — Verzeichnis, geschützt oder nicht lesbar.
-        </div>
-      )}
-      {c.state === 'ready' &&
-        (editable ? (
-          <MergeEditor
-            trunkPath={d.trunk.path}
-            mirrorPath={d.mirror.path}
-            initialTrunk={c.trunk}
-            initialMirror={c.mirror}
-          />
-        ) : (
-          <DiffReadOnly d={d} labels={labels} lines={lines} masked={c.masked} maskedCount={c.maskedCount} />
-        ))}
-      <div className="diff-actions">
-        <span className="diff-note">{d.note}</span>
-      </div>
-    </div>
+    </>
   )
 }

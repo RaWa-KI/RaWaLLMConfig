@@ -3,7 +3,9 @@ import { resolve } from 'node:path'
 
 export const AUDIT_OUT_DIR = resolve('tests/audit-runtime')
 export const UI_SMOKE_TIMEOUT_MS = 120_000
-export const PERF_SMOKE_TIMEOUT_MS = 50_000
+// F-WP1: drei Szenarien (normal + firstRun mit Onboarding-Scan + Sandbox-Scan)
+// mit eigenen Launches brauchen deutlich mehr als die frueheren 50 s.
+export const PERF_SMOKE_TIMEOUT_MS = 240_000
 export const LAUNCH_TIMEOUT_MS = 25_000
 export const STEP_TIMEOUT_MS = 10_000
 

@@ -29,7 +29,8 @@ import {
   type HttpsFetchPolicy,
   type HttpResponseGateOpts,
 } from './update-http-gates'
-import { checkExactSize, checkMzHeader, moveToFailed, sha256Hex } from './update-gates'
+import { checkExactSize, checkMagicHeader, moveToFailed, sha256Hex } from './update-gates'
+import { assetSpecFor, currentUpdatePlatform, type PlatformAssetSpec } from './update-platform'
 import { isValidReleaseShape } from './update-source-local'
 
 type FetchImpl = (input: string | URL, init?: RequestInit) => Promise<Response>
@@ -168,8 +169,12 @@ async function downloadInstaller(
   }
 }
 
-function validateInstallerFile(destPath: string, info: UpdateInfo): StageResult | null {
-  if (!checkMzHeader(destPath)) {
+function validateInstallerFile(
+  destPath: string,
+  info: UpdateInfo,
+  platformSpec: PlatformAssetSpec
+): StageResult | null {
+  if (!checkMagicHeader(destPath, platformSpec.magic)) {
     moveToFailed(destPath)
     return stageError('invalid-installer')
   }
@@ -223,6 +228,7 @@ export class HttpsUpdateSource implements UpdateSourcePort {
   }
 
   async stageInstaller(opts: UpdateStageRequest): Promise<StageResult> {
+    const platformSpec = opts.platformSpec ?? assetSpecFor(currentUpdatePlatform())
     if (!opts.info.sha256) return stageError('Pruefsumme fehlt')
     const manifest = await this.readManifest()
     if (manifest.error || !manifest.release) return stageError(manifest.error ?? 'Manifest nicht lesbar')
@@ -241,7 +247,7 @@ export class HttpsUpdateSource implements UpdateSourcePort {
     if (fetched.error || !fetched.response) return stageError(fetched.error ?? 'Download fehlgeschlagen')
     const downloadErr = await downloadInstaller(fetched.response, opts.info, opts.destPath, opts.onProgress)
     if (downloadErr) return downloadErr
-    const fileErr = validateInstallerFile(opts.destPath, opts.info)
+    const fileErr = validateInstallerFile(opts.destPath, opts.info, platformSpec)
     if (fileErr) return fileErr
     const shaErr = await verifyRequiredSha(opts.destPath, opts.info.sha256)
     if (shaErr) return shaErr

@@ -9,18 +9,18 @@ import { createHash } from 'node:crypto'
 import { join, dirname, basename } from 'node:path'
 
 /**
- * Prueft die ersten zwei Bytes auf MZ-Signatur (Windows-PE-Header).
- * Gibt false zurueck wenn die Datei fehlt, zu kurz oder kein 'MZ' ist.
+ * Prueft die ersten Bytes auf die erwartete Magic-Signatur.
+ * Gibt false zurueck wenn die Datei fehlt, zu kurz oder abweichend ist.
  */
-export function checkMzHeader(filePath: string): boolean {
+export function checkMagicHeader(filePath: string, magic: readonly number[]): boolean {
   if (!existsSync(filePath)) return false
-  const buf = Buffer.alloc(2)
+  const buf = Buffer.alloc(magic.length)
   let fd: number | null = null
   try {
     fd = openSync(filePath, 'r')
-    const read = readSync(fd, buf, 0, 2, 0)
-    if (read < 2) return false
-    return buf[0] === 0x4d && buf[1] === 0x5a // 'MZ'
+    const read = readSync(fd, buf, 0, magic.length, 0)
+    if (read < magic.length) return false
+    return magic.every((byte, index) => buf[index] === byte)
   } catch {
     return false
   } finally {
@@ -28,6 +28,14 @@ export function checkMzHeader(filePath: string): boolean {
       try { closeSync(fd) } catch { /* ignorieren */ }
     }
   }
+}
+
+/**
+ * Prueft die ersten zwei Bytes auf MZ-Signatur (Windows-PE-Header).
+ * Gibt false zurueck wenn die Datei fehlt, zu kurz oder kein 'MZ' ist.
+ */
+export function checkMzHeader(filePath: string): boolean {
+  return checkMagicHeader(filePath, [0x4d, 0x5a])
 }
 
 /**

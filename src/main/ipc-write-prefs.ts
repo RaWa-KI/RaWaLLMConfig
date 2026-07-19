@@ -20,12 +20,17 @@ import { appendAudit, makeAuditEntry } from './services/audit-log'
 import { explain } from './services/explain'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { WRITE_DISABLED_REASON } from './ipc-write'
+import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
+import { setRootPrefsProvider } from './services/config-roots'
 
 // Schreib-Store passend zum write-context bauen: im Sandbox-Modus liegen prefs.json
 // + Archiv unter dem Sandbox-Root (Mutation confined), sonst resolved Singleton-Store.
 // Singleton-Aufloesung (resolvePrefsStore) erfolgt EINMAL beim Start via initPrefsStore().
 let _activeStore: PersistencePort | null = null
+let _rootPrefs: Record<string, PrefValue> = {}
+
+function refreshRootPrefs(all: Record<string, PrefValue>): void { _rootPrefs = all }
 
 // Einmalige Initialisierung beim App-Start (in registerPrefsWrite aufrufen).
 // Faellt auf File-Adapter zurueck wenn MariaDB nicht erreichbar.
@@ -39,6 +44,8 @@ export async function initPrefsStore(): Promise<void> {
   } else {
     _activeStore = await resolvePrefsStore()
   }
+  refreshRootPrefs(await _activeStore.getAll())
+  setRootPrefsProvider(() => _rootPrefs)
 }
 
 function getActiveStore(): PersistencePort {
@@ -83,6 +90,10 @@ export async function handlePrefsSet(req: PrefsSetRequest): Promise<PrefsSetResu
   const out = await getActiveStore().set(req.key, value)
   if (!out.ok) return { data: null, error: out.error ?? 'prefs-set-failed' }
   appendAudit(makeAuditEntry('prefs-set', req.key, 'ok'), getWriteContext().auditPath)
+  if (req.key.startsWith('roots.')) {
+    refreshRootPrefs(await getActiveStore().getAll())
+    markScanCachesStale('write:prefs-roots')
+  }
   return { data: { key: req.key, value }, error: null }
 }
 

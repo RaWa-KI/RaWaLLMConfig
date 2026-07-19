@@ -19,7 +19,7 @@ export type PrefsMap = Record<string, PrefValue>
 // Default-Prefs (Basic-Einstellungen): UI-Tweaks aus dem Token-System.
 export const DEFAULT_PREFS: PrefsMap = {
   theme: 'hell',
-  structure: 'retro',
+  structure: 'lines',
   density: 'airy',
   locale: 'de'
 }

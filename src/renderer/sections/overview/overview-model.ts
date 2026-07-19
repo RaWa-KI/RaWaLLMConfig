@@ -1,4 +1,5 @@
 import type { AppData, System, Watcher } from '@shared/contract'
+import { isCoverageInfoEntry } from '@shared/entry-attention'
 import { msg, msgText, type MessageKey } from '../../lib/messages'
 import type { Section } from '../../state/types'
 import type { OverviewNavigationAction } from './overview-navigation'
@@ -26,6 +27,15 @@ export interface OverviewTask {
   nextAction: OverviewNavigationAction
 }
 
+// Readiness-Zeile (F-WP2d D2): ein Grundbereich als schlichte Registerzeile
+// (Status-Punkt + Name + Kurzstatus rechts) — ersetzt die MetricStrip-Karten.
+export interface OverviewReadiness {
+  id: 'config' | 'system' | 'watcher'
+  tone: OverviewTone
+  name: string
+  state: string
+}
+
 export interface OverviewModel {
   readyCount: number
   totalCount: number
@@ -33,8 +43,10 @@ export interface OverviewModel {
   warningTopicCount: number
   warningTopics: string[]
   incompleteCount: number
+  openCount: number
   statusSummary: string
   metrics: OverviewMetric[]
+  readiness: OverviewReadiness[]
   tasks: OverviewTask[]
   nextAction: OverviewNavigationAction
 }
@@ -64,8 +76,13 @@ export function buildOverviewModel(data: {
     warningTopicCount,
     warningTopics,
     incompleteCount,
+    // Echte offene Punkte fuer den Zustands-Stempel (F-WP2d D2): Warnungen
+    // (Coverage-Info/userglobal-Klone bereits herausgerechnet) + nicht
+    // verbundene Grundbereiche. KEINE Gesamtdifferenz aus dem Ordner-Scan.
+    openCount: warningCount + incompleteCount,
     statusSummary: readinessSummary(readyCount, states.length, warningTopicCount, incompleteCount),
     metrics: makeMetrics(readyCount, states.length, warningTopics, incompleteCount),
+    readiness: makeReadiness(states),
     tasks: makeTasks(warningCount, incompleteCount),
     nextAction: fallbackNextAction(warningCount, incompleteCount)
   }
@@ -74,11 +91,15 @@ export function buildOverviewModel(data: {
 function configState(config: AppData | null): AreaState {
   const topic = msg('overview.topic.config')
   if (!config) return { tone: 'incomplete', warnings: 0, topic }
-  const families = Object.values(config.data)
-  const entries = families.flatMap((family) => family.categories.flatMap((cat) => cat.entries))
+  const familyPairs = Object.entries(config.data)
+    .filter(([familyId]) => familyId !== 'userglobal')
+  const entries = familyPairs.flatMap(([familyId, family]) =>
+    family.categories.flatMap((cat) => cat.entries.map((entry) => ({ familyId, entry }))))
   const scanErrors = config.llms.filter((llm) => llm.scanError).length
-  const duplicateCount = families.reduce((sum, family) => sum + family.duplicates.length, 0)
-  const entryWarnings = entries.filter((entry) => entry.status !== 'active').length
+  const duplicateCount = familyPairs.reduce((sum, [, family]) => sum + family.duplicates.length, 0)
+  const entryWarnings = entries.filter((item) => (
+    item.entry.status !== 'active' && !isCoverageInfoEntry(item.entry, item.familyId)
+  )).length
   const warnings = scanErrors + duplicateCount + entryWarnings
   if (entries.length === 0) return { tone: 'incomplete', warnings, topic }
   return { tone: warnings > 0 ? 'warning' : 'ready', warnings, topic }
@@ -145,6 +166,23 @@ function makeMetrics(readyCount: number, totalCount: number, warningTopics: stri
       text: setupText
     }
   ]
+}
+
+function makeReadiness(states: readonly AreaState[]): OverviewReadiness[] {
+  // states liegen in fester Reihenfolge vor: config, system, watcher.
+  const ids = ['config', 'system', 'watcher'] as const
+  return states.map((state, index) => ({
+    id: ids[index],
+    tone: state.tone,
+    name: state.topic,
+    state: readinessState(state)
+  }))
+}
+
+function readinessState(state: AreaState): string {
+  if (state.tone === 'ready') return msg('overview.readiness.state.ready')
+  if (state.tone === 'incomplete') return msg('overview.readiness.state.incomplete')
+  return msg('overview.readiness.state.warning', { count: String(state.warnings) })
 }
 
 export function warningSummary(topicCount: number): string {

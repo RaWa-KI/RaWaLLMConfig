@@ -30,14 +30,16 @@ const STATUS_CSS: Record<StrukturFindingStatus, string> = {
 export function StrukturSection() {
   const [state, setState] = useState<ScanState>({ phase: 'idle' })
 
-  async function runScan(): Promise<void> {
+  async function runScan(force = false): Promise<void> {
     setState({ phase: 'loading' })
     try {
       if (typeof window === 'undefined' || !window.electronAPI?.strukturScan) {
         setState({ phase: 'error', msg: 'Bridge nicht verfuegbar' })
         return
       }
-      const res = await window.electronAPI.strukturScan()
+      // Mount/Wiederkehr nutzt den Main-Cache (invalidiert bei fs-Aenderung);
+      // „Neu scannen" erzwingt einen frischen Lauf (force).
+      const res = await window.electronAPI.strukturScan(force ? { force: true } : undefined)
       if (res.error || !res.data) {
         setState({ phase: 'error', msg: res.error ?? 'Scan fehlgeschlagen' })
       } else {
@@ -59,7 +61,7 @@ export function StrukturSection() {
           <h2>Struktur-Scan</h2>
           <p>Fehlplatzierte oder doppelte Standard-Config-Ordner in 4 Roots (Tiefe max 5).</p>
         </div>
-        <button className="btn-ghost" onClick={() => void runScan()} disabled={state.phase === 'loading'}>
+        <button className="btn-ghost" onClick={() => void runScan(true)} disabled={state.phase === 'loading'}>
           {Icon.refresh}
           {state.phase === 'loading' ? 'Scannt …' : 'Neu scannen'}
         </button>

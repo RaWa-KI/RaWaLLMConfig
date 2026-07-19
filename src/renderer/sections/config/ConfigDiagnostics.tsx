@@ -1,12 +1,13 @@
+import { useState, type ReactNode } from 'react'
 import type { Category } from '@shared/contract'
 import { normalizeCat } from '@shared/cat-key'
 import { msg } from '../../lib/messages'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import type { DisplayMode } from '../../state/types'
 import './ConfigDiagnostics.css'
 
 interface Diagnostic {
+  id: string
   title: string
   meaning: string
   importance: string
@@ -33,6 +34,7 @@ function frontmatterDiagnostics(cat: Category): Diagnostic[] {
   const hinted = cat.entries.filter((e) => e.fields?.['Frontmatter-Hinweis'])
   if (!hinted.length) return []
   return [{
+    id: 'fileHeader',
     title: msg('configWarnings.title.fileHeader'),
     meaning: msg('configWarnings.meaning.fileHeader'),
     importance: msg('configWarnings.importance.fileHeader'),
@@ -49,6 +51,7 @@ function ruleDiagnostics(cat: Category): Diagnostic[] {
   const out: Diagnostic[] = []
   if (globs.length) {
     out.push({
+      id: 'ruleScope',
       title: msg('configWarnings.title.ruleScope'),
       meaning: msg('configWarnings.meaning.ruleScope'),
       importance: msg('configWarnings.importance.ruleScope'),
@@ -59,6 +62,7 @@ function ruleDiagnostics(cat: Category): Diagnostic[] {
   }
   if (always.length) {
     out.push({
+      id: 'alwaysRules',
       title: msg('configWarnings.title.alwaysRules'),
       meaning: msg('configWarnings.meaning.alwaysRules'),
       importance: msg('configWarnings.importance.alwaysRules'),
@@ -74,6 +78,7 @@ function rosterDiagnostics(cat: Category): Diagnostic[] {
   const limit = ROSTER_LIMITS[axis]
   if (!limit || cat.entries.length <= limit.max) return []
   return [{
+    id: `roster-${axis}`,
     title: limit.title,
     meaning: msg('configWarnings.meaning.largeRoster'),
     importance: msg('configWarnings.importance.largeRoster'),
@@ -86,6 +91,7 @@ function tokenDiagnostics(cat: Category): Diagnostic[] {
   const heavy = cat.entries.filter((e) => (e.tokensEstimated ?? 0) > 2000)
   if (!heavy.length) return []
   return [{
+    id: 'largeSources',
     title: msg('configWarnings.title.largeSources'),
     meaning: msg('configWarnings.meaning.largeSources'),
     importance: msg('configWarnings.importance.largeSources'),
@@ -95,29 +101,63 @@ function tokenDiagnostics(cat: Category): Diagnostic[] {
   }]
 }
 
-function DiagnosticItem({ item, displayMode }: { item: Diagnostic; displayMode: DisplayMode }) {
-  const showDetails = displayMode === 'expert'
+// Warnzeile im Kontrollbuch-Registerstil (F-WP6, wie ov-diag-row auf der
+// Startseite): Status-Punkt, Titel, meaning als Kurzzeile, Chevron rechts.
+// Aufgeklappt zeigen sich die Label-Bloecke; technicalDetail ist optional und
+// wird vom Aufrufer modus-abhaengig (Experte) oder immer uebergeben.
+export function ConfigWarningRow(props: {
+  title: string
+  meaning: string
+  importance: string
+  action: string
+  expanded: boolean
+  onToggle(): void
+  technicalDetail?: ReactNode
+}) {
   return (
-    <div className="cfg-diag-item">
-      <span className="cfg-diag-icon">{Icon.warn}</span>
-      <span>
-        <strong>{item.title}</strong>
-        <span><b>{msg('configWarnings.label.meaning')}</b>{item.meaning}</span>
-        <span><b>{msg('configWarnings.label.importance')}</b>{item.importance}</span>
-        <span><b>{msg('configWarnings.label.action')}</b>{item.action}</span>
-        {showDetails && (item.detail || item.names) && (
-          <em>
-            <b>{msg('configWarnings.label.details')}</b>
-            {[item.detail, item.names?.join(', ')].filter(Boolean).join(' ')}
-          </em>
-        )}
-      </span>
-    </div>
+    <article className="cfg-diag-row">
+      <div className="cfg-diag-line">
+        <button type="button" className="cfg-diag-toggle" aria-expanded={props.expanded} onClick={props.onToggle}>
+          <span className="cfg-diag-dot" aria-hidden="true" />
+          <span className="cfg-diag-main">
+            <span className="cfg-diag-title">{props.title}</span>
+            <span className="cfg-diag-sub">{props.meaning}</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          className="cfg-diag-chev"
+          aria-expanded={props.expanded}
+          aria-label={msg('diagnostics.row.toggle')}
+          onClick={props.onToggle}
+        >
+          <span className={props.expanded ? 'cfg-diag-chevron expanded' : 'cfg-diag-chevron'} aria-hidden="true">{Icon.chev}</span>
+        </button>
+      </div>
+      {props.expanded && (
+        <div className="cfg-diag-details">
+          <span><b>{msg('configWarnings.label.meaning')}</b>{props.meaning}</span>
+          <span><b>{msg('configWarnings.label.importance')}</b>{props.importance}</span>
+          <span><b>{msg('configWarnings.label.action')}</b>{props.action}</span>
+          {props.technicalDetail && (
+            <em><b>{msg('configWarnings.label.details')}</b>{props.technicalDetail}</em>
+          )}
+        </div>
+      )}
+    </article>
   )
+}
+
+export function toggleExpanded(current: Set<string>, id: string): Set<string> {
+  const next = new Set(current)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
 }
 
 export function ConfigDiagnostics({ cat }: { cat: Category }) {
   const { ui } = useStore()
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const items = [
     ...frontmatterDiagnostics(cat),
     ...ruleDiagnostics(cat),
@@ -125,10 +165,22 @@ export function ConfigDiagnostics({ cat }: { cat: Category }) {
     ...rosterDiagnostics(cat),
   ]
   if (items.length === 0) return null
+  const expert = ui.displayMode === 'expert'
   return (
     <div className="cfg-diag" role="status" aria-label="Config-Warnungen">
       {items.map((item) => (
-        <DiagnosticItem item={item} displayMode={ui.displayMode} key={item.title} />
+        <ConfigWarningRow
+          key={item.id}
+          title={item.title}
+          meaning={item.meaning}
+          importance={item.importance}
+          action={item.action}
+          expanded={expanded.has(item.id)}
+          onToggle={() => setExpanded((current) => toggleExpanded(current, item.id))}
+          technicalDetail={expert && (item.detail || item.names)
+            ? [item.detail, item.names?.join(', ')].filter(Boolean).join(' ')
+            : undefined}
+        />
       ))}
     </div>
   )

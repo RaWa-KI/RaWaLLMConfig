@@ -6,6 +6,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { IPC_UPDATES, IPC_UPDATES_EVENTS } from '@shared/channels-updates'
 import type {
+  UpdateCheckRequest,
   UpdateCheckResult,
   UpdateDownloadRequest,
   UpdateDownloadResult,
@@ -23,11 +24,12 @@ import { guardedAsync } from './lib/guarded'
  * mainWindow-Aufloesung bis zum send-Zeitpunkt (R7).
  */
 export function registerUpdatesIpc(getMainWindow: () => BrowserWindow | null): void {
-  // updates:check — read-only, ungated (wie prefs:get)
+  // updates:check — read-only, ungated (wie prefs:get). TTL-Cache im Manager;
+  // req.force umgeht ihn (explizite Nutzer-Aktion). Kanal-Vertrag unveraendert.
   ipcMain.handle(
     IPC_UPDATES.updatesCheck,
-    (): Promise<UpdateCheckResult> =>
-      guardedAsync('check', () => mgr.checkForUpdates())
+    (_evt, req?: UpdateCheckRequest): Promise<UpdateCheckResult> =>
+      guardedAsync('check', () => mgr.checkForUpdates({ force: req?.force === true }))
   )
 
   // updates:getState — read-only, ungated

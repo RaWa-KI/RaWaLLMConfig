@@ -36,7 +36,7 @@ html[data-structure="emboss"] .ea-btn { border: 1px solid var(--border); box-sha
 
 .ea-btn:not(:disabled):hover { transform: translateY(-1px); }
 html[data-structure="retro"] .ea-btn:not(:disabled):hover { box-shadow: 5px 5px 0 var(--ink-2); }
-.ea-btn:not(:disabled):active { transform: translateY(1px); box-shadow: 2px 2px 0 var(--ink-2); }
+html[data-structure="retro"] .ea-btn:not(:disabled):active { transform: translateY(1px); box-shadow: 2px 2px 0 var(--ink-2); }
 
 /* primary = warmer Akzent (Terra) */
 .ea-btn.primary {

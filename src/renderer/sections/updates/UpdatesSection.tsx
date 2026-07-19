@@ -9,7 +9,7 @@ import './UpdatesSection.css'
 // Praesentations- und Listenmodule liegen colocated in diesem Ordner.
 
 export function UpdatesSection() {
-  const { watcher } = useStore()
+  const { watcher, config } = useStore()
   const [filter, setFilter] = useState('all')
 
   if (watcher.loading) {
@@ -29,5 +29,5 @@ export function UpdatesSection() {
     )
   }
 
-  return <UpdatesDataView filter={filter} onFilter={setFilter} watcher={watcher.data} />
+  return <UpdatesDataView configData={config.data} filter={filter} onFilter={setFilter} watcher={watcher.data} />
 }

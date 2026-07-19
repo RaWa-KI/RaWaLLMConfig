@@ -1,20 +1,27 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { AppData, Category, DuplicateSet, LlmConfig } from '@shared/contract'
 import type { CoverageRow } from '@shared/contract-coverage'
 import { normalizeCat } from '@shared/cat-key'
 import { useStore } from '../../state/store'
+import type { Mode } from '../../state/types'
 import { Icon } from '../../components/Icon'
 import { FocusNotice } from '../../components/FocusNotice'
+import { SectionFallback } from '../../components/SectionFallback'
 import { readOverviewFocus } from '../overview/overview-navigation'
 import { OverviewView, SearchView, type SearchHit } from './config-parts'
 import { DuplicatePanel } from './DuplicatePanel'
 import { ConfigWriteConfirm } from './ConfigWriteConfirm'
-import { CompareView } from '../compare/CompareView'
-import { CoverageView } from '../coverage/CoverageView'
 import { ConfigDiagnostics } from './ConfigDiagnostics'
 import { DiagnosticsSummary } from './DiagnosticsSummary'
+import { CategoryModeTabs } from './CategoryModeTabs'
+import { categoryLabel } from './category-label'
 import { buildHits } from './config-filter'
 import { resolveConfigFocus } from './config-focus'
+
+// Vergleich/Spiegelung als Lazy-Chunks (Teilplan C): selten geoeffnete,
+// datenreiche Views loesen sich aus dem Startbundle.
+const CompareView = lazy(() => import('../compare/CompareView').then((m) => ({ default: m.CompareView })))
+const CoverageView = lazy(() => import('../coverage/CoverageView').then((m) => ({ default: m.CoverageView })))
 
 // Config-Sektion: Kategorie-Sidebar + Anzeige (Uebersicht / Duplikate) oder
 // Suchtreffer. WP-D-a: EntryDetailPanel als Overlay entfernt (dual-drawer-overlay-
@@ -107,6 +114,7 @@ function CategorySidebar({
   searching: boolean
   onPick(id: string): void
 }) {
+  const { ui } = useStore()
   return (
     <aside className="sidebar">
       <div className="side-label">Kategorien</div>
@@ -120,7 +128,7 @@ function CategorySidebar({
             onClick={() => onPick(c.id)}
           >
             <span className="ni-ic">{Icon[c.icon]}</span>
-            <span className="ni-txt">{c.label}</span>
+            <span className="ni-txt">{categoryLabel(ui.displayMode, c)}</span>
             {flag && (
               <span
                 className="ni-flag"
@@ -141,10 +149,26 @@ function CategorySidebar({
 function ConfigMain({ ad }: { ad: LlmConfig }) {
   const { config, ui, actions } = useStore()
   const query = ui.search.trim()
-  const families = config.data?.data ?? {}
+  const allFamilies = config.data?.data
+  // audit ist Register-only (Masterplan Teil E): Suche/Nav ueber data-Keys
+  // exkludiert, damit kein Suchtreffer setLlm('audit') ausloesen kann.
+  const families = useMemo(
+    () => Object.fromEntries(Object.entries(allFamilies ?? {}).filter(([id]) => id !== 'audit')),
+    [allFamilies]
+  )
   const hits = useMemo(
     () => query || ui.statusFilter !== null ? buildHits(families, ui.llm, query, ui.statusFilter) : [],
     [families, query, ui.llm, ui.statusFilter]
+  )
+  // Stabiler Treffer-Handler (Teilplan C): SearchHitRow/EntryRow sind memoized,
+  // ein frischer Inline-Handler pro Render wuerde das memo aushebeln. Hook steht
+  // bewusst VOR dem early return (Rules of Hooks).
+  const openHit = useCallback(
+    (llm: string, catId: string, entryId: string) => {
+      if (llm !== ui.llm) actions.setLlm(llm)
+      actions.openEntry(catId, entryId)
+    },
+    [actions, ui.llm]
   )
   if (query || ui.statusFilter !== null) {
     // Treffer oeffnen. Gleiche Familie: Drawer oeffnet direkt (unveraendert).
@@ -154,16 +178,12 @@ function ConfigMain({ ad }: { ad: LlmConfig }) {
     // Klick — der Owner landet in der Ziel-Familie und oeffnet dort. Ein
     // gekoppeltes Fremd-Oeffnen braucht eine Store-Anpassung (ausserhalb dieses
     // Write-Sets, als needs-shared-file gemeldet).
-    const onOpen = (llm: string, catId: string, entryId: string) => {
-      if (llm !== ui.llm) actions.setLlm(llm)
-      actions.openEntry(catId, entryId)
-    }
     return (
       <SearchView
         hits={hits}
         query={query}
         statusFilter={ui.statusFilter}
-        onOpen={onOpen}
+        onOpen={openHit}
       />
     )
   }
@@ -195,55 +215,76 @@ function diffDataForCategory(ad: LlmConfig, cat: Category, isShared: boolean) {
   }
 }
 
+// Body-Weiche der Kategorie: Uebersicht / Vergleich / Spiegelung / Duplikate.
+// Aus CategoryView extrahiert (HR27-Funktionslimit). Vergleich/Spiegelung sind
+// Lazy-Chunks und haengen an eigenen Suspense-Grenzen (Teilplan C).
+function CategoryBody({
+  ad,
+  cat,
+  mode,
+  isShared,
+  diff,
+  openEntry
+}: {
+  ad: LlmConfig
+  cat: Category
+  mode: Mode
+  isShared: boolean
+  diff: ReturnType<typeof diffDataForCategory>
+  openEntry(id: string): void
+}) {
+  if (mode === 'overview') return <OverviewView cat={cat} onOpen={openEntry} />
+  if (mode === 'compare') {
+    return (
+      <Suspense fallback={<SectionFallback label="Vergleich wird geladen …" />}>
+        <CompareView cat={cat} />
+      </Suspense>
+    )
+  }
+  if (isShared) {
+    return (
+      <Suspense fallback={<SectionFallback label="Spiegelung wird geladen …" />}>
+        <CoverageView rows={diff.coverage} />
+      </Suspense>
+    )
+  }
+  return <DuplicatePanel dups={diff.dups} labels={ad.diffLabels} cat={cat} />
+}
+
 function CategoryView({ ad, cat }: { ad: LlmConfig; cat: Category }) {
   const { ui, actions } = useStore()
   const isShared = ui.llm === 'shared'
   const diff = diffDataForCategory(ad, cat, isShared)
+  // DisplayMode-Weiche (Teil E, Owner-Entscheid D1–D3): simple sieht keine Pfade,
+  // keine Register-Modi (Spiegelung/Vergleich) und keine Diff-Zeilen. Bleibt der
+  // gespeicherte Modus fuer simple unzulaessig, faellt die Anzeige auf Uebersicht
+  // zurueck — ohne State-Eingriff (Wechsel zu expert zeigt den Modus wieder).
+  const expert = ui.displayMode === 'expert'
+  const mode: Mode = expert || (ui.mode === 'overview' || (ui.mode === 'diff' && !isShared)) ? ui.mode : 'overview'
+  // Stabiler Open-Callback (Teilplan C): Inline-Arrow wuerde die Referenz brechen.
+  const openEntry = useCallback((id: string) => actions.openEntry(cat.id, id), [actions, cat.id])
   return (
     <>
       <div className="view-head">
         <div className="view-title">
-          <h2>{cat.label}</h2>
+          <h2>{categoryLabel(ui.displayMode, cat)}</h2>
           <p>
-            {cat.blurb} · <span className="mono">{cat.path}</span>
+            {cat.blurb}
+            {expert && <> · <span className="mono">{cat.path}</span></>}
           </p>
         </div>
-        <div className="mode-tabs">
-          <button
-            type="button"
-            className={'mode-tab' + (ui.mode === 'overview' ? ' on' : '')}
-            onClick={() => actions.setMode('overview')}
-          >
-            {Icon.list}Übersicht
-          </button>
-          <button
-            type="button"
-            className={'mode-tab' + (ui.mode === 'diff' ? ' on' : '')}
-            onClick={() => actions.setMode('diff')}
-          >
-            {Icon.diff}{diff.label}
-            {diff.badge > 0 && <span className="mt-badge">{diff.badge}</span>}
-          </button>
-          <button
-            type="button"
-            className={'mode-tab' + (ui.mode === 'compare' ? ' on' : '')}
-            onClick={() => actions.setMode('compare')}
-          >
-            {Icon.merge}Vergleich
-          </button>
-        </div>
+        <CategoryModeTabs
+          displayMode={ui.displayMode}
+          mode={ui.mode}
+          isShared={isShared}
+          mirrorLabel={diff.label}
+          diffBadge={diff.badge}
+          onMode={actions.setMode}
+        />
       </div>
       <DiagnosticsSummary ad={ad} />
       <ConfigDiagnostics cat={cat} />
-      {ui.mode === 'overview' ? (
-        <OverviewView cat={cat} onOpen={(id) => actions.openEntry(cat.id, id)} />
-      ) : ui.mode === 'compare' ? (
-        <CompareView cat={cat} />
-      ) : isShared ? (
-        <CoverageView rows={diff.coverage} />
-      ) : (
-        <DuplicatePanel dups={diff.dups} labels={ad.diffLabels} cat={cat} />
-      )}
+      <CategoryBody ad={ad} cat={cat} mode={mode} isShared={isShared} diff={diff} openEntry={openEntry} />
     </>
   )
 }

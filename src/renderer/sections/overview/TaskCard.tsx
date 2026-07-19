@@ -4,6 +4,9 @@ import type { DisplayMode, Section } from '../../state/types'
 import type { OverviewTask } from './overview-model'
 import { navigateToOverviewAction } from './overview-navigation'
 
+// Bereichs-Navigation als Registerzeile (F-WP2d D3): neutraler Punkt links,
+// Titel + eine Kurzzeile, Status rechts, Chevron — keine Nav-Karten mehr.
+// Experten-Details bleiben im Experten-Modus unter der Kurzzeile sichtbar.
 interface TaskCardProps {
   task: OverviewTask
   displayMode: DisplayMode
@@ -17,15 +20,14 @@ export function TaskCard({ task, displayMode, onOpen }: TaskCardProps) {
       className={'ov-task' + (task.primary ? ' primary' : '')}
       onClick={() => navigateToOverviewAction(task.nextAction, onOpen)}
     >
-      <span className="ov-task-icon">{Icon[task.icon]}</span>
+      <span className="ov-dot idle" aria-hidden="true" />
       <span className="ov-task-copy">
         <span className="ov-task-title">{task.title}</span>
         <span className="ov-task-body">{task.body}</span>
-        <span className="ov-task-meaning">{task.meaning}</span>
-        <span className="ov-task-status">{msg('tasks.card.status', { status: task.status })}</span>
         {displayMode === 'expert' && <ExpertDetails task={task} />}
       </span>
-      <span className="ov-task-arrow">{Icon.chev}</span>
+      <span className="ov-task-state">{msg('tasks.card.status', { status: task.status })}</span>
+      <span className="ov-task-arrow" aria-hidden="true">{Icon.chev}</span>
     </button>
   )
 }

@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import type { LlmConfig, ConfigEntry } from '@shared/contract'
 import { msg } from '../../lib/messages'
-import { Icon } from '../../components/Icon'
+import { ConfigWarningRow, toggleExpanded } from './ConfigDiagnostics'
 import './ConfigDiagnostics.css'
 
 const ENTRY_TOKEN_LIMIT = 2000
@@ -10,6 +11,15 @@ interface TokenItem {
   cat: string
   entry: ConfigEntry
   tokens: number
+}
+
+interface SummaryWarning {
+  id: string
+  title: string
+  meaning: string
+  importance: string
+  action: string
+  detail: string
 }
 
 function tokenItems(ad: LlmConfig): TokenItem[] {
@@ -34,51 +44,65 @@ function topTokenNames(items: TokenItem[]): string {
     .join(', ')
 }
 
-export function DiagnosticsSummary({ ad }: { ad: LlmConfig }) {
+function summaryWarnings(ad: LlmConfig): SummaryWarning[] {
   const items = tokenItems(ad)
-  const always = items.filter((item) => item.entry.loadMode === 'immer')
-  const alwaysTotal = always.reduce((sum, item) => sum + item.tokens, 0)
+  const alwaysTotal = items
+    .filter((item) => item.entry.loadMode === 'immer')
+    .reduce((sum, item) => sum + item.tokens, 0)
   const heavy = items.filter((item) => item.tokens > ENTRY_TOKEN_LIMIT)
   const missing = missingDescriptions(ad)
-  if (!alwaysTotal && heavy.length === 0 && missing.length === 0) return null
+  const out: SummaryWarning[] = []
+  if (alwaysTotal > 0) {
+    out.push({
+      id: 'startLoad',
+      title: msg('configWarnings.title.startLoad'),
+      meaning: msg('configWarnings.meaning.startLoad'),
+      importance: msg('configWarnings.importance.startLoad'),
+      action: alwaysTotal > START_TOKEN_LIMIT ? msg('configWarnings.action.startLoadHigh') : msg('configWarnings.action.startLoadObserve'),
+      detail: `Always-on Quellen: ca. ${alwaysTotal} Tokens.`,
+    })
+  }
+  if (heavy.length > 0) {
+    out.push({
+      id: 'heavyEntries',
+      title: msg('configWarnings.title.heavyEntries'),
+      meaning: msg('configWarnings.meaning.heavyEntries'),
+      importance: msg('configWarnings.importance.heavyEntries'),
+      action: msg('configWarnings.action.heavyEntries'),
+      detail: topTokenNames(heavy),
+    })
+  }
+  if (missing.length > 0) {
+    out.push({
+      id: 'missingDescriptions',
+      title: msg('configWarnings.title.missingDescriptions'),
+      meaning: msg('configWarnings.meaning.missingDescriptions'),
+      importance: msg('configWarnings.importance.missingDescriptions'),
+      action: msg('configWarnings.action.missingDescriptions'),
+      detail: missing.slice(0, 5).join(', '),
+    })
+  }
+  return out
+}
+
+export function DiagnosticsSummary({ ad }: { ad: LlmConfig }) {
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const warnings = summaryWarnings(ad)
+  if (warnings.length === 0) return null
   return (
     <div className="cfg-diag cfg-diag-summary" role="status" aria-label="Startkontext-Warnungen">
-      {alwaysTotal > 0 && (
-        <div className="cfg-diag-item">
-          <span className="cfg-diag-icon">{Icon.warn}</span>
-          <span>
-            <strong>{msg('configWarnings.title.startLoad')}</strong>
-            <span><b>{msg('configWarnings.label.meaning')}</b>{msg('configWarnings.meaning.startLoad')}</span>
-            <span><b>{msg('configWarnings.label.importance')}</b>{msg('configWarnings.importance.startLoad')}</span>
-            <span><b>{msg('configWarnings.label.action')}</b>{alwaysTotal > START_TOKEN_LIMIT ? msg('configWarnings.action.startLoadHigh') : msg('configWarnings.action.startLoadObserve')}</span>
-            <em><b>{msg('configWarnings.label.details')}</b>Always-on Quellen: ca. {alwaysTotal} Tokens.</em>
-          </span>
-        </div>
-      )}
-      {heavy.length > 0 && (
-        <div className="cfg-diag-item">
-          <span className="cfg-diag-icon">{Icon.warn}</span>
-          <span>
-            <strong>{msg('configWarnings.title.heavyEntries')}</strong>
-            <span><b>{msg('configWarnings.label.meaning')}</b>{msg('configWarnings.meaning.heavyEntries')}</span>
-            <span><b>{msg('configWarnings.label.importance')}</b>{msg('configWarnings.importance.heavyEntries')}</span>
-            <span><b>{msg('configWarnings.label.action')}</b>{msg('configWarnings.action.heavyEntries')}</span>
-            <em><b>{msg('configWarnings.label.details')}</b>{topTokenNames(heavy)}</em>
-          </span>
-        </div>
-      )}
-      {missing.length > 0 && (
-        <div className="cfg-diag-item">
-          <span className="cfg-diag-icon">{Icon.warn}</span>
-          <span>
-            <strong>{msg('configWarnings.title.missingDescriptions')}</strong>
-            <span><b>{msg('configWarnings.label.meaning')}</b>{msg('configWarnings.meaning.missingDescriptions')}</span>
-            <span><b>{msg('configWarnings.label.importance')}</b>{msg('configWarnings.importance.missingDescriptions')}</span>
-            <span><b>{msg('configWarnings.label.action')}</b>{msg('configWarnings.action.missingDescriptions')}</span>
-            <em><b>{msg('configWarnings.label.details')}</b>{missing.slice(0, 5).join(', ')}</em>
-          </span>
-        </div>
-      )}
+      {warnings.map((warning) => (
+        <ConfigWarningRow
+          key={warning.id}
+          title={warning.title}
+          meaning={warning.meaning}
+          importance={warning.importance}
+          action={warning.action}
+          expanded={expanded.has(warning.id)}
+          onToggle={() => setExpanded((current) => toggleExpanded(current, warning.id))}
+          technicalDetail={warning.detail}
+        />
+      ))}
     </div>
   )
 }
