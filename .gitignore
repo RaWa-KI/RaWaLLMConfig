@@ -33,6 +33,9 @@ cockpit-decisions*.json
 graphify-out/
 .claude/compaction-backups/
 
+# Lokale App-Daten (Prefs/Audit-Laufzeit/Scratch; nie committen)
+.rawallmconfig/
+
 # OS / Editor
 .DS_Store
 Thumbs.db

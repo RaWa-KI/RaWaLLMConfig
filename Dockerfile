@@ -15,10 +15,10 @@ WORKDIR /app
 # pnpm aktiviert via corepack auf der im Manifest gepinnten Version.
 ENV PNPM_HOME=/pnpm
 ENV PATH=/pnpm:$PATH
-# Electron-Binary-Download im Build vermeiden: wir bauen nur die JS-Artefakte,
-# die Electron-Runtime-Binary wird hier nicht ausgefuehrt.
-ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
-RUN corepack enable && corepack prepare pnpm@10.33.4 --activate
+# Hinweis: ELECTRON_SKIP_BINARY_DOWNLOAD wurde mit Electron 43 entfernt;
+# der Binary-Download im Build laeuft deshalb normal durch (wir bauen nur
+# JS-Artefakte, die Runtime-Binary wird hier nicht ausgefuehrt).
+RUN corepack enable && corepack prepare pnpm@11.15.0 --activate
 
 # 1) Manifest + Lockfile zuerst fuer einen stabilen Dependency-Cache.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./

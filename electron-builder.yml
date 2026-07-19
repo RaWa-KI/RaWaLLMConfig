@@ -10,7 +10,7 @@ files:
   - package.json
   - out/**/*
 
-electronVersion: "42.3.3"
+electronVersion: "43.1.1"
 
 icon: build/icon.ico
 
