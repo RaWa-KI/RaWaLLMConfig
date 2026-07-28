@@ -2,6 +2,7 @@
 // qa-matrix, user-tasks). Nur Auswertung/Navigation — keine Produktmutation.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { STEP_TIMEOUT_MS } from './timeouts.mjs'
 
 // Hauptnav-Labels der neuen D5-Nav (LlmBar.tsx).
 export const NAV_LABELS = {
@@ -52,7 +53,7 @@ export async function waitForStartup(win, timeoutMs = 30000) {
 // Ein Retry faengt den transienten Start-Overlay-Fall (StartupProgress) ab.
 export async function clickNav(win, label) {
   const btn = win.locator('.llmbar .sec-btn', { hasText: label }).first()
-  await btn.waitFor({ state: 'visible', timeout: 10000 })
+  await btn.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
   try {
     await btn.click({ timeout: 6000 })
   } catch {
@@ -66,7 +67,7 @@ export async function openMoreMenu(win) {
   // Der Mehr-Button rendert im Startwechsel asynchron nach (Befund 2026-07-27,
   // transienter Timeout auf langsamem Runner) — erst Sichtbarkeit abwarten.
   const btn = win.locator('.sec-btn.nav-more')
-  await btn.waitFor({ state: 'visible', timeout: 10000 })
+  await btn.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
   await btn.click({ timeout: 5000 })
   await win.locator('.nav-overflow-menu').waitFor({ state: 'visible', timeout: 5000 })
 }
@@ -103,6 +104,10 @@ export async function setDisplayMode(win, mode) {
 // Schalter per CSS versteckt (`.section-switch > .sec-btn.compact`), sichtbar
 // bleibt nur die TopBar-Variante auf Nicht-Ueberblick-Sektionen. Gibt den
 // genutzten Weg zurueck ('overview-head' | 'topbar').
+// 2026-07-28: Navigation zu Pruefen ueber gotoSection (breiten-unabhaengig)
+// statt clickNav — auf sehr schmalen CI-Fenstern (<=560px) sind saemtliche
+// Leisten-Buttons per CSS versteckt und clickNav lief in den Timeout
+// (Windows-CI Run 7d8363c, '.llmbar .sec-btn' Pruefen >10 s unsichtbar).
 export async function setDisplayModeVisible(win, mode) {
   const label = mode === 'expert' ? 'Experte' : 'Einfach'
   const head = win.locator('.ov-head .display-mode-switch button', { hasText: label })
@@ -113,7 +118,7 @@ export async function setDisplayModeVisible(win, mode) {
     }
     return 'overview-head'
   }
-  await clickNav(win, NAV_LABELS.updates)
+  await gotoSection(win, NAV_LABELS.updates)
   const top = win.locator('.top .display-mode-switch button', { hasText: label })
   await top.waitFor({ state: 'visible', timeout: 5000 })
   if ((await top.getAttribute('aria-pressed')) !== 'true') {
