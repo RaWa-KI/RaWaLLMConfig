@@ -7,7 +7,11 @@ export const UI_SMOKE_TIMEOUT_MS = 120_000
 // mit eigenen Launches brauchen deutlich mehr als die frueheren 50 s.
 export const PERF_SMOKE_TIMEOUT_MS = 240_000
 export const LAUNCH_TIMEOUT_MS = 25_000
-export const STEP_TIMEOUT_MS = 10_000
+// 2026-07-28: 10 s erwiesen sich auf trägen Windows-Shared-Runnern als zu knapp
+// (2× identischer Timeout: erster Section-Button erst nach >10 s sichtbar,
+// Run 30336669003 — diff-los, lokal <1 s). 30 s bleibt weit unter den
+// Gesamtbudgets (120 s/240 s) und filtert weiter echte Haenger heraus.
+export const STEP_TIMEOUT_MS = 30_000
 
 export function withDeadline(work, ms, label) {
   let timer
