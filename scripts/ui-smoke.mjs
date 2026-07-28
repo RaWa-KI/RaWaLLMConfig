@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { closeElectronApp, launchElectronApp } from './audit-probe/launch.mjs'
 import { failPayload, STEP_TIMEOUT_MS, UI_SMOKE_TIMEOUT_MS, withDeadline, writeJson } from './audit-probe/timeouts.mjs'
+import { gotoSection, setDisplayModeVisible } from './audit-probe/qa-helpers.mjs'
 
 const outDir = resolve('tests/audit-runtime/ui-smoke')
 const reportPath = join(outDir, 'ui-smoke.json')
@@ -24,6 +25,11 @@ async function runSmoke() {
     return
   }
   await assertReady(win, result, 'App shell', '.sec-btn, .settings-tabs, .nav-item, .rows, .empty')
+  // Modus-Weiche (D2): System ist ein Experten-Bereich und liegt NUR im
+  // „Mehr"-Menue (gerendert erst bei offenem Menue) — idempotent auf Experte
+  // schalten und breiten-unabhaengig navigieren (CI-Fenster <1120px, Befund
+  // 2026-07-27: „control not found: System" auf dem Windows-Runner).
+  await setDisplayModeVisible(win, 'expert')
   await clickSection(win, result, 'System', 'text=System-Umgebung')
   await clickSection(win, result, 'Prüfen', '.upd-full, .daemon-card, .empty-state')
   await clickSection(win, result, 'Einstellungen', '.settings-tabs')
@@ -54,7 +60,9 @@ async function assertNotBlank(win, result) {
 
 async function clickSection(win, result, label, readySelector) {
   const started = Date.now()
-  await clickControl(win, '.sec-btn', label)
+  // Breiten-unabhaengig (qa-helpers): Leisten-Button sichtbar -> Direktklick,
+  // sonst Weg ueber das „Mehr"-Menue (schmale Fenster / Menue-only-Bereiche).
+  await gotoSection(win, label)
   await waitReady(win, readySelector)
   result.steps.push({ id: `section:${label}`, ms: Date.now() - started })
   writeJson(reportPath, result)

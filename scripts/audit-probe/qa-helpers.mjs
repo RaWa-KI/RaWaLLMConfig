@@ -63,7 +63,11 @@ export async function clickNav(win, label) {
 }
 
 export async function openMoreMenu(win) {
-  await win.locator('.sec-btn.nav-more').click({ timeout: 5000 })
+  // Der Mehr-Button rendert im Startwechsel asynchron nach (Befund 2026-07-27,
+  // transienter Timeout auf langsamem Runner) — erst Sichtbarkeit abwarten.
+  const btn = win.locator('.sec-btn.nav-more')
+  await btn.waitFor({ state: 'visible', timeout: 10000 })
+  await btn.click({ timeout: 5000 })
   await win.locator('.nav-overflow-menu').waitFor({ state: 'visible', timeout: 5000 })
 }
 
