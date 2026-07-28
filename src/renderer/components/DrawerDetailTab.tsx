@@ -33,7 +33,7 @@ export function DrawerDetailTab({ cat, entry, onCompare }: DetailTabProps) {
   const [editOpen, setEditOpen] = useState(false)
   // Stabiler kind-Bezug -> explain.ts leitet daraus Familie UND Element-Klasse ab
   // (classOf ist kind-getrieben; kein hartcodiertes GENERIC mehr).
-  const explain = useExplain(explainKind(ui.llm, cat.id), entry.name)
+  const explain = useExplain(explainKind(ui.llm, cat.id), entry.name, entry.desc)
   return (
     <div className="drawer-detail-tab">
       <ConflictResolution entry={entry} onEdit={() => setEditOpen(true)} onCompare={onCompare} />

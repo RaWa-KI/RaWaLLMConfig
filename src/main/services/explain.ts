@@ -20,51 +20,55 @@ const FAMILY: Record<string, string> = {
 // Hooks bewusst ausfuehrlich (F5): warum/wann/Wirkung in Alltagssprache.
 const KIND: Record<string, string> = {
   hook:
-    'Ein Hook ist ein automatischer Ausloeser. Zu einem festen Zeitpunkt (z.B. vor ' +
-    'einem Befehl oder beim Start) laeuft eine kleine Pruefung oder Aktion ab — ohne ' +
-    'dass du etwas tust. Hooks koennen warnen, blockieren oder etwas vorbereiten.',
+    'Ein Hook ist ein automatischer Auslöser. Zu einem festen Zeitpunkt (z. B. vor ' +
+    'einem Befehl oder beim Start) läuft eine kleine Prüfung oder Aktion ab — ohne ' +
+    'dass du etwas tust. Hooks können warnen, blockieren oder etwas vorbereiten.',
   rule:
     'Eine Rule ist eine Verhaltensregel. Sie sagt der KI, woran sie sich in jeder ' +
-    'Sitzung halten soll (z.B. "nie loeschen, immer archivieren"). Sie laeuft kein ' +
+    'Sitzung halten soll (z. B. „nie löschen, immer archivieren"). Sie läuft kein ' +
     'Programm, sondern lenkt das Verhalten.',
   skill:
-    'Ein Skill ist eine abrufbare Faehigkeit fuer einen wiederkehrenden Arbeitsablauf. ' +
+    'Ein Skill ist eine abrufbare Fähigkeit für einen wiederkehrenden Arbeitsablauf. ' +
     'Er wird nur geladen, wenn er gebraucht wird, und liefert eine strukturierte Hilfe.',
   agent:
     'Ein Agent ist ein spezialisierter Helfer mit eigenem Wissen und eigenem Kontext. ' +
-    'Er wird fuer tiefe Aufgaben eines Fachgebiets gerufen.',
+    'Er wird für tiefe Aufgaben eines Fachgebiets gerufen.',
   plugin:
-    'Ein Plugin buendelt mehrere Funktionen (Befehle, Skills, Hooks) als ein Paket, ' +
+    'Ein Plugin bündelt mehrere Funktionen (Befehle, Skills, Hooks) als ein Paket, ' +
     'das man als Ganzes an- oder abschalten kann.',
   setting:
     'Eine Einstellung legt einen Wert oder Schalter fest, nach dem sich das Werkzeug ' +
-    'richtet (z.B. Berechtigungen, Modell, Pfade).',
+    'richtet (z. B. Berechtigungen, Modell, Pfade).',
   mcp:
-    'Ein MCP-Server stellt der KI zusaetzliche Werkzeuge bereit (z.B. Web, Datenbank). ' +
+    'Ein MCP-Server stellt der KI zusätzliche Werkzeuge bereit (z. B. Web, Datenbank). ' +
     'Die KI kann diese Werkzeuge bei Bedarf aufrufen.',
   model:
     'Ein Modell ist ein lokales Sprachmodell, das Anfragen direkt auf diesem Rechner ' +
     'beantwortet — ohne externen Dienst.',
+  endpoint:
+    'Ein Endpoint ist die Adresse eines Dienstes (Servers), der Anfragen entgegennimmt — ' +
+    'z. B. eines lokalen Modell-Servers. Er ist keine Datei, sondern ein laufender ' +
+    'Dienst; geändert wird er am jeweiligen Server, nicht in einer Config-Datei.',
   changelog:
-    'Ein Changelog-Eintrag dokumentiert, was sich an einem Werkzeug geaendert hat ' +
+    'Ein Changelog-Eintrag dokumentiert, was sich an einem Werkzeug geändert hat ' +
     '(Version, Datum, Neuerungen). Reine Information, keine Aktion.',
   team:
-    'Ein Team buendelt mehrere Agenten zu einer Zusammenarbeit. Die Rollen teilen ' +
-    'sich eine Aufgabe auf (z.B. Recherche, Umsetzung, Pruefung), damit groessere ' +
+    'Ein Team bündelt mehrere Agenten zu einer Zusammenarbeit. Die Rollen teilen ' +
+    'sich eine Aufgabe auf (z. B. Recherche, Umsetzung, Prüfung), damit größere ' +
     'Aufgaben strukturiert und parallel bearbeitet werden.',
   instruction:
-    'Eine Instruktion ist eine dauerhafte Anweisung an die KI (z.B. in AGENTS.md ' +
+    'Eine Instruktion ist eine dauerhafte Anweisung an die KI (z. B. in AGENTS.md ' +
     'oder CLAUDE.md). Sie gilt in jeder Sitzung als Grundlage und legt fest, wie ' +
     'sich die KI verhalten und arbeiten soll.',
   sys:
-    'Ein System-Eintrag beschreibt einen Teil der Rechner-Umgebung (z.B. Laufzeit, ' +
+    'Ein System-Eintrag beschreibt einen Teil der Rechner-Umgebung (z. B. Laufzeit, ' +
     'installiertes Werkzeug, Pfad oder Hardware-Detail). Reine Bestandsaufnahme, ' +
     'keine Aktion.'
 }
 
 const GENERIC =
-  'Dieses Element gehoert zur LLM-Konfiguration. Es beschreibt einen Bestandteil ' +
-  'deiner Werkzeug-Einrichtung. Oeffne den Detail-Bereich fuer Pfad und Status.'
+  'Dieses Element gehört zur LLM-Konfiguration. Es beschreibt einen Bestandteil ' +
+  'deiner Werkzeug-Einrichtung. Öffne den Detail-Bereich für Pfad und Status.'
 
 // Familie aus dem stabilen Bezug ableiten (Praefix vor "-" in kind oder name).
 function familyOf(req: ExplainRequest): string | null {
@@ -79,7 +83,7 @@ function familyOf(req: ExplainRequest): string | null {
 // vor "model" greift). Genutzt fuer kind- UND Name-Pruefung.
 const CLASS_ORDER = [
   'instruction', 'changelog', 'setting', 'plugin', 'hook', 'rule',
-  'skill', 'agent', 'team', 'mcp', 'model'
+  'skill', 'agent', 'team', 'mcp', 'model', 'endpoint'
 ]
 
 // Mappt einen Kategorie-/kind-Token (z.B. "hooks", "agents", "instructions",
@@ -113,6 +117,21 @@ function classOf(req: ExplainRequest): string | null {
   return null
 }
 
+// Nutzbare desc: vorhanden und kein Zirkelsatz (wiederholt nur den Namen).
+function usableDesc(req: ExplainRequest): string | null {
+  const d = (req.desc ?? '').trim()
+  if (!d) return null
+  return d.toLowerCase() === req.name.trim().toLowerCase() ? null : d
+}
+
+// Erklaerungs-Koerper: Klassen-Text hat Vorrang; desc ist die inhaltliche Basis
+// und schlaegt GENERIC (nie Zirkel, nie leer).
+function bodyOf(req: ExplainRequest, cls: string | null): string {
+  const desc = usableDesc(req)
+  if (cls) return desc ? `${KIND[cls]} Konkret zu diesem Eintrag: ${desc}` : KIND[cls]
+  return desc ?? GENERIC
+}
+
 /**
  * Regelbasierte Erklaerung fuer ein Element. Deterministisch, laienverstaendlich,
  * ohne Code/Secret. Liefert immer Titel + Text (nie leer).
@@ -124,10 +143,9 @@ export function explain(req: ExplainRequest): ExplainResult {
     }
     const fam = familyOf(req)
     const cls = classOf(req)
-    const famText = fam ? `Gehoert zu: ${FAMILY[fam]}. ` : ''
-    const body = cls ? KIND[cls] : GENERIC
+    const famText = fam ? `Gehört zu: ${FAMILY[fam]}. ` : ''
     const title = req.name || (cls ? cls : 'Element')
-    return { data: { title, text: `${famText}${body}` }, error: null }
+    return { data: { title, text: `${famText}${bodyOf(req, cls)}` }, error: null }
   } catch (err) {
     console.error('[explain]', err instanceof Error ? err.message : 'explain-failed')
     return { data: null, error: 'explain-failed' }

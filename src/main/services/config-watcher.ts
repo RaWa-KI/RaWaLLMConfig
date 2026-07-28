@@ -9,10 +9,14 @@ import { markScanCachesStale } from './scan-invalidation'
 import { configRoots, configWatchRootList } from './config-roots'
 
 const DEBOUNCE_MS = 650
+// Dauerfeuer (Agent-Sessions schreiben staendig) darf den Flush nicht
+// unbegrenzt verhungern lassen: spaetestens nach MAX_WAIT_MS wird gebundelt.
+const MAX_WAIT_MS = 5000
 const WATCHER_REASON = 'fs-change'
 
 let activeWatcher: FSWatcher | null = null
 let debounceTimer: NodeJS.Timeout | null = null
+let firstPendingAt = 0
 let pendingFamilies = new Set<ConfigFamily>()
 let pendingRootKinds = new Set<ConfigRootKind>()
 let currentGetWindow: (() => BrowserWindow | null) | null = null
@@ -62,10 +66,20 @@ function watchedRootMatches(): WatchedRoot[] {
 export function shouldIgnoreConfigPath(filePath: string): boolean {
   const normalized = filePath.replace(/\\/g, '/').toLowerCase()
   const parts = normalized.split('/').filter(Boolean)
-  if (parts.some((part) => ['node_modules', '.git', 'dist', 'build'].includes(part))) return true
+  // Build-/Export-Outputs und VCS/Deps. 'out' + 'dist-release' + 'design-export*'
+  // sind die eigenen Build-Artefakte des beobachteten Projekt-Repos — ein Rebuild
+  // erzeugt dort Event-Lawinen (Hang-Regression 2026-07-27).
+  if (parts.some((part) =>
+    ['node_modules', '.git', 'dist', 'build', 'out', 'dist-release', 'test-results'].includes(part)
+    || part.startsWith('design-export')
+  )) return true
   const base = path.basename(normalized)
   if (base === 'audit-log.ndjson') return true
   if (base.endsWith('.log') || base.endsWith('.tmp')) return true
+  // Session-/DB-Journals laufender Agenten (Claude projects/*.jsonl, Codex
+  // sessions/*.jsonl, goals_1.sqlite-wal): Dauerfeuer ohne Config-Aenderung.
+  if (base.endsWith('.jsonl')) return true
+  if (base.endsWith('.sqlite') || base.endsWith('.sqlite-wal') || base.endsWith('.sqlite-shm')) return true
   return base.endsWith('.lock') || ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock'].includes(base)
 }
 
@@ -96,6 +110,7 @@ export function stopConfigWatcher(): void {
     clearTimeout(debounceTimer)
     debounceTimer = null
   }
+  firstPendingAt = 0
   pendingFamilies = new Set()
   pendingRootKinds = new Set()
   currentGetWindow = null
@@ -109,15 +124,29 @@ export function stopConfigWatcher(): void {
 function queueChange(filePath: string, debounceMs = DEBOUNCE_MS): void {
   if (shouldIgnoreConfigPath(filePath)) return
   const match = classifyConfigPath(filePath)
-  markScanCachesStale(WATCHER_REASON)
   pendingFamilies.add(match.family)
   pendingRootKinds.add(match.rootKind)
-  if (debounceTimer) clearTimeout(debounceTimer)
+  if (debounceTimer) {
+    // Invalidierung erfolgt NICHT pro Event, sondern erst im Flush (Hang-
+    // Regression 2026-07-27: pro-Event-Stale machte den Cache bei Eventflut
+    // permanent ungueltig und jeden Renderer-Reload zum Vollscan).
+    if (Date.now() - firstPendingAt >= MAX_WAIT_MS) {
+      clearTimeout(debounceTimer)
+      debounceTimer = null
+      flushChange()
+      return
+    }
+    clearTimeout(debounceTimer)
+  } else {
+    firstPendingAt = Date.now()
+  }
   debounceTimer = setTimeout(flushChange, debounceMs)
 }
 
 function flushChange(): void {
   debounceTimer = null
+  firstPendingAt = 0
+  markScanCachesStale(WATCHER_REASON)
   const payload = buildPayload()
   pendingFamilies = new Set()
   pendingRootKinds = new Set()

@@ -3,6 +3,7 @@ import { Icon } from '../../components/Icon'
 import { msg } from '../../lib/messages'
 import type { Section } from '../../state/types'
 import type { GuidedFlow, GuidedFlowId } from './guided-flows-model'
+import { navigateToOverviewAction } from './overview-navigation'
 import './GuidedFlows.css'
 
 interface GuidedFlowsProps {
@@ -99,7 +100,9 @@ function FlowPanel(props: { flow: GuidedFlow; onCancel(): void; onOpen(section: 
             props.onReopenOnboarding!()
             return
           }
-          props.onOpen(props.flow.target)
+          // Merkt Ziel, Fokus-ID und Grund, damit die Zielseite die Erklaerbox
+          // zeigt und zum betroffenen Eintrag scrollt.
+          navigateToOverviewAction(props.flow.navigation, props.onOpen)
         }}
       >
         {Icon.arrow}
@@ -114,7 +117,12 @@ function SymptomChoices(props: { symptoms: GuidedFlow['symptoms']; onOpen(sectio
     <div className="ov-flow-symptoms">
       <b>{msg('guidedFlows.symptomTitle')}</b>
       {props.symptoms.map((symptom) => (
-        <button type="button" className="ov-flow-symptom" key={symptom.id} onClick={() => props.onOpen(symptom.target)}>
+        <button
+          type="button"
+          className="ov-flow-symptom"
+          key={symptom.id}
+          onClick={() => navigateToOverviewAction(symptom.navigation, props.onOpen)}
+        >
           <span>{symptom.title}</span>
           <small>{symptom.status} · {symptom.action}</small>
         </button>

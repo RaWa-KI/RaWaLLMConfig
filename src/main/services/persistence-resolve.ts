@@ -49,14 +49,28 @@ async function tryResolveMariadbStore(): Promise<PersistencePort | null> {
     console.info('[prefs] MariaDB-Adapter aktiv')
     return resolvedStore
   } catch (err) {
+    const missingDriver = isMissingDriverError(err)
     console.warn(
-      '[prefs] MariaDB-Init fehlgeschlagen, File-Adapter aktiv:',
+      missingDriver
+        ? '[prefs] MariaDB-Treiber nicht gebaut, File-Adapter aktiv:'
+        : '[prefs] MariaDB nicht erreichbar, File-Adapter aktiv:',
       err instanceof Error ? err.message : 'unbekannt'
     )
     storeInfo = {
       adapter: 'file',
-      fallbackReason: 'Lokaler Datei-Modus (DB nicht erreichbar)'
+      fallbackReason: missingDriver
+        ? 'Lokaler Datei-Modus (Datenbank-Treiber nicht gebaut)'
+        : 'Lokaler Datei-Modus (Datenbank nicht erreichbar)'
     }
     return null
   }
+}
+
+// Trennt fehlenden Treiber/Adapter (Paket nicht mitgebaut) von einem echten
+// Verbindungsfehler. Der Treiber wird erst zur Laufzeit dynamisch geladen.
+function isMissingDriverError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code
+  if (code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') return true
+  const message = err instanceof Error ? err.message : ''
+  return /cannot find (module|package)/i.test(message)
 }

@@ -3,7 +3,9 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import type { Category, ConfigEntry, LlmConfig, Scope } from '@shared/contract'
-import { configRoots } from '../services/config-roots'
+import { normalizePathForCompare } from '@shared/path-compare'
+import { configRoots, workspaceRoots } from '../services/config-roots'
+import type { ConfigRoots } from '../services/config-roots'
 import { scanAllWikilinks } from './reference-sweep'
 import { auditRegistryPaths } from './registry-audit'
 import { crosscheckHooks } from './hook-crosscheck'
@@ -20,13 +22,15 @@ interface AuditEntry {
   scope?: Scope
 }
 
-export function buildAuditConfig(roots = configRootList()): LlmConfig {
+export function buildAuditConfig(): LlmConfig {
+  const roots = configRoots()
+  const anchor = roots.projectRoot ?? roots.sharedClaude ?? ''
   const cats = [
-    cat('audit-references', 'Referenz-Audit', 'list', roots[0] ?? '', refs(roots)),
+    cat('audit-references', 'Referenz-Audit', 'list', anchor, refs(wikilinkScanSpec(roots))),
     cat('audit-registry', 'Registry-Audit', 'list', registryPath(), registry()),
-    cat('audit-hooks', 'Hook-Audit', 'hook', roots[0] ?? '', hooks()),
-    cat('audit-hr27', 'HR27-Audit', 'rule', roots[0] ?? '', hr27(roots)),
-    cat('audit-memory', 'Memory-Audit', 'agent', roots[0] ?? '', memory(memoryRoots())),
+    cat('audit-hooks', 'Hook-Audit', 'hook', anchor, hooks()),
+    cat('audit-hr27', 'HR27-Audit', 'rule', anchor, hr27(hr27Roots(roots))),
+    cat('audit-memory', 'Memory-Audit', 'agent', anchor, memory(memoryRoots())),
   ].filter((c): c is Category => c !== null)
   return { categories: cats, duplicates: [] }
 }
@@ -36,26 +40,39 @@ function cat(id: string, label: string, icon: string, p: string, rows: AuditEntr
   return {
     id, label, icon, path: p,
     blurb: `${rows.length} Findings aus read-only Audit-Scannern`,
-    entries: rows.map((row) => entry(id, row)),
+    entries: [summaryEntry(id, label, rows, p)],
   }
 }
 
-function entry(catId: string, row: AuditEntry): ConfigEntry {
+// B10-Buendelung: max. EINE Karte je Audit-Kategorie mit Zaehler (Kartenflut-
+// Fix). Verifiziert: data.audit-Findings laufen NICHT ueber die Diagnose-
+// Karten (isCoverageInfoEntry mit familyId 'audit' filtert sie dort heraus —
+// Register-only seit Masterplan Teil E); die Register-Zeilen entstehen direkt
+// aus diesen Eintraegen, daher sitzt die Buendelung hier an der Datenquelle.
+// Die Summary traegt Zaehler + die ersten Beispiele als Laien-Kontext (HR28).
+function summaryEntry(catId: string, label: string, rows: AuditEntry[], p: string): ConfigEntry {
+  const examples = rows.slice(0, 3).map((row) => row.name).join(', ')
+  const reason = rows.length <= 3 ? `Befunde: ${examples}` : `${rows.length} Befunde, z. B.: ${examples}`
   return {
-    id: `${catId}-${slug(row.id)}`,
-    name: row.name,
+    id: `${catId}-summary`,
+    name: `${rows.length} Befunde`,
     status: 'conflict',
-    scope: row.scope ?? 'project',
-    path: row.path,
-    desc: row.reason,
-    updated: mtimeSafe(row.path),
-    fields: row.fields,
-    conflictReason: row.reason,
+    scope: 'project',
+    path: p,
+    desc: reason,
+    updated: mtimeSafe(p),
+    fields: { Befunde: String(rows.length), Kategorie: label },
+    conflictReason: reason,
   }
 }
 
-function refs(roots: string[]): AuditEntry[] {
-  return scanAllWikilinks(roots).map((f) => ({
+interface WikilinkScanSpec {
+  roots: string[]
+  extraFiles: string[]
+}
+
+function refs(spec: WikilinkScanSpec): AuditEntry[] {
+  return scanAllWikilinks(spec.roots, spec.extraFiles).map((f) => ({
     id: `${f.filePath}-${f.line}-${f.target}`,
     name: f.target,
     path: f.filePath,
@@ -122,8 +139,50 @@ function memoryDirs(roots: string[]): string[] {
   return [...new Set(out)]
 }
 
-function configRootList(): string[] {
-  const r = configRoots()
+// B10: Wikilink-Sweep-Wurzeln — bisher nur projectRoot + sharedClaude,
+// weshalb Links auf Dateien in den Tool-Homes (~/.claude, ~/.codex) oder in
+// registrierten Nachbar-Workspaces faelschlich als tot gemeldet wurden.
+// SCOPE-BEGRENZUNG (Performance, Pflicht): Tool-Homes und Workspace-Wurzeln
+// werden NICHT voll gewalkt — nur ihre Config-/Doku-Teilbaeume (bekannte
+// Unterordner aus DOC_SUBDIRS) plus ihr Top-Level-Markdown (extraFiles).
+// Voll-Quellbaeume (src/, Projekte-Baeume, Plugin-Caches, Session-Daten wie
+// ~/.claude/projects) bleiben ausgenommen. projectRoot und sharedClaude
+// bleiben Voll-Walk (bisheriges Verhalten, reine Config-/Doku-Baeume).
+const DOC_SUBDIRS = new Set([
+  '.claude', '.codex', '.kimi-code', '.agents',
+  'agents', 'skills', 'rules', 'hooks', 'commands', 'docs', 'doc',
+])
+const DOC_FILE_RX = /\.(md|mdx|txt)$/i
+
+function wikilinkScanSpec(r: ConfigRoots): WikilinkScanSpec {
+  const roots: string[] = []
+  const extraFiles: string[] = []
+  if (r.projectRoot) roots.push(r.projectRoot)
+  if (r.sharedClaude) roots.push(r.sharedClaude)
+  collectDocTargets(r.claudeHome, roots, extraFiles)
+  collectDocTargets(r.codexHome, roots, extraFiles)
+  for (const ws of workspaceRoots()) {
+    // projectRoot wird bereits voll gewalkt — keine Doppelarbeit.
+    if (r.projectRoot && normalizePathForCompare(ws.root, process.platform) === normalizePathForCompare(r.projectRoot, process.platform)) continue
+    collectDocTargets(ws.root, roots, extraFiles)
+  }
+  return { roots: [...new Set(roots)], extraFiles: [...new Set(extraFiles)] }
+}
+
+function collectDocTargets(root: string, roots: string[], extraFiles: string[]): void {
+  let dirents: fs.Dirent[]
+  try { dirents = fs.readdirSync(root, { withFileTypes: true }) } catch { return }
+  for (const d of dirents) {
+    const abs = path.join(root, d.name)
+    if (d.isDirectory() && DOC_SUBDIRS.has(d.name.toLowerCase())) roots.push(abs)
+    else if (d.isFile() && DOC_FILE_RX.test(d.name)) extraFiles.push(abs)
+  }
+}
+
+// HR27 bleibt bewusst auf den bisherigen zwei Wurzeln (Scope-Begrenzung):
+// Tool-Homes enthalten Plugin-Caches, Workspace-Wurzeln Voll-Quellbaeume —
+// scanHr27 darf nicht auf ganze Workspace-Baeume losgelassen werden.
+function hr27Roots(r: ConfigRoots): string[] {
   return [r.projectRoot, r.sharedClaude].filter((root): root is string => root !== null)
 }
 
@@ -160,6 +219,3 @@ function registryPath(): string {
   return sharedRoot ? path.join(sharedRoot, 'coordination', 'registry') : ''
 }
 
-function slug(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 120)
-}

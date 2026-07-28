@@ -3,12 +3,20 @@
 // Quellen: Claude ~/.claude.json (Feld mcpServers), Codex ~/.codex/config.toml
 // (Sektionen [mcp_servers.*]), Shared .shared/.claude/plugins (Plugin-Bundles).
 // Jede fs-Op in try/catch; bei Fehler stderr-Log ohne Secret und leeres Ergebnis.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
 import type { Category, ConfigEntry, EntryStatus, Scope } from '@shared/contract'
 import { isSecretPathForRead } from '../services/secret-guard'
 import { configRoots } from '../services/config-roots'
 import { invalidConfigEntry } from './scan-invalid-entry'
+import {
+  claudeTransport,
+  detectPluginTransport,
+  isMcpDeclarationFile,
+  mcpFileName,
+  pluginManifestPath,
+  transportFromMcpJson,
+} from './mcp-manifest'
 
 // Quell-Pfade aus der Single Source. .claude.json liegt NEBEN ~/.claude (parent
 // von claudeHome), config.toml unter codexHome. Default = real (M1 unveraendert);
@@ -24,13 +32,15 @@ const SHARED_PLUGINS_DIR = ROOTS.sharedClaude ? join(ROOTS.sharedClaude, 'plugin
 const MCP_SOURCES_ARE_SECRET_BEARING = true
 
 // Eine Familien-Kategorie (id="plugins") aus Server-Namen+Transport bauen.
+// path je Server ist optional: Shared-Eintraege tragen ihr EIGENES Manifest,
+// damit "Bearbeiten" eine Datei oeffnet und nicht am Sammelordner scheitert.
 function buildCategory(
   filePath: string,
   scope: Scope,
-  servers: { name: string; transport: string; status?: EntryStatus }[]
+  servers: { name: string; transport: string; status?: EntryStatus; path?: string }[]
 ): Category {
   const entries: ConfigEntry[] = servers.map((s) =>
-    mcpEntry(s.name, s.transport, filePath, scope, s.status)
+    mcpEntry(s.name, s.transport, s.path ?? filePath, scope, s.status)
   )
   return {
     id: 'plugins',
@@ -87,15 +97,7 @@ function mcpEntry(
   }
 }
 
-// Transport-Typ aus einem Claude-mcpServers-Eintrag ableiten — ohne Werte.
-function claudeTransport(cfg: unknown): string {
-  if (!cfg || typeof cfg !== 'object') return 'unbekannt'
-  const rec = cfg as Record<string, unknown>
-  if (typeof rec.type === 'string' && rec.type) return rec.type
-  if (typeof rec.url === 'string') return 'http'
-  if (typeof rec.command === 'string') return 'stdio'
-  return 'unbekannt'
-}
+// (claudeTransport liegt seit dem HR27-Split in mcp-manifest.ts)
 
 // Strukturelle Quelle freigeben: nur secret-bearing Strukturquellen (SSOT) werden
 // rein strukturell geparst (Namen/Transport), nie inhaltlich gesurft.
@@ -206,24 +208,30 @@ function collectTomlServers(lines: string[]): { name: string; transport: string 
   return servers
 }
 
-// Shared: .shared/.claude/plugins/*.json oder plugin-Bundle-Ordner scannen.
-// W8-Fix: gibt Plugin-Bundles als MCP-Eintraege zurueck statt fest null.
-// Erkennt Ordner mit mcp_server.json / server.json / plugin.json als Transport-Hinweis.
+// Shared: .shared/.claude/plugins — MCP-Server werden ausschliesslich ueber eine
+// echte Deklaration erkannt (.mcp.json bzw. klassisches Server-Manifest mit
+// url/command). Ein blosser Ordner oder ein Plugin-Manifest ist KEIN MCP-Server:
+// der alte Ordner-Fallback hat jedes Plugin als MCP-Server ausgegeben und damit
+// flaechendeckend Falsch-Konflikte erzeugt.
 // NIE Secret-Werte lesen — nur Namen + Transport-Schluessel.
 function scanSharedMcp(): Category | null {
   try {
     if (!SHARED_PLUGINS_DIR) return notConfiguredSharedMcp()
     if (!existsSync(SHARED_PLUGINS_DIR)) return null
-    const servers: { name: string; transport: string }[] = []
+    const servers: { name: string; transport: string; path: string }[] = []
     const entries = readdirSync(SHARED_PLUGINS_DIR, { withFileTypes: true })
     for (const d of entries) {
-      if (d.name.startsWith('.') || isSecretPathForRead(d.name)) continue
+      if (isSecretPathForRead(d.name)) continue
       if (d.isDirectory()) {
-        const transport = detectPluginTransport(join(SHARED_PLUGINS_DIR, d.name))
-        if (transport) servers.push({ name: d.name, transport })
-      } else if (d.isFile() && /\.json$/i.test(d.name) && !isSecretPathForRead(d.name)) {
-        // Top-Level JSON als MCP-Manifest (z.B. bundles.json)
-        servers.push({ name: d.name.replace(/\.json$/i, ''), transport: 'manifest' })
+        if (d.name.startsWith('.')) continue
+        const dir = join(SHARED_PLUGINS_DIR, d.name)
+        const transport = detectPluginTransport(dir)
+        // path zeigt auf das eigene Manifest des Plugins, nicht auf den Sammelordner
+        if (transport) servers.push({ name: d.name, transport, path: pluginManifestPath(dir) })
+      } else if (d.isFile() && isMcpDeclarationFile(d.name)) {
+        // Top-Level-Deklaration (.mcp.json / mcp.json) fuer den Plugins-Ordner
+        const fp = join(SHARED_PLUGINS_DIR, d.name)
+        servers.push({ name: mcpFileName(d.name), transport: transportFromMcpJson(fp), path: fp })
       }
     }
     if (servers.length === 0) return null
@@ -242,29 +250,7 @@ function notConfiguredSharedMcp(): Category {
   }
 }
 
-// Transport eines Plugin-Ordners aus Definitions-JSON-Keys ableiten (kein Wert-Read).
-function detectPluginTransport(pluginDir: string): string | null {
-  const manifests = ['mcp_server.json', 'server.json', 'plugin.json', 'manifest.json']
-  for (const m of manifests) {
-    const fp = join(pluginDir, m)
-    if (!existsSync(fp)) continue
-    try {
-      const json = JSON.parse(readFileSync(fp, 'utf8')) as Record<string, unknown>
-      const keys = new Set(Object.keys(json).map((k) => k.toLowerCase()))
-      if (keys.has('url') || keys.has('baseurl') || keys.has('endpoint')) return 'http'
-      if (keys.has('command') || keys.has('cmd') || keys.has('bin')) return 'stdio'
-      return 'plugin-bundle'
-    } catch {
-      return 'plugin-bundle'
-    }
-  }
-  // Kein Manifest: pruefen ob ueberhaupt Dateien vorhanden
-  try {
-    const st = statSync(pluginDir)
-    if (st.isDirectory()) return 'plugin-bundle'
-  } catch { /* ignore */ }
-  return null
-}
+// (MCP-Deklarations-/Manifest-Erkennung liegt seit dem HR27-Split in mcp-manifest.ts)
 
 // Namen-Set aus einer MCP-Kategorie extrahieren (fuer Konflikt-Erkennung).
 export function mcpNames(cat: Category | null): Set<string> {

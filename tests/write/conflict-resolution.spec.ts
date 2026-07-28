@@ -12,10 +12,22 @@ test('conflict copy keeps technical detail for experts and routes comparison rea
   expect(conflictResolution).toContain('<span>Unterschiede ansehen</span>')
   expect(conflictResolution).toContain('onClick={onCompare}')
   expect(drawer).toContain("actions.setMode('compare')")
-  expect(drawer).toContain('actions.setCompareSelection(ids)')
-  expect(drawer).toContain("actions.setMode('compare')")
-  expect(drawer).toContain("found.cat.entries.filter((candidate) => candidate.path)")
+  // Nachzug: statt pauschaler Kategorie-Auswahl setzt der Drawer jetzt ein
+  // Konflikt-Preset (nur das Konfliktpaar) — das war die Fehlerbehebung, weil
+  // "Unterschiede ansehen" mit der alten Pauschalauswahl wirkungslos war.
+  expect(drawer).toContain('const preset = conflictComparePreset(found.cat, found.entry, { section: ui.section, llm: ui.llm })')
+  expect(drawer).toContain('actions.setCompareSelection(preset.candidates.map((candidate) => candidate.id))')
+  expect(drawer).toContain('actions.setComparePreset(preset)')
   expect(drawer).toContain("displayMode === 'expert' && <span className=\"drawer-conflict-reason\">")
+})
+
+// P0-Nachzug: Der Text zur Richtung "nur im MCP-Register" darf nicht mehr
+// vorschlagen, vorhandene Plugin-Dateien zu "ergaenzen" — der echte Fall ist ein
+// Namens-/Pfad-Versatz zwischen Registereintrag und Ordner.
+test('conflict copy for register-only entries points to the name mismatch', () => {
+  expect(conflictResolution).not.toContain('die fehlenden Plugin-Dateien ergänzen')
+  expect(conflictResolution).toContain('Ein eingetragener MCP-Server hat keinen gleichnamigen Plugin-Ordner.')
+  expect(conflictResolution).toContain('wie der Ordner wirklich heißt')
 })
 
 test('duplicate layer chips use everyday German labels', () => {

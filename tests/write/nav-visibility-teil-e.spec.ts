@@ -154,6 +154,22 @@ test('review fixes e-wp1: switch visibility, safe routing, settings gating', () 
   expect(navVisibility).toContain("export { isExpertOnlySection, sectionVisibleForMode } from '../state/section-visibility'")
 })
 
+test('overflow menu marks mid task entries so they hide above the 1120px breakpoint', () => {
+  // Regression 2026-07-27 (Owner-Befund): Wiederherstellen/Einstellungen
+  // erschienen >1120px doppelt — in der Leiste UND im „Mehr"-Menue. Die
+  // slice(3)-Eintraege sind nur fuer <=1120px (wo die Leisten-Buttons per CSS
+  // ausgeblendet sind) und bekommen dafuer eine eigene Klasse.
+  expect(llmBar).toContain("{ id: 'archiv', labelKey: 'tasks.restore.title', icon: 'snap', midOverflow: true }")
+  expect(llmBar).toContain("{ id: 'settings', labelKey: 'chrome.detail.prefs', icon: 'gear', midOverflow: true }")
+  expect(llmBar).toContain("menuItem && item.midOverflow ? ' menu-mid' : ''")
+  // Breite Default: mid-Eintraege im Menue versteckt; ab 1120px sichtbar.
+  expect(workbenchShell).toContain('.nav-overflow-menu .menu-mid { display: none; }')
+  const media1120 = workbenchShell.slice(workbenchShell.indexOf('@media (max-width: 1120px)'))
+  expect(media1120).toContain('.nav-overflow-menu .menu-mid { display: flex; }')
+  // Mobile Eintraege (erste drei) bleiben unveraendert verdrahtet.
+  expect(workbenchShell).toContain('.nav-overflow-menu .menu-mobile { display: none; }')
+})
+
 function menuItems(): ReadonlyArray<{ id: Section }> {
   return [{ id: 'referenz' }, { id: 'baum' }, { id: 'graph' }, { id: 'system' }, { id: 'struktur' }]
 }

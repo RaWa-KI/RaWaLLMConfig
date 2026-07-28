@@ -7,6 +7,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
 import { scanWatcherLive, sourceState, type WatcherRoots } from '../../src/main/scan/watcher-live'
+import type { WatcherSource, WatcherChangelog } from '../../shared/contract'
+import { changelogFeed, parseChangelogName } from '../../src/main/scan/changelog-feed'
 
 // CI-Guard: Roots duerfen NIE im realen Home/.shared liegen.
 function assertSandbox(roots: WatcherRoots): void {
@@ -49,7 +51,7 @@ test('watcher-live liefert daemon+sources+changelogs aus Scope-B-Fixtures', asyn
   const w = await scanWatcherLive(roots)
   expect(w.daemon.status).toBe('Ready')
   expect(w.sources.length).toBe(2)
-  expect(w.sources.map((s) => s.name)).toContain('Claude Code CLI')
+  expect(w.sources.map((s: WatcherSource) => s.name)).toContain('Claude Code CLI')
   expect(w.changelogs.length).toBeGreaterThan(0)
   expect(w.changelogs[0].tool).toBe('claude-code')
 })
@@ -85,7 +87,7 @@ test('Read-Scope ist auf die injizierten Roots begrenzt (kein Read ausserhalb Sc
   expect(readdirSync(roots.referencesDir)).toContain('claude-changelog')
   // Verarbeitung crasht nicht und liefert nur Scope-B-Daten.
   const w = await scanWatcherLive(roots)
-  expect(w.sources.every((s) => s.kind === 'CLI')).toBe(true)
+  expect(w.sources.every((s: WatcherSource) => s.kind === 'CLI')).toBe(true)
 })
 
 // WP9/QUAL-HOCH-03: Nur die exportierte pure Funktion testen — den state der
@@ -96,6 +98,66 @@ test('sourceState vergleicht Versionen numerisch', () => {
   expect(sourceState('2.1.165', '2.1.165')).toBe('current')
   expect(sourceState(undefined, '2.1.165')).toBe('recent')
   expect(sourceState('2.1.165', undefined)).toBe('recent')
+})
+
+// WP-7: Beide realen Namensschemata muessen matchen. Frueher matchte nur A,
+// wodurch der reale Bestand (Schema B) 0 Treffer ergab und ein hartcodierter
+// Platzhalter ausgeliefert wurde.
+test('beide Namensschemata werden erkannt (Datums- UND Versionspraefix)', () => {
+  const a = parseChangelogName('2026-06-04--claude-code--v2026-06-04-hooks.md')
+  expect(a).toMatchObject({ date: '2026-06-04', tool: 'claude-code' })
+
+  const b = parseChangelogName('v002.001.220--2026-07-25--claude-code--v2.1.220.md')
+  expect(b).toMatchObject({ date: '2026-07-25', tool: 'claude-code', version: '2.1.220' })
+
+  // Navigation ist kein Changelog-Eintrag.
+  expect(parseChangelogName('Claude_Code_Changelog_Index.md')).toBeNull()
+  expect(parseChangelogName('README.md')).toBeNull()
+})
+
+test('Feed liefert ordneruebergreifend die juengsten Eintraege (keine feste Allowlist)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'rawallm-watcher-feed-'))
+  const referencesDir = join(root, 'docs', '01-referenz')
+  const trackingDir = join(root, 'coordination', 'tracking')
+  mkdirSync(trackingDir, { recursive: true })
+  // Drei Ordner, davon zwei ausserhalb der frueheren 3er-Allowlist.
+  const files: Record<string, string[]> = {
+    'claude-changelog': [
+      'v002.001.220--2026-07-25--claude-code--v2.1.220.md',
+      'v002.001.219--2026-07-24--claude-code--v2.1.219.md'
+    ],
+    'python-ai-changelog': ['v009.001.001--2026-07-23--pytest--v9.1.1.md', 'README.md'],
+    'wordpress-changelog': ['v007.000.002--2026-01-09--wordpress--v7.0.2.md']
+  }
+  for (const [dir, names] of Object.entries(files)) {
+    mkdirSync(join(referencesDir, dir), { recursive: true })
+    for (const n of names) writeFileSync(join(referencesDir, dir, n), '# changelog\n', 'utf8')
+  }
+  writeFileSync(
+    join(trackingDir, 'toolchain-daemon-state.json'),
+    JSON.stringify({ 'claude-cli': { local_version: '2.1.220', remote_latest: '2.1.220', detected_at: '2026-07-26T16:30:02' } }),
+    'utf8'
+  )
+  const roots = { referencesDir, trackingDir }
+  assertSandbox(roots)
+  const w = await scanWatcherLive(roots)
+
+  // Alle vier versionierten Dateien aus DREI Ordnern, neueste zuerst.
+  expect(w.changelogs.length).toBe(4)
+  expect(w.changelogs.map((c: WatcherChangelog) => c.date)).toEqual(['2026-07-25', '2026-07-24', '2026-07-23', '2026-01-09'])
+  expect(w.changelogs.map((c: WatcherChangelog) => c.tool)).toContain('pytest')
+  expect(w.changelogs.map((c: WatcherChangelog) => c.tool)).toContain('wordpress')
+  // Echter Stand aus dem Daemon-State, kein erfundenes Datum.
+  expect(w.daemon.updated).toBe('2026-07-26')
+})
+
+test('leere Quelle liefert Empty-State statt Platzhalter-Eintrag', () => {
+  const root = mkdtempSync(join(tmpdir(), 'rawallm-watcher-feed-empty-'))
+  const referencesDir = join(root, 'docs', '01-referenz')
+  mkdirSync(join(referencesDir, 'claude-changelog'), { recursive: true })
+  writeFileSync(join(referencesDir, 'claude-changelog', 'README.md'), '# nav\n', 'utf8')
+  expect(changelogFeed(referencesDir)).toEqual([])
+  expect(changelogFeed(join(root, 'gibt-es-nicht'))).toEqual([])
 })
 
 test('graceful empty bei fehlender Quelle (kein Crash)', async () => {

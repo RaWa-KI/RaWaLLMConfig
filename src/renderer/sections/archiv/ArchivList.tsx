@@ -7,6 +7,11 @@ import { fmtSize } from '../../lib/fmt-size'
 // snapshot-Ordner sind read-only markiert. Reine Anzeige — der Restore-Flow
 // (Confirm + Zielpfad + gated Bridge) lebt in ArchivSection/RestoreConfirm.
 
+// Spaltenkoepfe der Backup-Tabelle. Gleiche Reihenfolge wie die Zellen in
+// ArchivRow — die Werte dienen zugleich als data-label fuer die Schmal-Ansicht
+// (<900px), in der die Kopfzeile nicht mehr ins 2-Spalten-Raster passt.
+const COLUMNS = ['Datei', 'Original', 'Zeit', 'Art', 'Größe', 'Aktion'] as const
+
 const KIND_LABEL: Record<ArchiveKind, string> = {
   write: 'Pre-Snapshot',
   archive: 'Archiviert',
@@ -59,9 +64,11 @@ export function ArchivList(props: {
       {groups.map((g) => (
         <section className="archiv-group" key={g.day}>
           <h3 className="archiv-group-head">{g.day} <span className="agh-n">({g.items.length})</span></h3>
-          <div className="archiv-rows">
-            <div className="archiv-row archiv-row--head">
-              <span>Datei</span><span>Original</span><span>Zeit</span><span>Art</span><span>Größe</span><span />
+          <div className="archiv-rows" role="table" aria-label={`Backups vom ${g.day}`}>
+            <div className="archiv-row archiv-row--head" role="row">
+              {COLUMNS.map((c) => (
+                <span key={c} role="columnheader">{c}</span>
+              ))}
             </div>
             {g.items.map((e, i) => (
               <ArchivRow key={`${g.day}-${i}`} entry={e} onRestoreClick={onRestoreClick} />
@@ -77,13 +84,13 @@ function ArchivRow(props: { entry: ArchiveBackupEntry; onRestoreClick: (e: Archi
   const { entry, onRestoreClick } = props
   const restorable = entry.kind === 'write' || entry.kind === 'archive'
   return (
-    <div className={`archiv-row archiv-row--${entry.kind}`}>
-      <code className="archiv-file" title={entry.backupPath}>{baseOf(entry.backupPath)}</code>
-      <span className="archiv-orig" title={entry.originalPath ?? entry.originalName}>{entry.originalName}</span>
-      <span className="archiv-time">{fmtTime(entry.stamp)}</span>
-      <span className={`archiv-kind archiv-kind--${entry.kind}`}>{KIND_LABEL[entry.kind]}</span>
-      <span className="archiv-size">{fmtSize(entry.size)}</span>
-      <span className="archiv-act">
+    <div className={`archiv-row archiv-row--${entry.kind}`} role="row">
+      <code className="archiv-file" role="cell" data-label="Datei" title={entry.backupPath}>{baseOf(entry.backupPath)}</code>
+      <span className="archiv-orig" role="cell" data-label="Original" title={entry.originalPath ?? entry.originalName}>{entry.originalName}</span>
+      <span className="archiv-time" role="cell" data-label="Zeit">{fmtTime(entry.stamp)}</span>
+      <span className={`archiv-kind archiv-kind--${entry.kind}`} role="cell" aria-label={`Art: ${KIND_LABEL[entry.kind]}`}>{KIND_LABEL[entry.kind]}</span>
+      <span className="archiv-size" role="cell" data-label="Größe">{fmtSize(entry.size)}</span>
+      <span className="archiv-act" role="cell">
         {restorable ? (
           <button type="button" className="btn-ghost sm" onClick={() => onRestoreClick(entry)} title="Diese Version wiederherstellen">
             {Icon.refresh}Wiederherstellen

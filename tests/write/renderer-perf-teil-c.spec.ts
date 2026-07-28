@@ -11,7 +11,7 @@
 //    Fehlt der Build, wird er einmalig ausgefuehrt.
 import { test, expect } from '@playwright/test'
 import { execSync } from 'node:child_process'
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { AppData } from '../../shared/contract'
 import { getLocale, setLocale } from '../../shared/messages'
@@ -131,6 +131,40 @@ test('initialVirtualRange: unveraendertes Verhalten bei disabled / ohne Viewport
   expect(initialVirtualRange(5000, 118, 5, true, null)).toEqual({ start: 0, end: 5000 })
   const initial = initialVirtualRange(5000, 118, 5, true, 900)
   expect(initial.end - initial.start).toBeLessThan(200)
+})
+
+// --- 2b) Scroll-Anbindung (WP-8) ------------------------------------------------
+// Die reine Fensterberechnung oben ist nur die halbe Miete: sie wird nur so oft
+// neu ausgewertet, wie useVirtualRows Scroll-Events sieht. scroll-Events
+// bubbeln NICHT, und der einzige echte Scroll-Container der App ist .main
+// (workbench-shell.css; body hat overflow: hidden, das Dokument scrollt nie).
+// Ein Bubble-Listener am window feuerte deshalb beim Scrollen in .main nie —
+// das Renderfenster blieb auf dem Initialwert stehen. Nur die Capture-Phase
+// laeuft window -> ... -> Ziel durch und sieht Element-Scrolls.
+// Betrifft alle drei Nutzer des Hooks: config-parts, CoverageVirtualTable,
+// CompareVirtualRows.
+
+test('useVirtualRows: scroll-Listener liegt in der Capture-Phase (Element-Scroll in .main)', () => {
+  const src = readFileSync(resolve(process.cwd(), 'src/renderer/lib/useVirtualRows.ts'), 'utf8')
+  const add = src.match(/addEventListener\(\s*'scroll'[^)]*\)/)
+  expect(add, 'kein scroll-Listener gefunden').not.toBeNull()
+  expect(add![0], 'scroll-Listener ohne capture: true wird bei .main-Scroll nie gefeuert').toMatch(
+    /capture:\s*true/
+  )
+  // Ohne identisches capture-Flag beim Abmelden bliebe der Listener haengen.
+  const remove = src.match(/removeEventListener\(\s*'scroll'[^)]*\)/)
+  expect(remove, 'kein scroll-Cleanup gefunden').not.toBeNull()
+  expect(remove![0], 'removeEventListener muss dasselbe capture-Flag nutzen').toMatch(
+    /capture:\s*true/
+  )
+})
+
+test('.main ist der Scroll-Container, das Dokument scrollt nie', () => {
+  const shell = readFileSync(
+    resolve(process.cwd(), 'src/renderer/styles/workbench-shell.css'),
+    'utf8'
+  )
+  expect(shell, '.main ohne overflow-y: auto').toMatch(/\.main\s*\{[^}]*overflow-y:\s*auto/)
 })
 
 // --- 3) Chunk-Assert ------------------------------------------------------------

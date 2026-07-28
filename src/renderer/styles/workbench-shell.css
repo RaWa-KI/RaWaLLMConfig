@@ -57,6 +57,9 @@ html[data-structure="emboss"] .nav-overflow-menu { border: 1px solid var(--borde
 .nav-overflow-menu .sec-btn { width: 100%; justify-content: flex-start; }
 .sec-btn.menu-item.compact { gap: 8px; }
 .nav-overflow-menu .menu-mobile { display: none; }
+/* Menü-Einträge der Bereiche 4+5 (Wiederherstellen/Einstellungen): >1120px
+   stehen sie sichtbar in der Leiste — im Menü wären sie Duplikate. */
+.nav-overflow-menu .menu-mid { display: none; }
 
 /* TOPBAR */
 .top {
@@ -188,6 +191,8 @@ html[data-structure="retro"] .mode-tab.on { background: var(--terra); }
      Platz fuer den seit F-WP6 auf jeder Breite sichtbaren Mehr-Button. */
   .section-switch > .sec-btn:nth-of-type(4),
   .section-switch > .sec-btn:nth-of-type(5) { display: none; }
+  /* Ab hier leben die Bereiche 4+5 nur noch im Menü — Einträge einblenden. */
+  .nav-overflow-menu .menu-mid { display: flex; }
   .top .display-mode-switch > .sec-btn.compact { display: inline-flex; }
   .shell { grid-template-columns: minmax(184px, 212px) minmax(0, 1fr); }
   .sidebar { padding: 14px 10px; }

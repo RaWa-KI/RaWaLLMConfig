@@ -23,6 +23,9 @@ import { WRITE_DISABLED_REASON } from './ipc-write'
 import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
 import { setRootPrefsProvider } from './services/config-roots'
+import {
+  legacyRootPrefsSeed, ROOTS_LEGACY_MIGRATION_KEY, type RootPrefs
+} from './services/config-root-resolution'
 
 // Schreib-Store passend zum write-context bauen: im Sandbox-Modus liegen prefs.json
 // + Archiv unter dem Sandbox-Root (Mutation confined), sonst resolved Singleton-Store.
@@ -31,6 +34,29 @@ let _activeStore: PersistencePort | null = null
 let _rootPrefs: Record<string, PrefValue> = {}
 
 function refreshRootPrefs(all: Record<string, PrefValue>): void { _rootPrefs = all }
+
+// Einmalige B13-Migration (Review-Auflage P1): bisherige Default-Wurzeln
+// persistent in die Prefs seeden, damit Bestandsinstallationen ihre bisherige
+// Aufloesung behalten UND die Prefs-UI die Werte zeigt. Idempotent ueber den
+// Marker (legacyRootPrefsSeed liefert bei gesetztem Marker {}); nur im
+// Produktiv-Modus aufgerufen (Sandbox hat explizite Wurzeln). Exportiert
+// fuer den Wiring-Test.
+export async function seedLegacyRootPrefs(
+  store: PersistencePort,
+  all: Record<string, PrefValue>
+): Promise<Record<string, PrefValue>> {
+  const seed = legacyRootPrefsSeed(all as unknown as RootPrefs)
+  const entries = Object.entries(seed)
+  if (entries.length === 0) return all
+  const merged: Record<string, PrefValue> = { ...all }
+  for (const [key, value] of entries) {
+    await store.set(key, value)
+    merged[key] = value
+  }
+  await store.set(ROOTS_LEGACY_MIGRATION_KEY, 'done')
+  merged[ROOTS_LEGACY_MIGRATION_KEY] = 'done'
+  return merged
+}
 
 // Einmalige Initialisierung beim App-Start (in registerPrefsWrite aufrufen).
 // Faellt auf File-Adapter zurueck wenn MariaDB nicht erreichbar.
@@ -41,10 +67,18 @@ export async function initPrefsStore(): Promise<void> {
     const prefsPath = join(ctx.sandboxRoot, 'prefs.json')
     _activeStore = createFilePrefsStore({ prefsPath, archiveRoot: ctx.archiveRoot, auditPath: ctx.auditPath })
     setPrefsStoreInfo({ adapter: 'file', fallbackReason: null })
+    refreshRootPrefs(await _activeStore.getAll())
   } else {
     _activeStore = await resolvePrefsStore()
+    try {
+      refreshRootPrefs(await seedLegacyRootPrefs(_activeStore, await _activeStore.getAll()))
+    } catch (err) {
+      // Persistenz des Seeds fehlgeschlagen — der lazy Seed in
+      // discoverConfigRoots() haelt die Aufloesung trotzdem unveraendert.
+      console.warn('[prefs] Legacy-Root-Migration nicht persistiert:', err)
+      refreshRootPrefs(await _activeStore.getAll())
+    }
   }
-  refreshRootPrefs(await _activeStore.getAll())
   setRootPrefsProvider(() => _rootPrefs)
 }
 

@@ -3,6 +3,7 @@ import { isCoverageInfoEntry } from '@shared/entry-attention'
 import { msg, msgText, type MessageKey } from '../../lib/messages'
 import type { Section } from '../../state/types'
 import type { OverviewNavigationAction } from './overview-navigation'
+import { readinessState, taskMarks, type AreaState, type TaskMark, type TaskMarks } from './overview-task-marks'
 
 export type OverviewTone = 'ready' | 'incomplete' | 'warning'
 
@@ -20,7 +21,12 @@ export interface OverviewTask {
   primaryTerm: string
   meaning: string
   expertTarget: string
+  // Kurzstatus rechts auf der Kachel — kommt aus dem ECHTEN Bereichszustand
+  // (configState/readinessState), nicht mehr aus einem festen Text.
   status: string
+  // Laienverstaendlicher Grund ("fehlt: …" / "offen: …"). Leer, wenn alles
+  // bereit ist — dann steht auf der Kachel bewusst kein Grund.
+  reason: string
   icon: string
   target: Section
   primary: boolean
@@ -51,12 +57,6 @@ export interface OverviewModel {
   nextAction: OverviewNavigationAction
 }
 
-interface AreaState {
-  tone: OverviewTone
-  warnings: number
-  topic: string
-}
-
 export function buildOverviewModel(data: {
   config: AppData | null
   system: System | null
@@ -69,6 +69,7 @@ export function buildOverviewModel(data: {
   const warningTopicCount = warningTopics.length
   const readyCount = states.filter((state) => state.tone === 'ready').length
   const incompleteCount = states.filter((state) => state.tone === 'incomplete').length
+  const tasks = makeTasks(states, warningTopics, warningCount, incompleteCount)
   return {
     readyCount,
     totalCount: states.length,
@@ -83,8 +84,8 @@ export function buildOverviewModel(data: {
     statusSummary: readinessSummary(readyCount, states.length, warningTopicCount, incompleteCount),
     metrics: makeMetrics(readyCount, states.length, warningTopics, incompleteCount),
     readiness: makeReadiness(states),
-    tasks: makeTasks(warningCount, incompleteCount),
-    nextAction: fallbackNextAction(warningCount, incompleteCount)
+    tasks,
+    nextAction: fallbackNextAction(tasks, warningCount, incompleteCount)
   }
 }
 
@@ -179,25 +180,29 @@ function makeReadiness(states: readonly AreaState[]): OverviewReadiness[] {
   }))
 }
 
-function readinessState(state: AreaState): string {
-  if (state.tone === 'ready') return msg('overview.readiness.state.ready')
-  if (state.tone === 'incomplete') return msg('overview.readiness.state.incomplete')
-  return msg('overview.readiness.state.warning', { count: String(state.warnings) })
-}
-
 export function warningSummary(topicCount: number): string {
   if (topicCount <= 1) return msg('overview.warningSummary.one')
   return msg('overview.warningSummary.many', { topicCount: String(topicCount) })
 }
 
-function makeTasks(warningCount: number, incompleteCount: number): OverviewTask[] {
+function makeTasks(
+  states: readonly AreaState[],
+  warningTopics: readonly string[],
+  warningCount: number,
+  incompleteCount: number
+): OverviewTask[] {
   const primary = primaryTask(warningCount, incompleteCount)
-  return taskDefinitions().map((task) => ({ ...task, primary: task.id === primary }))
+  const marks = taskMarks(states, warningTopics, warningCount, incompleteCount)
+  return taskDefinitions(marks).map((task) => ({ ...task, primary: task.id === primary }))
 }
 
-function fallbackNextAction(warningCount: number, incompleteCount: number): OverviewNavigationAction {
+function fallbackNextAction(
+  tasks: readonly OverviewTask[],
+  warningCount: number,
+  incompleteCount: number
+): OverviewNavigationAction {
   const primaryId = primaryTask(warningCount, incompleteCount)
-  return taskDefinitions().find((taskItem) => taskItem.id === primaryId)?.nextAction ?? taskDefinitions()[0].nextAction
+  return tasks.find((taskItem) => taskItem.id === primaryId)?.nextAction ?? tasks[0].nextAction
 }
 
 function primaryTask(warningCount: number, incompleteCount: number): OverviewTask['id'] {
@@ -206,13 +211,15 @@ function primaryTask(warningCount: number, incompleteCount: number): OverviewTas
   return 'change'
 }
 
-function taskDefinitions(): OverviewTask[] {
+// Die Kacheln bekommen ihren Status/Grund jetzt aus marks (echter Zustand),
+// nicht mehr aus einem festen Text.
+function taskDefinitions(marks: TaskMarks): OverviewTask[] {
   return [
-    task('setup', 'tasks.setup', 'plug', 'settings', msg('diagnostics.status.notConfigured')),
-    task('check', 'tasks.check', 'refresh', 'updates', msg('diagnostics.status.problemFound')),
-    task('change', 'tasks.change', 'edit', 'config', msg('simpleMode.backupHint')),
-    task('restore', 'tasks.restore', 'snap', 'archiv', msg('simpleMode.backupHint')),
-    task('expert', 'tasks.expert', 'book', 'referenz', msg('expertDetails.label'))
+    task('setup', 'tasks.setup', 'plug', 'settings', marks.setup),
+    task('check', 'tasks.check', 'refresh', 'updates', marks.check),
+    task('change', 'tasks.change', 'edit', 'config', marks.change),
+    task('restore', 'tasks.restore', 'snap', 'archiv', marks.restore),
+    task('expert', 'tasks.expert', 'book', 'referenz', marks.expert)
   ]
 }
 
@@ -221,7 +228,7 @@ function task(
   keyPrefix: 'tasks.setup' | 'tasks.check' | 'tasks.change' | 'tasks.restore' | 'tasks.expert',
   icon: string,
   target: Section,
-  status: string
+  mark: TaskMark
 ): OverviewTask {
   const title = msgText(`${keyPrefix}.title` as MessageKey)
   const meaning = msgText(`${keyPrefix}.meaning` as MessageKey)
@@ -235,7 +242,8 @@ function task(
     expertTarget,
     icon,
     target,
-    status,
+    status: mark.status,
+    reason: mark.reason,
     primary: false,
     nextAction: {
       label: title,

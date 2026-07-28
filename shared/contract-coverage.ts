@@ -22,12 +22,16 @@ export interface CoverageCell {
 
 // Eine Zeile der Spiegelungs-Matrix (eine logische Config ueber alle Tool-Familien).
 // lines/dir/masked fuer den Drift-Drilldown bei 'abweichend' — reuse bestehende Diff-Anzeige.
+// kimi (WP-8, B9): optionale Zelle fuer ~/.kimi-code — optional, damit
+// Altbestand-Konstruktoren (Tests, fremde Rows) ohne Kimi-Zelle gueltig bleiben;
+// buildCoverage befuellt sie immer.
 export interface CoverageRow {
   cat: string
   name: string
   shared: CoverageCell
   claude: CoverageCell
   codex: CoverageCell
+  kimi?: CoverageCell
   impact?: string
   lines?: DiffLine[]
   dir?: DirCompare

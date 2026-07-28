@@ -7,7 +7,7 @@ import type {
   CoverageCompareRowContext,
 } from '../../state/types'
 
-type FamilyId = 'shared' | 'claude' | 'codex'
+type FamilyId = 'shared' | 'claude' | 'codex' | 'kimi'
 
 export interface CoverageCellView {
   id: FamilyId
@@ -20,6 +20,7 @@ const FAMILIES: Array<{ id: FamilyId; label: string }> = [
   { id: 'shared', label: 'Shared' },
   { id: 'claude', label: 'Claude' },
   { id: 'codex', label: 'Codex' },
+  { id: 'kimi', label: 'Kimi' },
 ]
 
 function stateNote(cell: CoverageCell): string | null {
@@ -34,8 +35,9 @@ function notesFor(cell: CoverageCell): string[] {
   return [cell.note, stateNote(cell)].filter((n): n is string => !!n)
 }
 
+// row.kimi ist optional (Altbestand-Rows ohne Kimi-Zelle) — Fallback 'n-a'.
 function cellFor(row: CoverageRow, id: FamilyId): CoverageCell {
-  return row[id]
+  return row[id] ?? { state: 'n-a' }
 }
 
 export function coverageCells(row: CoverageRow): CoverageCellView[] {

@@ -7,6 +7,7 @@
 // Inhalt (entry.code) nur fuer Nicht-Secret-Textquellen aus agents/rules/skills/
 // tools/references. coordination (D), plugins, hooks bleiben Name/Zaehler-only.
 import path from 'node:path'
+import { existsSync } from 'node:fs'
 import type { Category, ConfigEntry, LlmConfig } from '@shared/contract'
 import { diffLabels } from '@shared/dup-labels'
 import { configRoots } from '../services/config-roots'
@@ -36,17 +37,16 @@ const SHARED_DIFF_LABELS = diffLabels('workspace')
 
 // Scope-Filter A: volle Karten. Slug-Icon je Kategorie (kein Magic-String inline).
 // content=true => Textquellen duerfen als Vorschau getragen werden (nicht-secret).
-const A_CATEGORIES: ReadonlyArray<
-  { id: string; dir: string; label: string; icon: string; blurb: string; content: boolean }
-> = [
-  { id: 'shared-agents', dir: 'agents', label: 'Agents', icon: 'agent', blurb: 'Cross-WS Subagenten (zentral)', content: true },
-  { id: 'shared-rules', dir: 'rules', label: 'Rules', icon: 'rule', blurb: 'Kanonische Verhaltensregeln', content: true },
-  { id: 'shared-skills', dir: 'skills', label: 'Skills', icon: 'skill', blurb: 'Cross-WS Skills (zentral)', content: true },
+// expected=true (B11): Soll-Trunk — bleibt auch leer sichtbar, solange der Parent existiert.
+const A_CATEGORIES: ReadonlyArray<{ id: string; dir: string; label: string; icon: string; blurb: string; content: boolean; expected: boolean }> = [
+  { id: 'shared-agents', dir: 'agents', label: 'Agents', icon: 'agent', blurb: 'Cross-WS Subagenten (zentral)', content: true, expected: true },
+  { id: 'shared-rules', dir: 'rules', label: 'Rules', icon: 'rule', blurb: 'Kanonische Verhaltensregeln', content: true, expected: true },
+  { id: 'shared-skills', dir: 'skills', label: 'Skills', icon: 'skill', blurb: 'Cross-WS Skills (zentral)', content: true, expected: true },
   // Owner-Override #1/#2: hooks (.cjs roh ok) + plugins (README/Manifest-Drilldown)
   // tragen jetzt Inhalt statt "Keine Rohkonfiguration".
-  { id: 'shared-hooks', dir: 'hooks', label: 'Hooks', icon: 'hook', blurb: 'Cross-WS Hooks (zentral)', content: true },
-  { id: 'shared-plugins', dir: 'plugins', label: 'Plugins', icon: 'plug', blurb: 'Cross-WS Plugins (zentral)', content: true },
-  { id: 'shared-tools', dir: 'tools', label: 'Tools', icon: 'gear', blurb: 'Cross-WS Tools/Validatoren', content: true }
+  { id: 'shared-hooks', dir: 'hooks', label: 'Hooks', icon: 'hook', blurb: 'Cross-WS Hooks (zentral)', content: true, expected: true },
+  { id: 'shared-plugins', dir: 'plugins', label: 'Plugins', icon: 'plug', blurb: 'Cross-WS Plugins (zentral)', content: true, expected: true },
+  { id: 'shared-tools', dir: 'tools', label: 'Tools', icon: 'gear', blurb: 'Cross-WS Tools/Validatoren', content: true, expected: true }
 ]
 
 // Scope-Filter D: Zaehler-Eintraege je Unterordner (D_SUBDIRS).
@@ -155,9 +155,16 @@ function buildACategory(def: (typeof A_CATEGORIES)[number]): Category | null {
   const names = listDir(dirAbs)
   const entries = names.map((n) => toEntry(def.id, dirAbs, n, def.content))
   if (def.id === 'shared-agents') entries.push(...pluginAgentEntries())
-  if (entries.length === 0) return null
+  if (entries.length === 0) return def.expected ? emptyShell(def.id, def.label, def.icon, dirAbs, def.blurb) : null
   entries.sort((a, b) => a.name.localeCompare(b.name))
   return { id: def.id, label: def.label, icon: def.icon, path: dirAbs, blurb: def.blurb, entries }
+}
+
+// B11: leere Soll-Kategorie sichtbar als „leer" — nur wenn der Parent
+// (.shared/.claude) existiert; Fremd-Setup bleibt unsichtbar (B13-Bezug).
+function emptyShell(id: string, label: string, icon: string, p: string, blurb: string): Category | null {
+  if (!existsSync(sharedDir)) return null
+  return { id, label, icon, path: p, blurb: `${blurb} – Ordner ist leer`, entries: [] }
 }
 
 // Kanonische Anthropic-/Codex-Instruction-Dateien im .shared/.claude/-Root.
@@ -173,7 +180,8 @@ function buildInstructions(): Category | null {
     if (isSecretHint(path.join(sharedDir, d.name))) continue
     entries.push(toEntry('shared-instr', sharedDir, d.name, true))
   }
-  if (entries.length === 0) return null
+  // B11: Instructions sind Soll-Kategorie — gleiche Leer-Regel wie die A-Trunks.
+  if (entries.length === 0) return emptyShell('shared-instructions', 'Instructions', 'list', sharedDir, 'Kanonische Instruction-Dateien (CLAUDE.md / AGENTS.md)')
   return {
     id: 'shared-instructions',
     label: 'Instructions',

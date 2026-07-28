@@ -81,16 +81,16 @@ const MODULE_COPY: Record<IntegrationId, ModuleCopy> = {
   }
 }
 
+// Statushinweis zur Speicherquelle: Dateispeicherung ist die gewollte
+// Betriebsart (Local-Only-Prinzip), die Datenbank bleibt optional.
 const PREFS_STORE_HINT = {
   de: {
-    title: 'Die App nutzt gerade lokale Dateien',
-    body: 'Die Datenbank ist im Moment nicht erreichbar. Das ist kein Datenverlust: Einstellungen werden weiter lokal gelesen und gespeichert.',
-    action: 'Du kannst weiterarbeiten. Wenn du die Datenbank nutzen willst, prüfe später die lokale MariaDB/Plattform-Anbindung.'
+    title: 'Einstellungen werden lokal gespeichert',
+    body: 'Die App speichert deine Einstellungen direkt auf diesem Computer — so ist sie gedacht. Eine gemeinsame Datenbank ist optional und für diese Version nicht aktiv.'
   },
   en: {
-    title: 'The app is using local files right now',
-    body: 'The database is not reachable at the moment. This is not data loss: settings are still read and saved locally.',
-    action: 'You can keep working. If you want the database path, check the local MariaDB/platform connection later.'
+    title: 'Settings are saved on this computer',
+    body: 'The app saves your settings directly on this computer — that is how it is meant to work. A shared database is optional and not active in this version.'
   }
 } as const
 

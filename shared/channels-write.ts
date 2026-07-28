@@ -38,6 +38,9 @@ export const IPC_WRITE = {
   // Abdeckungs-Bestaetigungen: read-only Liste + gated, wertfreier Ack-Key.
   coverageReadAcks: 'coverage:readAcks',
   coverageWriteAck: 'coverage:writeAck',
+  // Drift-Relation-Festlegungen (WP1): read-only Liste + gated, wertfreier Key.
+  driftReadDecisions: 'drift:readDecisions',
+  driftWriteDecision: 'drift:writeDecision',
   // Vergleichs-Aggregator (read-only): multi-way Zeilenabgleich ueber N Kandidaten
   compareMulti: 'compare:multi',
   // Archiv/Restore (v1): read-only Liste der Backups + gated Einzeldatei-Restore.

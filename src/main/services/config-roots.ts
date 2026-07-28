@@ -1,11 +1,12 @@
 // config-roots.ts — SINGLE SOURCE der vier Config-Wurzeln fuer Scanner + Write-
-// Gate. DEFAULT (kein RAWALLM_SANDBOX_ROOT): exakt die heutigen realen Pfade
-// (homedir/.claude, homedir/.codex, .shared/.claude, Projekt-Root) — byte-/
-// struktur-identisch zum M1-Stand, NICHTS aendert sich. SANDBOX (Env gesetzt):
-// alle vier Wurzeln unter <sandbox> (Owner-M2-Verifikation: Scanner LESEN aus
-// Sandbox, Writes sind bereits dorthin confined). Env wird bei JEDEM Aufruf
-// gelesen (reine Funktion der Env) -> Tests setzen/loeschen Env und rufen direkt.
-// KEINE Secret-Werte, KEIN Schreiben.
+// Gate. DEFAULT (kein RAWALLM_SANDBOX_ROOT): Tool-Homes fest unter homedir();
+// sharedClaude/projectRoot OPTIONAL aus Prefs — per Legacy-Migration
+// (config-root-resolution, MIGRATIONS-CODE) auf Bestandsinstallationen
+// unveraendert, auf Fremd-Systemen null (B13 Portabilitaet). SANDBOX (Env
+// gesetzt): alle vier Wurzeln unter <sandbox> (Owner-M2-Verifikation: Scanner
+// LESEN aus Sandbox, Writes sind bereits dorthin confined). Env wird bei
+// JEDEM Aufruf gelesen (reine Funktion der Env) -> Tests setzen/loeschen Env
+// und rufen direkt. KEINE Secret-Werte, KEIN Schreiben.
 import { join, dirname } from 'node:path'
 import fs from 'node:fs'
 import type { ProviderRoot } from '@shared/contract-provider'
@@ -31,17 +32,18 @@ export type {
 } from './config-root-resolution'
 
 /**
- * Die vier Config-Wurzeln aufloesen. DEFAULT = reale Home-Pfade (M1 unveraendert);
+ * Die vier Config-Wurzeln aufloesen. DEFAULT = Tool-Homes aus homedir(),
+ * sharedClaude/projectRoot aus Prefs/Legacy-Migration (optional, null moeglich);
  * mit RAWALLM_SANDBOX_ROOT = alle unter <sandbox>. Reine Funktion der Env.
  */
 export function configRoots(): ConfigRoots {
   const sb = sandboxRoot()
   if (sb) return sandboxRoots(sb)
-  const defaults = realRoots()
+  const homes = realRoots()
   const discovered = discoverConfigRoots()
   return {
-    claudeHome: defaults.claudeHome,
-    codexHome: defaults.codexHome,
+    claudeHome: homes.claudeHome,
+    codexHome: homes.codexHome,
     sharedClaude: discovered.sharedClaude.value,
     projectRoot: discovered.projectRoot.value
   }
@@ -164,7 +166,7 @@ export function resolveRoots(roots: ProviderRoot[], providerId?: string): string
 // Ein WS-Origin: absolute Wurzel + sprechendes Label fuer die UI-Spalte.
 export interface WorkspaceRoot {
   root: string // absolute lokale WS-Wurzel
-  label: string // sprechender Ursprung, z.B. "Projekte (Parent)" oder "RaWaLLMConfig"
+  label: string // sprechender Ursprung, z.B. "Projektordner" oder "RaWaLLMConfig"
 }
 
 function isLocalAbsolutePath(pathValue: string): boolean {
@@ -176,7 +178,7 @@ function isLocalAbsolutePath(pathValue: string): boolean {
 function projectsParent(): string | null {
   const sb = sandboxRoot()
   // Sandbox: project liegt unter <sandbox>/project -> Parent = <sandbox>.
-  // Default: projectRoot ist .../Projekte/RaWaLLMConfig -> Parent = .../Projekte.
+  // Default: Parent aus roots.workspaceParent (Prefs oder Legacy-Migration).
   return sb ?? discoverConfigRoots().workspaceParent.value
 }
 
@@ -223,7 +225,7 @@ function readRegistryRoots(parent: string): WorkspaceRoot[] {
 export function workspaceRoots(): WorkspaceRoot[] {
   const parent = projectsParent()
   if (!parent) return []
-  const out: WorkspaceRoot[] = [{ root: parent, label: 'Projekte (Parent)' }]
+  const out: WorkspaceRoot[] = [{ root: parent, label: 'Projektordner' }]
   const seen = new Set<string>([pathKey(parent)])
   for (const w of readRegistryRoots(parent)) {
     const key = pathKey(w.root)

@@ -85,16 +85,24 @@ html[data-structure="retro"] .codeblock { border: 2px solid var(--ink); }
 .diff-set-head .ds-verdict.diff { background: var(--amber-lt); color: var(--amber-d); }
 .diff-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 html[data-difflayout="stacked"] .diff-cols { grid-template-columns: 1fr; }
-.diff-col { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--card-shadow-sm); overflow: hidden; }
+/* clip statt hidden: klippt weiter an den Radien, erzeugt aber KEINEN eigenen
+   Scrollport — nur so klebt der Spaltenkopf am echten Scroll-Container .main. */
+.diff-col { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--card-shadow-sm); overflow: clip; }
 html[data-structure="retro"] .diff-col { border: 2.5px solid var(--ink); box-shadow: var(--card-shadow); }
 .diff-col-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 2px solid var(--border); font-size: 13px; font-weight: 900; }
+/* Spaltenkopf („Claude"/„Codex") bleibt bei langen Diffs sichtbar. Bewusst als
+   Kind-Selektor: die Merge-Editor-Koepfe (.merge-col-heads) bleiben unberuehrt.
+   Kein background hier — sonst wuerde .cmp-col-head/.trunk/.mirror ueberschrieben. */
+.diff-col > .diff-col-head { position: sticky; top: 0; z-index: 2; }
+/* Einzige Kopf-Variante ohne eigenen Hintergrund -> deckend machen. */
+.diff-col.missing > .diff-col-head { background: var(--bg-card); }
 .diff-col.trunk .diff-col-head { background: var(--sage-lt); color: var(--sage-d); }
 .diff-col.mirror .diff-col-head { background: var(--papa-lt); color: var(--papa-d); }
 .diff-col-head .dc-tag { margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; opacity: .8; }
 .diff-col-head .dc-path { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; opacity: .85; }
 .diff-body { padding: 6px 0; font-family: ui-monospace, 'SF Mono', monospace; font-size: 12.5px; line-height: 1.65; }
 .dline { display: flex; padding: 2px 16px; white-space: pre-wrap; }
-.dline .dgut { width: 22px; flex-shrink: 0; color: var(--warm-gray); font-weight: 700; user-select: none; }
+.dline .dgut { width: 22px; flex-shrink: 0; color: var(--warm-gray); font-weight: 700; -webkit-user-select: none; user-select: none; }
 .dline.add { background: color-mix(in oklab,var(--sage),transparent 86%); }
 .dline.add .dgut { color: var(--sage-d); }
 .dline.del { background: color-mix(in oklab,var(--terra),transparent 88%); }

@@ -4,7 +4,7 @@ import type { CompareCandidate, MultiCompareResult } from '@shared/contract-comp
 import { Icon } from '../../components/Icon'
 import { msg } from '../../lib/messages'
 import { useStore } from '../../state/store'
-import type { CoverageComparePreset } from '../../state/types'
+import type { ComparePreset } from '../../state/types'
 import { CompareToolbar } from './CompareToolbar'
 import { CompareSummary } from './CompareSummary'
 import { CompareVirtualRows } from './CompareVirtualRows'
@@ -41,7 +41,7 @@ export function CompareView({ cat }: { cat: Category }) {
   }, [handleCompare])
   return (
     <div className="cmp-view">
-      {preset && <CoveragePresetPanel preset={preset} onStart={() => handleCompare(preset.candidates)} />}
+      {preset && <ComparePresetPanel preset={preset} onStart={() => handleCompare(preset.candidates)} />}
       <CompareModeSwitch mode={compareMode} onModeChange={setCompareMode} />
       {compareMode === 'list' ? (
         <CompareToolbar cat={cat} onCompare={handleCompare} />
@@ -72,11 +72,9 @@ function CompareModeSwitch({
   )
 }
 
-function useCompareState(comparePreset: CoverageComparePreset | null) {
+// Vergleichs-Lauf (aus useCompareState extrahiert, HR27-Funktionslimit).
+function useCompareRunner() {
   const [st, setSt] = useState<CompareState>(INITIAL)
-  const [startedPresetKey, setStartedPresetKey] = useState<string | null>(null)
-  const preset = comparePreset?.source === 'coverage' ? comparePreset : null
-  const presetKey = useMemo(() => preset ? coveragePresetKey(preset) : null, [preset])
 
   // Vergleich starten: Bridge-Guard, dann compareMulti. Fehler werden sanitisiert
   // angezeigt (kein Stacktrace/Secret). Result -> alignte N-Spalten-Anzeige.
@@ -99,6 +97,19 @@ function useCompareState(comparePreset: CoverageComparePreset | null) {
     }
   }, [])
 
+  return { st, setSt, handleCompare }
+}
+
+// Preset-Autostart (aus useCompareState extrahiert, HR27-Funktionslimit):
+// sobald ein neues Preset ankommt, laeuft der Vergleich ohne Zutun. Gilt fuer
+// BEIDE Herkunftsarten (Spiegelung + Konflikt).
+function usePresetAutostart(
+  preset: ComparePreset | null,
+  setSt: (st: CompareState) => void,
+  handleCompare: (candidates: CompareCandidate[]) => Promise<void>,
+) {
+  const [startedPresetKey, setStartedPresetKey] = useState<string | null>(null)
+  const presetKey = useMemo(() => preset ? presetIdentity(preset) : null, [preset])
   useEffect(() => {
     if (!preset || !presetKey || startedPresetKey === presetKey) return
     setStartedPresetKey(presetKey)
@@ -107,8 +118,16 @@ function useCompareState(comparePreset: CoverageComparePreset | null) {
       return
     }
     void handleCompare(preset.candidates)
-  }, [handleCompare, preset, presetKey, startedPresetKey])
+  }, [handleCompare, preset, presetKey, setSt, startedPresetKey])
+}
 
+function useCompareState(comparePreset: ComparePreset | null) {
+  const { st, setSt, handleCompare } = useCompareRunner()
+  // Jede Preset-Herkunft wird uebernommen ('coverage' aus der Spiegelung,
+  // 'conflict' aus dem Konflikt-Kasten des Drawers). Die frueher harte
+  // 'coverage'-Pruefung hat Fremd-Presets stumm verworfen.
+  const preset = comparePreset
+  usePresetAutostart(preset, setSt, handleCompare)
   const summaryMode: SummaryMode =
     preset && sameCandidates(st.candidates, preset.candidates) ? 'coverage' : 'default'
   return { st, preset, summaryMode, handleCompare }
@@ -161,8 +180,10 @@ function CompareGrid({ result, summaryMode }: { result: MultiCompareResult; summ
   )
 }
 
-function coveragePresetKey(preset: CoverageComparePreset): string {
+// Identitaet eines Presets: aendert sich der Schluessel, startet der Vergleich neu.
+function presetIdentity(preset: ComparePreset): string {
   return [
+    preset.source,
     preset.createdFrom.createdAt,
     preset.row.cat,
     preset.row.name,
@@ -175,19 +196,34 @@ function sameCandidates(a: CompareCandidate[], b: CompareCandidate[]): boolean {
   return a.every((cand, i) => cand.id === b[i]?.id && cand.path === b[i]?.path)
 }
 
-function CoveragePresetPanel({
+// Kopftexte je Herkunft: der Vergleich ist derselbe, nur die Erklaerung wechselt.
+const PRESET_TEXT = {
+  coverage: {
+    area: 'Spiegelungs-Prüfung',
+    title: 'Aus Spiegelung übernommen',
+    tooFew: 'Für den direkten Vergleich sind mindestens zwei Dateipfade nötig.',
+  },
+  conflict: {
+    area: 'Konflikt-Prüfung',
+    title: 'Aus dem Konflikt übernommen',
+    tooFew: 'Zu diesem Konflikt gibt es nur eine Datei — es gibt nichts zu vergleichen. Der Grund steht oben.',
+  },
+} as const
+
+function ComparePresetPanel({
   preset,
   onStart,
 }: {
-  preset: CoverageComparePreset
+  preset: ComparePreset
   onStart(): void
 }) {
   const canCompare = preset.candidates.length >= 2
+  const text = PRESET_TEXT[preset.source]
   return (
-    <section className="cmp-preset" aria-label="Spiegelungs-Prüfung">
+    <section className="cmp-preset" aria-label={text.area}>
       <div className="cmp-preset-head">
         <div>
-          <strong>Aus Spiegelung übernommen</strong>
+          <strong>{text.title}</strong>
           <span>{preset.row.cat} · {preset.row.name}</span>
         </div>
         <button type="button" className="cmp-preset-go" disabled={!canCompare} onClick={onStart}>
@@ -196,19 +232,15 @@ function CoveragePresetPanel({
       </div>
       <div className="cmp-preset-cells">
         {preset.row.cells.map((cell) => (
-          <CoveragePresetCell key={cell.id} cell={cell} />
+          <ComparePresetCell key={cell.id} cell={cell} />
         ))}
       </div>
-      {!canCompare && (
-        <div className="cmp-preset-note">
-          {Icon.note} Für den direkten Vergleich sind mindestens zwei Dateipfade nötig.
-        </div>
-      )}
+      {!canCompare && <div className="cmp-preset-note">{Icon.note} {text.tooFew}</div>}
     </section>
   )
 }
 
-function CoveragePresetCell({ cell }: { cell: CoverageComparePreset['row']['cells'][number] }) {
+function ComparePresetCell({ cell }: { cell: ComparePreset['row']['cells'][number] }) {
   const notes = cell.notes?.length ? cell.notes : cell.note ? [cell.note] : []
   return (
     <div className="cmp-preset-cell">

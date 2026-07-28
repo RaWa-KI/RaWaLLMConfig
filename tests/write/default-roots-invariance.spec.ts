@@ -18,18 +18,21 @@
 // (Skip bleibt im Report sichtbar). Mit gemountetem E: wird 'local' REAL geprueft.
 // Read-only, kein App-Code.
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { scanAll } from '../../src/main/scan/scan-index'
 import { scanSystem } from '../../src/main/scan/sys-scan'
 import { GGUF_ROOT } from '../../src/main/scan/llm-scan'
 import { configRoots } from '../../src/main/services/config-roots'
+import type { Category, SystemArea } from '../../shared/contract'
 
 type App = ReturnType<typeof scanAll>
 
 // Erwartete Familien (Sidebar/Datenmodell). Optionale Familien duerfen core-first
 // leer bleiben; aktive Core-Familien muessen real befuellt sein.
-const FAMILIES = ['claude', 'codex', 'shared', 'userglobal', 'local'] as const
+// 'kimi' (WP-10, HR16-Paritaet) haengt am realen ~/.kimi-code und ist damit
+// umgebungsabhaengig — wie 'local' kein REQUIRED, aber determinismus-relevant.
+const FAMILIES = ['claude', 'codex', 'shared', 'userglobal', 'local', 'kimi'] as const
 const REQUIRED_FAMILIES = ['claude', 'codex', 'userglobal', 'local'] as const
 
 // Kern-Kategorien je Familie, die bei intakter realer Config NICHT leer sein duerfen.
@@ -55,15 +58,19 @@ const CORE_CATEGORIES: Record<string, string[]> = {
 // Ohne E: ist comingSoon (Familie 'local' leer) der legitime Scanner-Zustand.
 const hasGguf = existsSync(GGUF_ROOT)
 const defaultRoots = configRoots()
+// Precondition Kimi: das Tool-Home existiert nur, wenn der Kimi-Loader lokal
+// installiert ist. Ohne Home ist die leere Familie der legitime Zustand.
+const kimiRoot = join(dirname(defaultRoots.claudeHome), '.kimi-code')
+const hasKimi = existsSync(kimiRoot)
 const hasProviderDefaults = existsSync(join(defaultRoots.claudeHome, 'CLAUDE.md'))
   && existsSync(join(defaultRoots.codexHome, 'AGENTS.md'))
 
 function famCount(app: App, fam: string): number {
-  return (app.data[fam]?.categories ?? []).reduce((n, c) => n + c.entries.length, 0)
+  return (app.data[fam]?.categories ?? []).reduce((n: number, c: Category) => n + c.entries.length, 0)
 }
 
 function catEntries(app: App, fam: string, catId: string): number {
-  const cat = (app.data[fam]?.categories ?? []).find((c) => c.id === catId)
+  const cat = (app.data[fam]?.categories ?? []).find((c: Category) => c.id === catId)
   return cat ? cat.entries.length : -1 // -1 = Kategorie fehlt ganz
 }
 
@@ -95,7 +102,7 @@ test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintra
   }
   // System-Areas (Hardware/Runtimes/Ports/MCP/...) sind ebenfalls real befuellt.
   const system = await scanSystem()
-  const hardware = system.areas.find((area) => area.id === 'hardware')
+  const hardware = system.areas.find((area: SystemArea) => area.id === 'hardware')
   expect(system.areas.length).toBeGreaterThan(0)
   expect(hardware?.entries.length, 'Hardware-Area darf nicht leer sein').toBeGreaterThan(1)
 })
@@ -111,6 +118,26 @@ test('Kern-Kategorien je Familie nicht leer (Read-Regression-Fang)', () => {
     for (const id of ids) {
       expect(catEntries(app, fam, id), `${fam}/${id} leer oder fehlt`).toBeGreaterThan(0)
     }
+  }
+})
+
+// (b+c fuer 'kimi') Eigener Test mit sichtbarem SKIP, wenn der Kimi-Loader lokal
+// nicht installiert ist. Mit vorhandenem ~/.kimi-code wird die Familie REAL
+// geprueft — inklusive der Leitplanke, dass aus credentials/ nur die
+// Ordner-Klassifikation kommt (kein Dateiname, keine Werte).
+test('Familie kimi: ~/.kimi-code real gescannt, credentials nur klassifiziert', () => {
+  test.skip(!hasKimi, `Kimi-Loader nicht installiert (${kimiRoot} fehlt) — leere Familie ist legitim`)
+  const app = scanAll()
+  const cats = app.data.kimi?.categories ?? []
+  expect(cats.map((c: Category) => c.id)).toEqual([
+    'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-hooks', 'kimi-workspaces',
+  ])
+  expect(famCount(app, 'kimi'), 'Familie kimi hat keine Eintraege').toBeGreaterThan(0)
+  const cred = cats.find((c: Category) => c.id === 'kimi-credentials')
+  for (const entry of cred?.entries ?? []) {
+    expect(entry.name, 'credentials-Eintrag traegt einen Dateinamen').toBe('credentials')
+    expect(entry.code, 'credentials-Eintrag traegt eine Vorschau').toBeUndefined()
+    expect(entry.searchKeys, 'credentials-Eintrag traegt searchKeys').toBeUndefined()
   }
 })
 

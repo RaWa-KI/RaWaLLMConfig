@@ -49,6 +49,14 @@
 //   bis mittel (Adaption meist vorhanden; Status pruefen).
 //   Quelle: Claude Code Skills-Doc [Q-SKILL] (code.claude.com, 2026-06-08);
 //   codex-changelog skills-budget (lokal, 2026-06-01).
+//
+// [Q-KIMI] cross-tool-paritaet HR16 (harte-regeln, lokal): Kimi ist ein
+//   gleichwertiger nativer Loader und liest nur seine eigenen Ablagen
+//   (~/.kimi-code, ~/.agents). Die Codex-Regeln oben sind Codex-Format-
+//   spezifisch (.toml-Deklarationen, ~/.codex-Pfade) und gelten NICHT fuer
+//   Kimi — darum bekommt die Kimi-Familie eigene, kategorie-unabhaengige
+//   Texte (WP-8, B9).
+//   Quelle: .shared/.claude/rules/cross-tool-paritaet.md (lokal, 2026-06-09).
 
 import type { CoverageState } from '@shared/contract-coverage'
 
@@ -225,12 +233,53 @@ const FALLBACK: CoverageImpact = {
   quelle: 'Quelle ausstehend'
 }
 
+// Familien, fuer die coverageImpact Texte liefern kann (Default 'codex' =
+// Bestand). Kimi bekommt eigene Texte, weil die Codex-Regeln Format-/Pfad-
+// spezifisch sind [Q-KIMI].
+export type CoverageImpactFamily = 'codex' | 'kimi'
+
+// Laienverstaendliche Kimi-Texte je Zell-Status (kategorie-unabhaengig):
+// Kimi liest nur seine eigenen Ablagen (~/.kimi-code, ~/.agents) [Q-KIMI].
+const KIMI_QUELLE = 'cross-tool-paritaet HR16 [Q-KIMI]'
+const KIMI_IMPACT: Record<CoverageState, CoverageImpact> = {
+  identisch: {
+    text: 'Diese Config ist bei Kimi vorhanden und stimmt mit dem Referenz-Stand überein.',
+    quelle: KIMI_QUELLE
+  },
+  abweichend: {
+    text: 'Die Kimi-Kopie weicht vom Referenz-Stand ab — auf Aktualität prüfen.',
+    quelle: KIMI_QUELLE
+  },
+  fehlt: {
+    text: 'Diese Config fehlt bei Kimi — Kimi liest nur seine eigenen Ablagen (~/.kimi-code, ~/.agents). Bei Bedarf dorthin übertragen.',
+    quelle: KIMI_QUELLE
+  },
+  'via-plugin': {
+    text: 'Das Plugin-Indiz gilt nur für Claude — für Kimi ist es nicht anwendbar.',
+    quelle: KIMI_QUELLE
+  },
+  'n-a': {
+    text: 'Für Kimi nicht anwendbar.',
+    quelle: KIMI_QUELLE
+  },
+  vorhanden: {
+    text: 'Diese Config ist bei Kimi vorhanden (Details nicht geprüft).',
+    quelle: KIMI_QUELLE
+  }
+}
+
 /**
  * Liefert einen laienverstaendlichen Auswirkungs-Text fuer eine Config-Kategorie
  * und den Zell-Status einer Tool-Spalte (z.B. Codex-Spalte = 'fehlt').
  * Jede Antwort ist doc-belegt (HR10) oder ehrlich als "Quelle ausstehend" markiert.
+ * family: 'codex' (Default, Bestand) oder 'kimi' (WP-8, B9 — eigene Texte).
  */
-export function coverageImpact(cat: string, state: CoverageState): CoverageImpact {
+export function coverageImpact(
+  cat: string,
+  state: CoverageState,
+  family: CoverageImpactFamily = 'codex'
+): CoverageImpact {
+  if (family === 'kimi') return KIMI_IMPACT[state] ?? FALLBACK
   const lower = (cat || '').toLowerCase().trim()
   for (const rule of RULES) {
     if (rule.cats.includes(lower)) {

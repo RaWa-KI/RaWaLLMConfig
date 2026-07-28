@@ -42,13 +42,14 @@
 //          https://code.claude.com/docs/en/memory — Stand 2026-06-08 (Web).
 //          Codex/AGENTS.md lokal: vscode-ai-agenten...best-practices (2026-05-07).
 
+import type { LoadMode } from '@shared/contract'
+import { hintFromLoadMode } from './load-mode-hint'
+
 // Lade-Zeitpunkt-Klassen (interne Keys, kein Anzeigetext):
-//  'immer'            — bei JEDEM Start vom Tool geladen (userglobal-Ebene / Auto-Memory).
-//  'beim Arbeiten hier' — nur geladen, wenn man IN genau diesem Projekt/Workspace
-//                       arbeitet (CLAUDE.md/AGENTS.md im Working Directory). KEIN
-//                       Dauerload ueber alle Sitzungen — deshalb eigene, ruhigere Klasse.
-//  'bei Bedarf'       — erst bei Nutzung/Trigger geladen (Skills/Hooks).
-//  'bedingt'          — haengt von Frontmatter/Trigger ab (Rules mit/ohne paths).
+//  'immer' — bei JEDEM Start geladen (userglobal / Auto-Memory). 'beim Arbeiten
+//  hier' — nur im Working Directory dieses Projekts (Workspace-CLAUDE.md/AGENTS.md),
+//  kein Dauerload. 'bei Bedarf' — erst bei Nutzung/Trigger (Skills/Hooks).
+//  'bedingt' — haengt von Frontmatter/Trigger ab (Rules mit/ohne paths).
 export type LoadWhen = 'immer' | 'beim Arbeiten hier' | 'bei Bedarf' | 'bedingt'
 
 // Laienverstaendliche ANZEIGE-Beschriftung je Lade-Zeitpunkt (kurzer Chip-Text).
@@ -97,14 +98,11 @@ function hasSeg(lower: string, seg: string): boolean {
   return ('/' + lower + '/').includes('/' + seg + '/')
 }
 
-// Userglobal-Erkennung (read-only Heuristik, KEIN fs). Beantwortet: liegt diese
-// Datei auf der TOOL-WEITEN Userglobal-Ebene (~/.claude bzw. ~/.codex) — dann
-// laedt sie bei JEDEM Start — oder ist sie projekt-/workspace-gebunden — dann
-// laedt sie nur beim Arbeiten in genau diesem Projekt? (HR10: bewusst unscharf.)
-//
-// Token-Liste bewusst aus tree-logic.ts originIsForeign (scope 'global')
-// uebernommen, NICHT neu erfunden: '~/.claude', '.codex', 'global', 'userglobal';
-// '~/.codex' ergaenzt, weil Codex-Userglobal denselben Heimwurzel-Stil nutzt.
+// Userglobal-Erkennung (read-only Heuristik, KEIN fs): liegt die Datei auf der
+// TOOL-WEITEN Userglobal-Ebene (~/.claude bzw. ~/.codex) — laedt bei JEDEM Start —
+// oder ist sie projekt-/workspace-gebunden? (HR10: bewusst unscharf.)
+// Token-Liste aus tree-logic.ts originIsForeign (scope 'global') uebernommen,
+// '~/.codex' ergaenzt (Codex-Userglobal nutzt denselben Heimwurzel-Stil).
 const USERGLOBAL_TOKENS = ['~/.claude', '~/.codex', '.codex', 'global', 'userglobal']
 
 // Pfad-Heuristik fuer den Fall, dass origin LEER ist (z.B. Codex liefert fuer
@@ -128,8 +126,7 @@ export function isUserglobalOrigin(origin?: string, path?: string): boolean {
   return pathLooksUserglobal(p)
 }
 
-// Regel-Tabelle (speziell -> generisch). Jede hint.source verweist auf einen
-// Doc-Tag aus dem Kopf-Kommentar (Q-MEM/Q-RULE/Q-SKILL/Q-HOOK/Q-SET).
+// Regel-Tabelle (speziell -> generisch); hint.source verweist auf Doc-Tags oben (Q-MEM/Q-RULE/Q-SKILL/Q-HOOK/Q-SET).
 const RULES: LoadRule[] = [
   {
     // Skills: SKILL.md (Datei) oder /skills/-Ordner -> on-demand (progressive Disclosure).
@@ -177,9 +174,8 @@ const RULES: LoadRule[] = [
       source: 'Memory-Doc [Q-MEM]'
     }
   },
-  // CLAUDE.md/CLAUDE.local.md und AGENTS.md sind NICHT in dieser Tabelle: ihr
-  // Lade-Verhalten haengt vom Ursprung ab (userglobal = jeder Start vs. Workspace
-  // = nur beim Arbeiten hier). classifyLoad behandelt sie origin-abhaengig (unten).
+  // CLAUDE.md/AGENTS.md stehen bewusst NICHT in dieser Tabelle: ihr Lade-Verhalten
+  // haengt vom Ursprung ab — classifyLoad behandelt sie origin-abhaengig (unten).
 ]
 
 function hasField(fields: EntryFields, key: string): boolean {
@@ -187,6 +183,19 @@ function hasField(fields: EntryFields, key: string): boolean {
   if (!fields) return false
   if (Object.keys(fields).some((k) => k.toLowerCase() === needle)) return true
   return (fields.frontmatter ?? '').toLowerCase().split(/\s*,\s*/).includes(needle)
+}
+
+// WP-9/B12: breites paths (Alles-Glob **/* oder Endungs-Globs ohne Verzeichnis-
+// Anker wie *.ts) matcht praktisch jede Datei -> kein Token-Filter [Q-RULE].
+// Spiegel der Scanner-Logik in main/scan/load-classifier.ts.
+const ALL_MATCH_GLOBS = new Set(['*', '**', '**/*', '**/*.*', '*.*'])
+
+function hasBroadPaths(fields: EntryFields): boolean {
+  if (!fields) return false
+  const key = Object.keys(fields).find((k) => k.toLowerCase() === 'paths')
+  if (!key) return false
+  const globs = fields[key].split(/[,;]+/).map((g) => g.trim().replace(/^['"[]+|['"\]]+$/g, '')).filter(Boolean)
+  return globs.length > 0 && globs.every((g) => ALL_MATCH_GLOBS.has(g) || !g.includes('/'))
 }
 
 function ruleHint(fields: EntryFields): LoadHint {
@@ -198,6 +207,8 @@ function ruleHint(fields: EntryFields): LoadHint {
     }
   }
   if (hasField(fields, 'paths')) {
+    // WP-9/B12: paths-WERT bewerten — ein Alles-Glob ist kein Token-Filter.
+    if (hasBroadPaths(fields)) return { when: 'immer', control: '„paths" ist so breit (z. B. **/*), dass die Regel praktisch bei jeder Datei lädt — enger fassen spart Tokens.', source: 'Rules-Doc [Q-RULE]' }
     return {
       when: 'bedingt',
       control: 'Laedt nur bei passenden Dateien, weil paths im Rule-Kopf gesetzt ist.',
@@ -219,9 +230,8 @@ function ruleHint(fields: EntryFields): LoadHint {
 }
 
 // CLAUDE.md/CLAUDE.local.md: userglobal (~/.claude) laedt bei JEDEM Start, ein
-// Projekt-CLAUDE.md nur, wenn man IN diesem Workspace arbeitet (Working Directory).
-// Belegt durch [Q-MEM] (Hierarchie OBERHALB des Working Directory laedt beim Start;
-// Files IM/unterhalb des Working Directory greifen projektgebunden).
+// Projekt-CLAUDE.md nur im Working Directory dieses Workspace [Q-MEM] (Hierarchie
+// OBERHALB laedt beim Start; Files IM/unterhalb greifen projektgebunden).
 function claudeMdHint(userglobal: boolean): LoadHint {
   return userglobal
     ? {
@@ -236,9 +246,9 @@ function claudeMdHint(userglobal: boolean): LoadHint {
       }
 }
 
-// AGENTS.md ist die Codex-Memory (Claude liest sie nicht direkt). Userglobal
-// (~/.codex) laedt bei jedem Codex-Start; ein Workspace-AGENTS.md nur, wenn Codex
-// in diesem Projekt arbeitet. Belegt durch [Q-SET]/[Q-MEM] (analog CLAUDE.md).
+// AGENTS.md ist die Codex-Memory (Claude liest sie nicht direkt): userglobal
+// (~/.codex) laedt bei jedem Codex-Start, Workspace-AGENTS.md projektgebunden
+// [Q-SET]/[Q-MEM] (analog CLAUDE.md).
 function agentsMdHint(userglobal: boolean): LoadHint {
   return userglobal
     ? {
@@ -253,17 +263,15 @@ function agentsMdHint(userglobal: boolean): LoadHint {
       }
 }
 
-// Fallback wenn keine Regel greift: konservativ "bedingt" mit Quelle-ausstehend
-// (HR10: lieber ehrlich unscharf als falsch sicher).
+// Fallback ohne Regel-Treffer: konservativ "bedingt" (HR10: ehrlich unscharf statt falsch sicher).
 const FALLBACK: LoadHint = {
   when: 'bedingt',
   control: 'Lade-Verhalten dateispezifisch — vom Tool nur bei Zugriff/Trigger gelesen.',
   source: 'Doc-Quelle ausstehend'
 }
 
-// Klassifiziert eine Datei nach Lade-Zeitpunkt + Owner-Steuerung. origin steuert
-// die CLAUDE.md/AGENTS.md-Unterscheidung userglobal (jeder Start) vs. Workspace
-// (nur beim Arbeiten hier); alle anderen Klassen sind rein pfadbasiert.
+// Klassifiziert eine Datei nach Lade-Zeitpunkt + Owner-Steuerung; origin steuert
+// die CLAUDE.md/AGENTS.md-Unterscheidung, alle anderen Klassen sind rein pfadbasiert.
 export function classifyLoad(path: string, origin?: string, fields?: EntryFields): LoadHint {
   const lower = (path || '').replace(/\\/g, '/').toLowerCase()
   const base = baseName(lower)
@@ -276,4 +284,16 @@ export function classifyLoad(path: string, origin?: string, fields?: EntryFields
   if (hasSeg(lower, 'rules') && base.endsWith('.md')) return ruleHint(fields)
   const rule = RULES.find((r) => r.test(lower))
   return rule ? rule.hint : FALLBACK
+}
+
+// WP-9/B12 Prioritaet Scanner vs. Semantik: classifyLoad ist origin-/frontmatter-
+// bewusst und gewinnt, wo sie doc-belegt UND feiner ist als der grobe Scanner-
+// loadMode (z.B. Workspace-CLAUDE.md: Scanner 'immer', hier 'beim Arbeiten hier').
+// FALLBACK korrigiert nie; fehlender/'unbekannter' loadMode zaehlt nicht.
+export function resolveLoadHint(path: string, origin: string | undefined, fields: EntryFields, loadMode?: LoadMode): LoadHint {
+  const semantic = classifyLoad(path, origin, fields)
+  if (!loadMode) return semantic
+  const modeHint = hintFromLoadMode(loadMode)
+  if (semantic.source !== FALLBACK.source && (loadMode === 'unbekannt' || semantic.when !== modeHint.when)) return semantic
+  return modeHint
 }

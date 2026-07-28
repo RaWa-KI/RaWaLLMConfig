@@ -13,7 +13,9 @@ export function UpdatesDaemonCard({
 }) {
   const isLive = daemon.note.startsWith('Live aus Scope-B')
   return (
-    <div className="card daemon-card">
+    // Sprungziel fuer Diagnose-/Flow-Fokus 'watcher-daemon' (WP-5): ohne id lief
+    // scrollIntoView in der Watcher-Ansicht bisher ins Leere.
+    <div className="card daemon-card" id="watcher-daemon">
       <div className="dc-orb">{Icon.refresh}</div>
       <div className="dc-body">
         <div className="dc-pills">

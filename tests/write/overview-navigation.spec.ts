@@ -3,6 +3,56 @@ import type { AppData, System, Watcher } from '../../shared/contract'
 import { resolveConfigFocus } from '../../src/renderer/sections/config/config-focus'
 import { buildDiagnosisCards } from '../../src/renderer/sections/overview/diagnosis-model'
 import { buildOverviewModel } from '../../src/renderer/sections/overview/overview-model'
+import {
+  OVERVIEW_FOCUS_TTL_MS,
+  readOverviewFocus,
+  rememberOverviewFocus
+} from '../../src/renderer/sections/overview/overview-navigation'
+
+// Fokus-Invalidierung (WP-5): sessionStorage-Attrappe, weil der Node-Testlauf
+// kein window kennt. Ohne Ablauf zeigte die Erklaerbox alte, fremde Befunde.
+function useFakeSessionStorage(): { restore(): void } {
+  const store = new Map<string, string>()
+  const host = globalThis as { window?: unknown }
+  const previous = host.window
+  host.window = {
+    sessionStorage: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value)
+    }
+  }
+  return { restore: () => { host.window = previous } }
+}
+
+test('overview focus expires so a later visit does not show a foreign finding', () => {
+  const fake = useFakeSessionStorage()
+  try {
+    const action = { label: 'Zu Prüfen', reason: 'Grund', route: 'updates' as const, focusId: 'watcher-daemon' }
+    rememberOverviewFocus(action, 1_000)
+    expect(readOverviewFocus('updates', 1_000 + OVERVIEW_FOCUS_TTL_MS)).toMatchObject({
+      focusId: 'watcher-daemon',
+      route: 'updates'
+    })
+    expect(readOverviewFocus('updates', 1_000 + OVERVIEW_FOCUS_TTL_MS + 1)).toBeNull()
+    expect(readOverviewFocus('config', 1_000)).toBeNull()
+  } finally {
+    fake.restore()
+  }
+})
+
+test('overview focus without timestamp counts as stale', () => {
+  const fake = useFakeSessionStorage()
+  try {
+    const host = globalThis as { window?: { sessionStorage: { setItem(k: string, v: string): void } } }
+    host.window?.sessionStorage.setItem(
+      'rawallmconfig.overviewFocus',
+      JSON.stringify({ label: 'alt', reason: 'alt', route: 'updates' })
+    )
+    expect(readOverviewFocus('updates', 5_000)).toBeNull()
+  } finally {
+    fake.restore()
+  }
+})
 
 test('diagnosis cards expose concrete navigation action for watcher source', () => {
   const cards = buildDiagnosisCards({ config: null, system: null, watcher: watcherFixture(), errors: [] })

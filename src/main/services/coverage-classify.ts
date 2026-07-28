@@ -153,3 +153,18 @@ export function classifyCodex(
   if (present && drift) return classifyPresent(present, drift)
   return { state: 'fehlt' }
 }
+
+/**
+ * Kimi-Zelle (WP-8, B9): wie Codex — Kimi (~/.kimi-code) hat kein Plugin-
+ * System, 'plugins' ist Claude-spezifisch -> 'n-a'. Sonst echte Praesenz ->
+ * classifyPresent, fehlt -> 'fehlt'.
+ */
+export function classifyKimi(
+  present: FamilyPresence | undefined,
+  drift: DriftResult | undefined,
+  cat: string
+): CoverageCell {
+  if (cat === 'plugins') return { state: 'n-a', note: 'Plugins sind Claude-spezifisch' }
+  if (present && drift) return classifyPresent(present, drift)
+  return { state: 'fehlt' }
+}

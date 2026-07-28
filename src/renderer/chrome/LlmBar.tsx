@@ -5,17 +5,20 @@ import type { Section } from '../state/types'
 import { msgText, type MessageKey } from '../lib/messages'
 import { filterSectionsForMode, sectionVisibleForMode } from './nav-visibility'
 
-type NavItem = { id: Section; icon: string } & ({ label: string } | { labelKey: MessageKey })
+type NavItem = { id: Section; icon: string; midOverflow?: boolean } & ({ label: string } | { labelKey: MessageKey })
 
 // D5 (Nav-Reduktion): die Hauptnav besteht aus fuenf benannten Bereichen —
 // Ueberblick, Pruefen, Aendern, Wiederherstellen, Einstellungen. Jeder Eintrag
 // traegt ein sichtbares Label aus den Message-Katalogen (kein Icon-only).
+// midOverflow (Bereich 4+5): die Eintraege liegen zusaetzlich im „Mehr"-Menue,
+// werden dort aber erst <=1120px eingeblendet — darueber stehen sie sichtbar
+// in der Leiste und wuerden sich sonst doppeln (Owner-Befund 2026-07-27).
 const TASK_SECTIONS: ReadonlyArray<NavItem> = [
   { id: 'overview', labelKey: 'overview.title', icon: 'sparkle' },
   { id: 'updates', labelKey: 'tasks.check.title', icon: 'refresh' },
   { id: 'config', labelKey: 'tasks.change.title', icon: 'edit' },
-  { id: 'archiv', labelKey: 'tasks.restore.title', icon: 'snap' },
-  { id: 'settings', labelKey: 'chrome.detail.prefs', icon: 'gear' }
+  { id: 'archiv', labelKey: 'tasks.restore.title', icon: 'snap', midOverflow: true },
+  { id: 'settings', labelKey: 'chrome.detail.prefs', icon: 'gear', midOverflow: true }
 ]
 
 // Zweitbereiche liegen beschriftet im „Mehr"-Menue statt als Icon-only-Leiste:
@@ -149,7 +152,7 @@ function SectionButton({ item, active, updAlerts, menuItem, mobileMenuItem, onSe
   return (
     <button
       type="button"
-      className={'sec-btn' + (active === item.id ? ' on' : '') + (menuItem ? ' menu-item' : '') + (mobileMenuItem ? ' menu-mobile' : '')}
+      className={'sec-btn' + (active === item.id ? ' on' : '') + (menuItem ? ' menu-item' : '') + (mobileMenuItem ? ' menu-mobile' : '') + (menuItem && item.midOverflow ? ' menu-mid' : '')}
       onClick={() => onSelect(item.id)}
       role={menuItem ? 'menuitem' : undefined}
     >

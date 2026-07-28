@@ -122,28 +122,55 @@ function scanGgufFiles(roots = ggufRoots()): ConfigEntry[] {
   return entries.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+// Endpoint-Eintraege sind ein KATALOG bekannter lokaler Ports, kein Messwert:
+// die App ruft nie selbst auf (Local-Only, keine ungefragten Requests). Darum
+// gilt fuer alle Endpoint-Eintraege:
+//   updated: ENDPOINT_UPDATED ('—') — es gibt kein echtes Aenderungsdatum;
+//            ein Kalenderdatum waere eine Behauptung (Muster wie sys-scan).
+//   status : ENDPOINT_STATUS — der EntryStatus-Wortschatz kennt kein
+//            „nicht geprueft"; 'stale' bleibt der neutralste vorhandene Wert
+//            (behauptet weder Betrieb noch Nutzer-Bestaetigung). Die
+//            Klarstellung steht sichtbar in desc + fields.Zustand.
+//   fileBacked: false (WP-5, B6/B7) — Endpoint-Eintraege haben KEINE eigene
+//            Datei (path = URL); der Renderer blendet Datei-Edit/CRUD aus und
+//            zeigt stattdessen einen erklaerenden Hinweis.
+const ENDPOINT_UPDATED = '—'
+const ENDPOINT_STATUS = 'stale' as const
+const ENDPOINT_STATE_FIELD = 'nicht geprueft (manueller Start)'
+
 /** Projektinterne lokale Inferenz-Endpoints aus der validierten Referenz. */
 function projectEndpointEntries(): ConfigEntry[] {
   return [
     {
       id: 'llama-server-8099',
       name: 'llama-server',
-      status: 'stale',
+      status: ENDPOINT_STATUS,
       scope: 'local',
       path: 'http://127.0.0.1:8099/v1/chat/completions',
-      desc: 'Primaerer Inferenz-Endpoint (llama.cpp, GGUF, manueller Start)',
-      updated: '2026-06-04',
-      fields: { Port: '8099', Backend: 'Vulkan+CUDA', API: 'OpenAI /v1' },
+      desc: 'Bekannter Inferenz-Endpoint (llama.cpp, GGUF) — manueller Start, Erreichbarkeit wird nicht geprueft',
+      updated: ENDPOINT_UPDATED,
+      fileBacked: false,
+      fields: {
+        Port: '8099',
+        Backend: 'Vulkan+CUDA',
+        API: 'OpenAI /v1',
+        Zustand: ENDPOINT_STATE_FIELD,
+      },
     },
     {
       id: 'brain-adapter-11500',
       name: 'LLMS Brain-Adapter',
-      status: 'stale',
+      status: ENDPOINT_STATUS,
       scope: 'local',
       path: 'http://127.0.0.1:11500',
-      desc: 'OpenAI-/v1-Adapter mit RAG/Tools vor llama-server (reserved)',
-      updated: '2026-06-04',
-      fields: { Port: '11500', Status: 'reserved', API: 'OpenAI /v1' },
+      desc: 'Bekannter OpenAI-/v1-Adapter mit RAG/Tools vor llama-server — manueller Start, Erreichbarkeit wird nicht geprueft',
+      updated: ENDPOINT_UPDATED,
+      fileBacked: false,
+      fields: {
+        Port: '11500',
+        API: 'OpenAI /v1',
+        Zustand: ENDPOINT_STATE_FIELD,
+      },
     }
   ]
 }
@@ -152,37 +179,54 @@ function projectEndpointEntries(): ConfigEntry[] {
 function publicEndpointEntries(): ConfigEntry[] {
   return [
     // ── Verbreitete lokale Runner (OSS Teil D): Standard-Ports, manueller Start.
-    // status 'stale' = bekannter Default-Endpoint, NICHT auf Erreichbarkeit
-    // geprueft (die App ruft nie selbst auf). Fuer-jeden-nutzbar-Scope.
+    // Kein hartes Datum, kein Zustandsurteil — siehe Kommentar oben.
     {
       id: 'ollama-11434',
       name: 'Ollama',
-      status: 'stale',
+      status: ENDPOINT_STATUS,
       scope: 'local',
       path: 'http://127.0.0.1:11434/v1',
-      desc: 'Ollama OpenAI-kompatibler Endpoint (Standard-Port, manueller Start)',
-      updated: '',
-      fields: { Port: '11434', Backend: 'Ollama', API: 'OpenAI /v1' },
+      desc: 'Ollama OpenAI-kompatibler Endpoint (Standard-Port) — manueller Start, Erreichbarkeit wird nicht geprueft',
+      updated: ENDPOINT_UPDATED,
+      fileBacked: false,
+      fields: {
+        Port: '11434',
+        Backend: 'Ollama',
+        API: 'OpenAI /v1',
+        Zustand: ENDPOINT_STATE_FIELD,
+      },
     },
     {
       id: 'lmstudio-1234',
       name: 'LM Studio',
-      status: 'stale',
+      status: ENDPOINT_STATUS,
       scope: 'local',
       path: 'http://127.0.0.1:1234/v1',
-      desc: 'LM Studio lokaler Server (Standard-Port, manueller Start)',
-      updated: '',
-      fields: { Port: '1234', Backend: 'LM Studio', API: 'OpenAI /v1' },
+      desc: 'LM Studio lokaler Server (Standard-Port) — manueller Start, Erreichbarkeit wird nicht geprueft',
+      updated: ENDPOINT_UPDATED,
+      fileBacked: false,
+      fields: {
+        Port: '1234',
+        Backend: 'LM Studio',
+        API: 'OpenAI /v1',
+        Zustand: ENDPOINT_STATE_FIELD,
+      },
     },
     {
       id: 'vllm-8000',
       name: 'vLLM',
-      status: 'stale',
+      status: ENDPOINT_STATUS,
       scope: 'local',
       path: 'http://127.0.0.1:8000/v1',
-      desc: 'vLLM OpenAI-kompatibler Server (Standard-Port, manueller Start)',
-      updated: '',
-      fields: { Port: '8000', Backend: 'vLLM', API: 'OpenAI /v1' },
+      desc: 'vLLM OpenAI-kompatibler Server (Standard-Port) — manueller Start, Erreichbarkeit wird nicht geprueft',
+      updated: ENDPOINT_UPDATED,
+      fileBacked: false,
+      fields: {
+        Port: '8000',
+        Backend: 'vLLM',
+        API: 'OpenAI /v1',
+        Zustand: ENDPOINT_STATE_FIELD,
+      },
     },
   ]
 }

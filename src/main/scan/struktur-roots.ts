@@ -2,8 +2,11 @@
 import path from 'node:path'
 import { normalizePathForCompare } from '@shared/path-compare'
 import { configRoots, workspaceRoots } from '../services/config-roots'
+import { kimiHome } from './manifests/kimi-cats'
 
-export const TOOL_HOME_DIRS = new Set(['.claude', '.codex'])
+// Bekannte Tool-Homes (HR16: Claude, Codex und Kimi sind gleichwertige native
+// Loader). Ein gleichnamiger Ordner in einem anderen Root ist parallel, kein Dup.
+export const TOOL_HOME_DIRS = new Set(['.claude', '.codex', '.kimi-code'])
 export const CONFIG_SUBDIRS = new Set(['skills', 'rules', 'hooks', 'agents', 'commands', 'plugins'])
 
 export interface RootDef {
@@ -47,6 +50,24 @@ export function buildRootDefs(): Record<string, RootDef> {
     [roots.codexHome]: {
       label: '~/.codex',
       allowedTopLevel: new Set([...CONFIG_SUBDIRS, 'instructions']),
+      warnTopLevel: new Set<string>(),
+      knownNestedToolHomes: new Set<string>()
+    },
+    // HR16-Paritaet: ~/.kimi-code wird wie ~/.claude/~/.codex strukturell
+    // geprueft. Erlaubt sind die Config-Unterordner plus die bekannten Laufzeit-/
+    // Ablage-Ordner des Kimi-Loaders (nur Ordnernamen, keine Inhalts-Reads).
+    [kimiHome()]: {
+      label: '~/.kimi-code',
+      allowedTopLevel: new Set([
+        ...CONFIG_SUBDIRS,
+        'bin',
+        'credentials',
+        'logs',
+        'sessions',
+        'telemetry',
+        'updates',
+        'user-history'
+      ]),
       warnTopLevel: new Set<string>(),
       knownNestedToolHomes: new Set<string>()
     },

@@ -36,6 +36,34 @@ test('(a) home mit .claude + .ollama (ohne .codex) -> nur claude + local(ollama)
   clearEnv()
 })
 
+// (c) HR16-Paritaet: ~/.kimi-code ist ein gleichwertiges Tool-Home und MUSS als
+// eigener Treffer mit providerId 'kimi' erscheinen (WP-10).
+test('(c) home mit .kimi-code -> Treffer kimi (Root/Label/providerId)', () => {
+  clearEnv()
+  const home = mkdtempSync(join(tmpdir(), 'rawallm-disco-kimi-'))
+  mkdirSync(join(home, '.kimi-code'))
+  const hits = discoverSources({ home })
+
+  expect(hits.map((h) => h.providerId)).toEqual(['kimi'])
+  const kimi = hits[0]
+  expect(kimi.root).toBe(join(home, '.kimi-code'))
+  expect(kimi.label).toBe('Kimi (~/.kimi-code)')
+  clearEnv()
+})
+
+// Reihenfolge-Anker: CANDIDATES bleibt claude, codex, kimi, ollama, lmstudio.
+test('(c) Reihenfolge der Standard-Homes: claude, codex, kimi, local, local', () => {
+  clearEnv()
+  const home = mkdtempSync(join(tmpdir(), 'rawallm-disco-all-'))
+  for (const dir of ['.claude', '.codex', '.kimi-code', '.ollama', '.lmstudio']) {
+    mkdirSync(join(home, dir))
+  }
+  expect(discoverSources({ home }).map((h) => h.providerId)).toEqual([
+    'claude', 'codex', 'kimi', 'local', 'local'
+  ])
+  clearEnv()
+})
+
 test('(b) leeres home (keine Standard-Ordner) -> []', () => {
   clearEnv()
   const home = mkdtempSync(join(tmpdir(), 'rawallm-disco-empty-'))

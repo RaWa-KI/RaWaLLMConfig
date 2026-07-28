@@ -1,7 +1,7 @@
 // watcher-live.ts — liest Toolchain-Watcher-Daemon-State + Changelogs LIVE und
 // liefert ein `Watcher`-Objekt (F4). Read-Scope STRIKT auf Scope-B (ZIELE §2.3):
-//   - references/*-changelog  (gezogene Changelog-Volltexte, nur Metadaten genutzt)
-//   - coordination/tracking   (toolchain-daemon-state.json)
+//   - <shared>/docs/01-referenz/*-changelog (Changelog-Ablage, nur Metadaten genutzt)
+//   - <shared>/coordination/tracking        (toolchain-daemon-state.json)
 // KEIN Volltext aus coordination/{security,signals,briefings} — nicht im Read-Set.
 // Secret-Guard (`isSecretPathForRead`) ist JEDEM Read vorgeschaltet; secret-bearing
 // Pfade werden uebersprungen. Pfade injizierbar (Default real, Test=temp). graceful empty
@@ -20,35 +20,31 @@ import type {
 } from '@shared/contract'
 import { vcmp } from '@shared/version-compare'
 import { isSecretPathForRead } from '../services/secret-guard'
-import { configRoots } from '../services/config-roots'
 import { getVersionsCached } from '../services/cli-version-cache'
 import type { ToolSpec } from '../services/cli-version-live'
+import { sharedDataRoots } from './shared-data-roots'
+import { changelogFeed, newestChangelogDate } from './changelog-feed'
 
 // Scope-B-Wurzeln (injizierbar). Default = reale .shared-Pfade.
 export interface WatcherRoots {
-  referencesDir: string // .shared/.claude/references (enthaelt *-changelog/)
-  trackingDir: string // .shared/.claude/coordination/tracking
+  referencesDir: string // <shared>/docs/01-referenz (enthaelt *-changelog/)
+  trackingDir: string // <shared>/coordination/tracking
 }
 
+// WP-7 Pfad-Fix: die Wurzeln kommen aus shared-data-roots (per dirname aus
+// configRoots().sharedClaude abgeleitet, KEIN neuer ConfigRootKey — Auflage A5).
+// Frueher wurde `references`/`coordination/tracking` unter <shared>/.claude
+// gesucht; diese Pfade existieren nicht. Pfade bleiben injizierbar (Tests).
 function defaultRoots(): WatcherRoots | null {
-  // Trunk aus der Single Source (Default = real, M1 unveraendert; mit
-  // RAWALLM_SANDBOX_ROOT = <sandbox>/.shared/.claude). Pfade bleiben injizierbar.
-  const shared = configRoots().sharedClaude
-  if (!shared) return null
-  return {
-    referencesDir: path.join(shared, 'references'),
-    trackingDir: path.join(shared, 'coordination', 'tracking')
-  }
+  const roots = sharedDataRoots()
+  if (!roots) return null
+  return { referencesDir: roots.referencesDir, trackingDir: roots.trackingDir }
 }
 
 // Guarded read: secret-bearing Pfade NIE lesen (Scope-B-Absicherung).
 function safeReadJson<T>(p: string): T | null {
   if (isSecretPathForRead(p)) return null
   try { return JSON.parse(fs.readFileSync(p, 'utf8')) as T } catch { return null }
-}
-
-function safeListMd(dir: string): string[] {
-  try { return fs.readdirSync(dir).filter((f) => f.endsWith('.md')) } catch { return [] }
 }
 
 interface DaemonRow { local_version?: string; remote_latest?: string }
@@ -94,52 +90,11 @@ async function liveSources(state: DaemonState | null, statePath: string): Promis
   return out
 }
 
-// Versionierte Changelog-Dateien erkennen: Datum-Praefix `YYYY-MM-DD--name--[v]<version>`
-// mit optionalem `--tag`. Mehrpunkt-Versionen (2.1.156, 26.5527.60818) werden toleriert,
-// weil version/tag erst am letzten `--`-Segment bzw. `.md` enden.
-const VERSIONED_RE = /^(\d{4}-\d{2}-\d{2})--([a-z0-9-]+?)--v?([0-9][0-9.]*(?:-[a-z0-9]+)*)(?:--([a-z0-9-]+))?\.md$/i
-
-interface ParsedChangelog { date: string; tool: string; version: string; tag?: string }
-
-function parseVersioned(file: string): ParsedChangelog | null {
-  const m = file.match(VERSIONED_RE)
-  if (!m) return null
-  return { date: m[1], tool: m[2], version: m[3], tag: m[4] }
-}
-
-// Neuesten Changelog je *-changelog-Ordner: ERST versionierte Dateien filtern,
-// DANN nach Name (= Datum-Praefix) sortiert die neueste nehmen. Ordner ohne
-// versionierte Datei liefern KEIN Feed-Item: README/Index ist Navigation, kein
-// Changelog. Secret-Guard je Pfad; kein Volltext hier — nur Metadaten + Pfad
-// fuer den readFull-Drilldown.
+// Changelog-Feed: dynamisches Scannen ALLER `*-changelog`-Ordner, beide
+// Namensschemata, ordneruebergreifend die juengsten Eintraege (changelog-feed.ts).
+// Kein Volltext hier — nur Metadaten + Pfad fuer den readFull-Drilldown.
 function liveChangelogs(referencesDir: string): WatcherChangelog[] {
-  const out: WatcherChangelog[] = []
-  let dirs: string[] = []
-  try { dirs = fs.readdirSync(referencesDir).filter((d) => d.endsWith('-changelog')) } catch { dirs = [] }
-  for (const d of dirs) {
-    const dirPath = path.join(referencesDir, d)
-    const files = safeListMd(dirPath)
-    const versioned = files.filter((f) => VERSIONED_RE.test(f)).sort()
-    const entry = versioned.length ? buildVersionedEntry(dirPath, versioned[versioned.length - 1]) : null
-    if (entry) out.push(entry)
-  }
-  return out
-}
-
-// Versionierten Eintrag aus dem neuesten Dateinamen bauen (Metadaten + Pfad).
-function buildVersionedEntry(dirPath: string, file: string): WatcherChangelog | null {
-  const p = parseVersioned(file)
-  if (!p) return null
-  const fullPath = path.join(dirPath, file)
-  if (isSecretPathForRead(fullPath)) return null
-  const tag = p.tag ? ` (${p.tag})` : ''
-  return {
-    tool: p.tool,
-    version: p.version,
-    date: p.date,
-    summary: `Letzter erfasster ${p.tool}-Changelog-Eintrag${tag} (lokal abgelegt).`,
-    path: fullPath
-  }
+  return changelogFeed(referencesDir)
 }
 
 function staticTiers(): WatcherTier[] {
@@ -150,12 +105,23 @@ function staticTiers(): WatcherTier[] {
   ]
 }
 
-// Daemon-State-Datum aus tracking. Kein hardcodierter Kalendertag: fehlt/leer ->
-// '—' (Platzhalter), damit das UI nie ein erfundenes Datum anzeigt.
-function liveUpdated(state: DaemonState | null): string {
-  const claude = state?.['claude-cli'] as (DaemonRow & { detected_at?: string }) | undefined
-  const at = claude?.detected_at
-  return at ? at.slice(0, 10) : '—'
+// Echter „Stand" — in dieser Reihenfolge aus realen Quellen, NIE hardcodiert:
+//   1. juengstes `detected_at` im Daemon-State,
+//   2. mtime der Daemon-State-Datei,
+//   3. Datum des juengsten Changelog-Eintrags.
+// Keine Quelle -> '—' (ehrlicher Empty-State statt erfundenem Datum).
+function liveUpdated(state: DaemonState | null, statePath: string, referencesDir: string): string {
+  const stamps = Object.values(state ?? {})
+    .map((row) => (row as { detected_at?: string } | null)?.detected_at)
+    .filter((v): v is string => typeof v === 'string' && v.length >= 10)
+    .sort()
+  if (stamps.length) return stamps[stamps.length - 1].slice(0, 10)
+  try {
+    if (!isSecretPathForRead(statePath)) {
+      return fs.statSync(statePath).mtime.toISOString().slice(0, 10)
+    }
+  } catch { /* graceful */ }
+  return newestChangelogDate(referencesDir) ?? '—'
 }
 
 function notConfiguredWatcher(): Watcher {
@@ -183,8 +149,8 @@ export async function scanWatcherLive(roots: WatcherRoots | null = defaultRoots(
       schedule: 'Task-Scheduler (run-hidden)',
       tokens: '0 Daemon-LLM-Token',
       sources: sources.length,
-      updated: liveUpdated(state),
-      note: 'Live aus Scope-B: tracking/toolchain-daemon-state + references/*-changelog (Metadaten). Installierte Version live per `<cli> --version` erfasst; remote_latest weiter aus Cache.'
+      updated: liveUpdated(state, statePath, roots.referencesDir),
+      note: `Live aus Scope-B: coordination/tracking/toolchain-daemon-state + docs/01-referenz/*-changelog (Metadaten, ${changelogs.length} juengste Eintraege). Installierte Version live per \`<cli> --version\` erfasst; remote_latest weiter aus Cache. Wird bei jedem Abruf der Sektion neu gelesen.`
     }
     return { daemon, tiers: staticTiers(), sources, changelogs }
   } catch (err) {

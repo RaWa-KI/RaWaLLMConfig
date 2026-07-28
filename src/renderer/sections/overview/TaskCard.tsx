@@ -24,6 +24,9 @@ export function TaskCard({ task, displayMode, onOpen }: TaskCardProps) {
       <span className="ov-task-copy">
         <span className="ov-task-title">{task.title}</span>
         <span className="ov-task-body">{task.body}</span>
+        {/* Grund nur zeigen, wenn wirklich etwas offen ist (WP-4). */}
+        {/* erbt bewusst ov-task-body: keine neue CSS-Regel noetig */}
+        {task.reason !== '' && <span className="ov-task-body ov-task-reason">{task.reason}</span>}
         {displayMode === 'expert' && <ExpertDetails task={task} />}
       </span>
       <span className="ov-task-state">{msg('tasks.card.status', { status: task.status })}</span>

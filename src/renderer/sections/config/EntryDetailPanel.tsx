@@ -21,7 +21,7 @@ function resolve(ad: LlmConfig, catId: string, entryId: string): { cat: Category
 export function EntryDetailPanel({ ad }: { ad: LlmConfig }) {
   const { ui } = useStore()
   const found = ui.sel ? resolve(ad, ui.sel.catId, ui.sel.entryId) : null
-  const explain = useExplain(found ? 'config-entry' : null, found ? found.entry.name : null)
+  const explain = useExplain(found ? 'config-entry' : null, found ? found.entry.name : null, found ? found.entry.desc : undefined)
 
   if (!found) return null
   return (

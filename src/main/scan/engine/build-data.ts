@@ -22,7 +22,7 @@ const DATA_ORDER = ['shared', 'claude', 'codex', 'local'] as const
 
 // Leere, contract-konforme Familie als Fallback bei Scanner-Fehlern.
 function emptyConfig(): LlmConfig {
-  return { categories: [], duplicates: [] }
+  return { categories: [], duplicates: [], driftRelations: [] }
 }
 
 // Einzelnen Scan sicher ausfuehren: Fehler werden geloggt (ohne Secret), die App

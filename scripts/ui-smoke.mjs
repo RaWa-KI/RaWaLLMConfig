@@ -40,7 +40,7 @@ async function finishSmoke(win, result) {
 }
 
 async function onboardingVisible(win) {
-  return (await win.locator('.ob-card').count().catch(() => 0)) > 0
+  return win.locator('.ob-card').first().isVisible().catch(() => false)
 }
 
 async function assertNotBlank(win, result) {

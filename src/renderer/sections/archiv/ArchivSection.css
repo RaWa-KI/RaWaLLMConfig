@@ -44,7 +44,9 @@
 .archiv-rows {
   display: flex; flex-direction: column;
   border: 2px solid var(--border); border-radius: var(--radius-sm);
-  overflow: hidden; background: var(--bg-card);
+  /* clip statt hidden: klippt weiter an den Radien, erzeugt aber KEINEN eigenen
+     Scrollport — nur so klebt die Kopfzeile am echten Scroll-Container .main. */
+  overflow: clip; background: var(--bg-card);
 }
 .archiv-row {
   display: grid;
@@ -53,10 +55,13 @@
   padding: 9px 14px; border-top: 1px solid var(--border);
 }
 .archiv-row:first-child { border-top: none; }
+/* Kopfzeile bleibt beim Scrollen sichtbar (Sticky gegen .main, deckender
+   Hintergrund). Ohne sie waeren die Spalten nur noch Zahlen ohne Bedeutung. */
 .archiv-row--head {
   background: var(--bg);
   font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
   color: var(--warm-gray);
+  position: sticky; top: 0; z-index: 2;
 }
 .archiv-file {
   font-family: ui-monospace, 'SF Mono', monospace; font-size: 12px; font-weight: 700;
@@ -91,7 +96,19 @@
 
 @media (max-width: 900px) {
   .archiv-row { grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  /* Die 6-spaltige Kopfzeile passt im 2-Spalten-Raster nicht mehr. Sie wird
+     hier ausgeblendet — aber NICHT ersatzlos: jede Zelle traegt ab hier ihr
+     eigenes Label aus data-label, sonst blieben die Spalten unbeschriftet.
+     (Fuer Screenreader liefern die role/aria-label-Angaben die Zuordnung
+     unabhaengig von der Breite.) */
   .archiv-row--head { display: none; }
+  .archiv-row > [data-label] { display: block; }
+  .archiv-row > [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 9.5px; font-weight: 900; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--warm-gray);
+  }
   .archiv-act { justify-self: start; grid-column: 1 / -1; }
   .archiv-time, .archiv-size { font-size: 11px; }
 }

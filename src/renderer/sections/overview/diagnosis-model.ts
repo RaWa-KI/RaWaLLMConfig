@@ -1,14 +1,17 @@
-import type { AppData, EntryStatus, System, SystemEntry, Watcher } from '@shared/contract'
-import { isCoverageInfoEntry } from '@shared/entry-attention'
+import type { AppData, Category, ConfigEntry, EntryStatus, System, SystemEntry, Watcher } from '@shared/contract'
 import { msg } from '../../lib/messages'
 import { actionVisibleForMode } from '../../state/section-visibility'
 import type { DisplayMode, Section } from '../../state/types'
+import {
+  changeText, concreteMeaning, configChangeHint, configTargetLabel, familyLabel,
+  isMissingKeyEntry, isProblemEntry, missingKeyCopy, unknownTarget, whereText
+} from './diagnosis-cards-filter'
 import { isOllamaHint, ollamaDiagnosisCopy, ollamaEvidence } from './diagnosis-ollama'
 import type { OverviewNavigationAction } from './overview-navigation'
 
-type DiagnosisStatus = 'notConfigured' | 'notFound' | 'unavailable' | 'paused' | 'problemFound' | 'notUsable'
+export type DiagnosisStatus = 'notConfigured' | 'notFound' | 'unavailable' | 'paused' | 'problemFound' | 'notUsable'
+export type DiagnosisSource = 'config' | 'system' | 'watcher' | 'appErrors'
 type DiagnosisSeverity = 'info' | 'warning' | 'error'
-type DiagnosisSource = 'config' | 'system' | 'watcher' | 'appErrors'
 
 export interface DiagnosisCard {
   id: string
@@ -67,7 +70,33 @@ function configCards(config: AppData | null): DiagnosisCard[] {
       targetLabel: llm.name,
       focusId: `config-llm-${llm.id}`
     }))
+  cards.push(...familyProblemCards(families))
 
+  if (entries.length === 0) cards.push(card('config-empty', 'notFound', 'warning', 'config', 'settings'))
+  for (const { familyId, category, entry } of entries) {
+    // Einzige bewusste Karte fuer fileBacked === false: fehlender Cloud-Key
+    // (einrichtbarer Zustand, Info statt Problem; B3).
+    if (isMissingKeyEntry(entry)) {
+      cards.push(keyMissingCard(familyId, category, entry, config.llms))
+      continue
+    }
+    if (!isProblemEntry(entry, familyId)) continue
+    cards.push(statusCard(`entry-${familyId}-${entry.id}`, entry.status, 'config', 'config', {
+      detail: entry.conflictReason ?? entry.path,
+      targetLabel: configTargetLabel(category, entry),
+      focusId: `config-entry-${familyId}-${entry.id}`,
+      meaning: concreteMeaning(entry),
+      where: `Ändern > ${familyLabel(config.llms, familyId)} > ${category.label}`,
+      how: `Öffne den Eintrag ${entry.name} in ${category.label}.`,
+      changeHint: configChangeHint(entry.status, entry.conflictReason, entry.name)
+    }))
+  }
+  return cards
+}
+
+// Familien-Level-Befunde: Scan-Fehler und Dubletten-Hinweise je Familie.
+function familyProblemCards(families: [string, AppData['data'][string]][]): DiagnosisCard[] {
+  const cards: DiagnosisCard[] = []
   for (const [familyId, family] of families) {
     if (family.scanError) {
       cards.push(card(`family-${familyId}`, 'notUsable', 'error', 'config', 'config', {
@@ -83,40 +112,19 @@ function configCards(config: AppData | null): DiagnosisCard[] {
       }))
     }
   }
-
-  if (entries.length === 0) cards.push(card('config-empty', 'notFound', 'warning', 'config', 'settings'))
-  for (const { familyId, category, entry } of entries.filter((item) => (
-    item.entry.status !== 'active' && !isCoverageInfoEntry(item.entry, item.familyId)
-  ))) {
-    cards.push(statusCard(`entry-${familyId}-${entry.id}`, entry.status, 'config', 'config', {
-      detail: entry.conflictReason ?? entry.path,
-      targetLabel: configTargetLabel(category.label, entry.name),
-      focusId: `config-entry-${familyId}-${entry.id}`,
-      where: `Ändern > ${familyLabel(config.llms, familyId)} > ${category.label}`,
-      how: `Öffne den Eintrag ${entry.name} in ${category.label}.`,
-      changeHint: configChangeHint(entry.status, entry.conflictReason, entry.name)
-    }))
-  }
   return cards
 }
 
-function familyLabel(llms: AppData['llms'], id: string): string {
-  return llms.find((llm) => llm.id === id)?.name ?? id
-}
-
-function configTargetLabel(categoryLabel: string, entryName: string): string {
-  return `${entryName} (${categoryLabel})`
-}
-
-function configChangeHint(status: EntryStatus, reason: string | undefined, entryName: string): string {
-  if (reason) return `Grund: ${reason}. Prüfe den Eintrag ${entryName} und entscheide, ob er verbunden, korrigiert oder bewusst stehen gelassen werden soll.`
-  return changeText(statusCardState(status), 'config', entryName)
-}
-
-function statusCardState(status: EntryStatus): DiagnosisStatus {
-  if (status === 'stale') return 'notFound'
-  if (status === 'archived') return 'paused'
-  return 'problemFound'
+// Fehlender Cloud-API-Key: Info-Karte mit laienverstaendlichem Text und dem
+// Ort, an dem der Key gesetzt wird (B3; Texte aus dem Filter-Modul).
+function keyMissingCard(familyId: string, category: Category, entry: ConfigEntry, llms: AppData['llms']): DiagnosisCard {
+  return card(`entry-${familyId}-${entry.id}`, 'notConfigured', 'info', 'config', 'config', {
+    detail: entry.desc,
+    targetLabel: configTargetLabel(category, entry),
+    focusId: `config-entry-${familyId}-${entry.id}`,
+    ...missingKeyCopy(entry),
+    where: `Ändern > ${familyLabel(llms, familyId)} > ${category.label}`
+  })
 }
 
 function systemCards(system: System | null, config: AppData | null): DiagnosisCard[] {
@@ -245,24 +253,6 @@ function dedupeCauses(cards: DiagnosisCard[]): DiagnosisCard[] {
   return [...unique.values()]
 }
 
-function whereText(source: DiagnosisSource, target: Section): string {
-  if (target === 'settings') return 'Einstellungen'
-  if (target === 'updates') return 'Prüfen > Toolchain-Watcher'
-  if (target === 'config') return 'Ändern > Config-Eintrag'
-  if (target === 'system') return 'System'
-  return msg(`diagnostics.source.${source}`)
-}
-
-function changeText(status: DiagnosisStatus, source: DiagnosisSource, targetLabel?: string): string {
-  const target = targetLabel ? ` ${targetLabel}` : ''
-  if (status === 'notFound') return `Verbinde oder korrigiere${target}; wenn es absichtlich fehlt, die Quelle pausieren oder entfernen.`
-  if (status === 'paused') return `Aktiviere${target} wieder oder lasse den pausierten Zustand bewusst bestehen.`
-  if (status === 'problemFound') return `Öffne die Details und korrigiere die gemeldete Abweichung bei${target}.`
-  if (status === 'notUsable') return `Öffne${target} und korrigiere Pfad, Datei oder lokalen Dienst.`
-  if (status === 'unavailable') return `Lade neu und prüfe, ob ${msg(`diagnostics.source.${source}`)} erreichbar ist.`
-  return `Richte${target} ein oder verbinde die passende Quelle.`
-}
-
 function diagnosisAction(
   status: DiagnosisStatus,
   source: DiagnosisSource,
@@ -277,10 +267,6 @@ function diagnosisAction(
     focusId: targetInfo.focusId,
     targetDescription: targetInfo.focusId ? undefined : targetDescription
   }
-}
-
-function unknownTarget(source: DiagnosisSource): string {
-  return msg('diagnostics.target.unknown', { source: msg(`diagnostics.source.${source}`) })
 }
 
 function sourceStatus(state: string): DiagnosisStatus {

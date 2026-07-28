@@ -104,13 +104,14 @@ function LanguageRow() {
   )
 }
 
+// Neutraler Statushinweis zur Speicherquelle — kein Warnkasten: Titel im
+// ruhigen Label-Ton, keine Alarmfarbe, keine Warn-Ikonografie.
 function StoreHintCard({ reason, expert }: { reason: string; expert: boolean }) {
   const hint = prefsStoreHint()
   return (
     <div className="card flat prefs-store-hint">
-      <b>{hint.title}</b>
+      <div className="tweak-label">{hint.title}</div>
       <p>{hint.body}</p>
-      <p>{hint.action}</p>
       {expert && (
         <div className="prefs-technical-reason">
           <b>Technischer Grund</b>
@@ -169,8 +170,8 @@ function RootRows({ prefs, onSet }: { prefs: Record<string, PrefValue>; onSet(ke
     {ROOT_FIELDS.map(([key, label]) => {
       const value = String(prefs[key] ?? '')
       return <div className="backup-row" key={key}>
-        <div><div className="tweak-label">{label}</div><code className="backup-path">{value || 'Vorhandener Standardpfad'}</code></div>
-        <div className="backup-actions"><button type="button" className="pill ghost" onClick={() => void pick(key)}>{Icon.folder} Ordner wählen</button>{value && <button type="button" className="pill ghost" onClick={() => onSet(key, '')}>Standard</button>}</div>
+        <div><div className="tweak-label">{label}</div><code className="backup-path">{value || 'nicht konfiguriert'}</code></div>
+        <div className="backup-actions"><button type="button" className="pill ghost" onClick={() => void pick(key)}>{Icon.folder} Ordner wählen</button>{value && <button type="button" className="pill ghost" onClick={() => onSet(key, '')}>Zurücksetzen</button>}</div>
       </div>
     })}
   </div>
@@ -220,9 +221,6 @@ export function PrefsSection() {
           <div className="empty" style={{ padding: 20 }}>{loadError}</div>
         </div>
       )}
-      {storeHint && (
-        <StoreHintCard reason={storeHint} expert={ui.displayMode === 'expert'} />
-      )}
       {ui.displayMode === 'expert' && <SettingsExpertCard />}
 
       <div className="card prefs-card">
@@ -247,6 +245,10 @@ export function PrefsSection() {
         />
         <RootRows prefs={prefs} onSet={(key, value) => void setPref(key, value)} />
       </div>
+
+      {storeHint && (
+        <StoreHintCard reason={storeHint} expert={ui.displayMode === 'expert'} />
+      )}
     </main>
   )
 }

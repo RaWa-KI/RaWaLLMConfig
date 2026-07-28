@@ -14,14 +14,16 @@ export interface ExplainView {
 
 const EMPTY: ExplainView = { title: null, text: null, loading: false, error: null }
 
-export function useExplain(kind: string | null, name: string | null): ExplainView {
+export function useExplain(kind: string | null, name: string | null, desc?: string | null): ExplainView {
   const [view, setView] = useState<ExplainView>(EMPTY)
 
-  const fetchExplain = useCallback(async (k: string, n: string): Promise<ExplainView> => {
+  const fetchExplain = useCallback(async (k: string, n: string, d: string | null): Promise<ExplainView> => {
     if (typeof window === 'undefined' || !window.electronAPI?.explain) {
       return { title: null, text: null, loading: false, error: 'Bridge nicht verfuegbar' }
     }
-    const res = await window.electronAPI.explain({ kind: k, name: n })
+    // desc (entry.desc) geht mit: explain.ts nutzt ihn als inhaltliche Basis
+    // der Erklaerung, bevor der generische Fallback greift.
+    const res = await window.electronAPI.explain({ kind: k, name: n, desc: d ?? undefined })
     if (res.error || !res.data) {
       return { title: null, text: null, loading: false, error: res.error ?? 'Erklaerung nicht verfuegbar' }
     }
@@ -35,13 +37,13 @@ export function useExplain(kind: string | null, name: string | null): ExplainVie
     }
     let alive = true
     setView({ title: null, text: null, loading: true, error: null })
-    void fetchExplain(kind, name).then((v) => {
+    void fetchExplain(kind, name, desc ?? null).then((v) => {
       if (alive) setView(v)
     })
     return () => {
       alive = false
     }
-  }, [kind, name, fetchExplain])
+  }, [kind, name, desc, fetchExplain])
 
   return view
 }

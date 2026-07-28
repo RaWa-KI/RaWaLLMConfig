@@ -25,6 +25,8 @@ export async function takeOverPickedSources(deps: OnboardingActionDeps): Promise
       enabled: true
     })
   }
+  // completeOnboarding() setzt das Flag UND laedt die Config neu (WP-4):
+  // die Startseite zeigt die uebernommenen Quellen ohne Neustart.
   await deps.src.completeOnboarding()
 }
 

@@ -13,6 +13,7 @@ import { claudeManifest } from './claude.manifest'
 import { codexManifest } from './codex.manifest'
 import { llmManifest } from './llm.manifest'
 import { cloudManifest } from './cloud.manifest'
+import { kimiManifest } from './kimi.manifest'
 
 /**
  * Die Default-Provider-Registry. Die ersten vier (shared, claude, codex, local)
@@ -20,9 +21,12 @@ import { cloudManifest } from './cloud.manifest'
  * fixer Reihenfolge auf data[<id>] ab). `cloud` (Teil D) ist eine ADDITIVE neue
  * Familie (OpenAI/Anthropic/Gemini, metadaten-only, Key-Status maskiert) — sie
  * haengt hinten an und beruehrt die Gleichheit der Bestands-Familien nicht.
+ * `kimi` (~/.kimi-code) ist ebenfalls ADDITIV (HR16-Paritaet: Claude/Codex/Kimi
+ * sind gleichwertige native Loader) und haengt hinten an — die Bestands-Familien
+ * bleiben davon unberuehrt.
  * Nutzerdefinierte Laufzeit-Manifeste (D6) kommen zusaetzlich ueber scanRegistry()
  * (loadUserManifests), nicht hier — diese Liste bleibt die built-in Default-Quelle.
  */
 export function providerRegistry(): ProviderRegistry {
-  return [sharedManifest, claudeManifest, codexManifest, llmManifest, cloudManifest]
+  return [sharedManifest, claudeManifest, codexManifest, llmManifest, cloudManifest, kimiManifest]
 }

@@ -63,7 +63,7 @@ export type WriteResult = IpcResult<WriteResultData>
 // keinen Datei-Inhalt, keinen Secret-Wert.
 export interface WriteActionLog {
   ts: string
-  action: WriteAction | 'archive-dir' | 'move-dir' | 'reconcile-folder' | 'readfull-reveal' | 'restore' | 'system-write' | 'env-migrate' | 'prefs-set' | 'source-mutate' | 'graph-write-ignore' | 'coverage-write-ack'
+  action: WriteAction | 'archive-dir' | 'move-dir' | 'reconcile-folder' | 'readfull-reveal' | 'restore' | 'system-write' | 'env-migrate' | 'prefs-set' | 'source-mutate' | 'graph-write-ignore' | 'coverage-write-ack' | 'drift-write-decision'
   path: string
   result: 'ok' | 'error'
   detail?: string
@@ -140,6 +140,9 @@ export interface ExplainRequest {
   // Stabiler Element-Bezug (Kategorie-/Entry-Kennung), kein Datei-Inhalt.
   kind: string
   name: string
+  // Optionaler Kurz-Text des Eintrags (entry.desc) — dient explain als inhalt-
+  // liche Basis BEVOR der generische Fallback greift. Kein Secret, kein Wert.
+  desc?: string
 }
 
 export interface ExplainResultData {

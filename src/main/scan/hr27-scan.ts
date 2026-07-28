@@ -1,4 +1,7 @@
-// Isolated HR27 scanner. Not wired into scan-index/buildData yet.
+// HR27 scanner. Verdrahtet in scan-audit-categories.ts (buildAuditConfig ->
+// Kategorie 'audit-hr27') und direkt getestet in tests/write/scanner-c10.spec.ts.
+// Limits/Skip-Liste sind per Cross-Test (tests/write/hr27-lines-check.spec.ts)
+// mit scripts/hr27-lines-baseline.json gepinnt — bei Aenderung beide Seiten ziehen.
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -30,10 +33,13 @@ export const HR27_LIMITS: Record<string, number> = {
   astro: 400,
 }
 
-const SKIP_DIRS = new Set([
+export const HR27_SKIP_DIRS = new Set([
+  '.git',
   'vendor',
   'node_modules',
   'dist',
+  'dist-release',
+  'out',
   'build',
   '.next',
   'target',
@@ -70,7 +76,7 @@ function walk(rootDir: string, currentDir: string, findings: Hr27Finding[]): voi
 }
 
 function shouldSkipDir(rootDir: string, abs: string, name: string): boolean {
-  if (SKIP_DIRS.has(name.toLowerCase())) return true
+  if (HR27_SKIP_DIRS.has(name.toLowerCase())) return true
   const rel = toRel(rootDir, abs).toLowerCase().replace(/\\/g, '/')
   return rel === '.claude/docs' || rel.startsWith('.claude/docs/')
 }

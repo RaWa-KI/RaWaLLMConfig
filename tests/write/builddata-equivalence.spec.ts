@@ -46,19 +46,25 @@ interface Fresh {
   buildData: () => Record<string, LlmConfig>
   legacyBuildData: () => Record<string, LlmConfig>
 }
+
+// Ergebnistyp von scanMcp aus dem MODUL-Typ ableiten. `ReturnType<typeof scanMcp>`
+// direkt an der require-Zuweisung waere zirkulaer (TS2577: die Variable wuerde
+// ihren eigenen Typ referenzieren) — der import()-Typ bricht den Zyklus.
+type McpResult = ReturnType<typeof import('../../src/main/scan/mcp-scan').scanMcp>
+
 function loadFresh(): Fresh {
   bustScanCache()
   /* eslint-disable @typescript-eslint/no-var-requires */
   const idx = require('../../src/main/scan/scan-index') as {
     buildData: () => Record<string, LlmConfig>
-    mergeMcp: (cfg: LlmConfig, mcp: ReturnType<typeof scanMcp>, fam: 'claude' | 'codex' | 'shared') => void
+    mergeMcp: (cfg: LlmConfig, mcp: McpResult, fam: 'claude' | 'codex' | 'shared') => void
     buildUserglobal: (data: Record<string, LlmConfig>) => LlmConfig
   }
   const { scanShared } = require('../../src/main/scan/shared-scan') as { scanShared: () => LlmConfig }
   const { scanClaude } = require('../../src/main/scan/claude-scan') as { scanClaude: () => LlmConfig }
   const { scanCodex } = require('../../src/main/scan/codex-scan') as { scanCodex: () => LlmConfig }
   const { scanLocalLlm } = require('../../src/main/scan/llm-scan') as { scanLocalLlm: () => LlmConfig }
-  const { scanMcp } = require('../../src/main/scan/mcp-scan') as { scanMcp: () => ReturnType<typeof scanMcp> }
+  const { scanMcp } = require('../../src/main/scan/mcp-scan') as { scanMcp: () => McpResult }
   /* eslint-enable @typescript-eslint/no-var-requires */
 
   // legacyBuildData: exakt der hartcodierte M1-Pfad (vor B-5). Reihenfolge
@@ -202,8 +208,9 @@ test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl.
   // Reihenfolge; 'cloud' (Teil D) ist ADDITIV nach den Legacy-4 (vor userglobal).
   // Der Alt-Pfad (legacyBuildData) kennt cloud NICHT -> Gleichheit nur auf den
   // Legacy-Familien, cloud wird separat geprueft (additive Erweiterung).
+  // 'kimi' (WP-10, HR16-Paritaet) haengt wie 'cloud' ADDITIV hinter den Legacy-4.
   expect(Object.keys(oldData)).toEqual(['shared', 'claude', 'codex', 'local', 'userglobal'])
-  expect(Object.keys(newData)).toEqual(['shared', 'claude', 'codex', 'local', 'cloud', 'userglobal'])
+  expect(Object.keys(newData)).toEqual(['shared', 'claude', 'codex', 'local', 'cloud', 'kimi', 'userglobal'])
 
   // (2) diffLabels je Familie identisch (LlmConfig-Ebene, nicht nur categories).
   for (const fam of ['shared', 'claude', 'codex', 'local']) {
@@ -233,6 +240,10 @@ test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl.
   expect(newData.cloud.categories.length).toBe(3)
   expect(JSON.stringify(newData.cloud)).not.toContain('dummy')
 })
+
+// Der inhaltliche Kimi-Beweis (Familie befuellt, userglobal-Uebernahme,
+// credentials nur klassifiziert) liegt in kimi-family.spec.ts — hier bleibt nur
+// die Schluessel-Reihenfolge, damit diese Datei unter dem HR27-Limit bleibt.
 
 // ── llm-comingSoon-Frueh-Return (Modellroot-fehlt-Branch) ───────────────────
 // Modellroots liegen ausserhalb der Sandbox. Fehlen alle Roots, MUSS data.local

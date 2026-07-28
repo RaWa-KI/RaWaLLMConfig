@@ -28,10 +28,16 @@ export function useVirtualRows(options: VirtualRowsOptions) {
   const scheduleMeasure = useRafRefresh(measure)
   useEffect(() => {
     scheduleMeasure()
-    window.addEventListener('scroll', scheduleMeasure, { passive: true })
+    // capture: true ist PFLICHT, nicht Kosmetik. scroll-Events bubbeln nicht.
+    // Der einzige echte Scroll-Container der App ist .main (body hat
+    // overflow: hidden) — ein Bubble-Listener am window haette also nie
+    // gefeuert und das Renderfenster waere auf dem Initialwert eingefroren
+    // (leere Flaechen ab der ersten virtualisierten Liste). In der
+    // Capture-Phase laeuft das Event dagegen window -> ... -> Ziel durch.
+    window.addEventListener('scroll', scheduleMeasure, { passive: true, capture: true })
     window.addEventListener('resize', scheduleMeasure)
     return () => {
-      window.removeEventListener('scroll', scheduleMeasure)
+      window.removeEventListener('scroll', scheduleMeasure, { capture: true })
       window.removeEventListener('resize', scheduleMeasure)
     }
   }, [scheduleMeasure])

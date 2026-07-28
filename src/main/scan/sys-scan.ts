@@ -1,29 +1,34 @@
 // System-Umgebung + Toolchain-Watcher (read-only). Quellen zur Laufzeit:
-//   .shared/.claude/references/SYSTEM-ENVIRONMENT.md + system-environment/*-hub
-//   .shared/.claude/coordination/registry/localhost-ports.json (Ports = kein Secret)
-//   .shared/.claude/coordination/tracking/toolchain-daemon-state.json + */*-changelog/**
+//   <shared>/docs/01-referenz/SYSTEM-ENVIRONMENT.md + system-environment/*-hub
+//   <shared>/coordination/registry/localhost-ports.json (Ports = kein Secret)
+//   <shared>/coordination/tracking/toolchain-daemon-state.json
+//   <shared>/docs/01-referenz/*-changelog/**
 // Secrets werden NIE gelesen — env nur als Bereichs-/Namen-Hinweis, keine Werte.
+//
+// WP-7 Pfad-Fix (Auflagen A5/A6): alle vier Pfade kamen frueher aus
+// <shared>/.claude/** und existierten dort nicht. Sie werden jetzt zentral in
+// shared-data-roots.ts per `dirname(configRoots().sharedClaude)` abgeleitet —
+// kein neuer ConfigRootKey, Sandbox-Modus bleibt automatisch korrekt.
 import fs from 'node:fs'
 import path from 'node:path'
 import type {
-  System, SystemArea, Watcher, WatcherSource, WatcherChangelog,
+  System, SystemArea, Watcher, WatcherSource,
   EntryStatus, SourceState
 } from '@shared/contract'
 import { scanWatcherLive } from './watcher-live'
 import { scanMcp, mcpNames } from './mcp-scan'
-import { configRoots } from '../services/config-roots'
 import { getVersionsCached } from '../services/cli-version-cache'
 import type { ToolSpec } from '../services/cli-version-live'
 import { scanHardwareArea } from './hardware-scan'
 import { applyWatcherPlatformCopy, sysScanPlatformCopy } from './sys-scan-platform-copy'
+import { sharedDataRoots } from './shared-data-roots'
+import { changelogFeed, newestChangelogDate } from './changelog-feed'
 
-// Trunk-Pfade aus der Single Source (Default = real, M1 unveraendert; mit
-// RAWALLM_SANDBOX_ROOT zeigt sharedDir unter <sandbox>/.shared/.claude).
-const configuredSharedDir = configRoots().sharedClaude
-const sharedDir = configuredSharedDir ?? ''
-const refDir = path.join(sharedDir, 'references')
-const trackDir = path.join(sharedDir, 'coordination', 'tracking')
-const portsFile = path.join(sharedDir, 'coordination', 'registry', 'localhost-ports.json')
+const dataRoots = sharedDataRoots()
+const configuredSharedDir = dataRoots?.sharedDir ?? null
+const refDir = dataRoots?.referencesDir ?? ''
+const trackDir = dataRoots?.trackingDir ?? ''
+const portsFile = path.join(dataRoots?.registryDir ?? '', 'localhost-ports.json')
 
 // ── Helfer ──────────────────────────────────────────────────────────────
 function readText(p: string): string {
@@ -34,20 +39,19 @@ function readJson<T>(p: string): T | null {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')) as T } catch { return null }
 }
 
-function listFiles(dir: string): string[] {
-  try { return fs.readdirSync(dir).filter((f) => f.endsWith('.md')) } catch { return [] }
-}
-
-// "updated"-Datum aus SYSTEM-ENVIRONMENT-Frontmatter (graceful Default).
+// „updated"-Datum aus dem SYSTEM-ENVIRONMENT-Frontmatter (A6: liegt real unter
+// <shared>/docs/01-referenz/). Kein hardcodiertes Kalenderdatum mehr: fehlt die
+// Datei, faellt der Stand auf das juengste real abgelegte Changelog-Datum und
+// sonst auf '—' zurueck — nie auf ein erfundenes Datum.
 function refUpdated(): string {
   try {
     const txt = readText(path.join(refDir, 'SYSTEM-ENVIRONMENT.md'))
     const m = txt.match(/updated:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/)
-    return m ? m[1] : '2026-06-04'
-  } catch (e) {
+    if (m) return m[1]
+  } catch {
     console.error('[scan:sys]', 'refUpdated failed')
-    return '2026-06-04'
   }
+  return newestChangelogDate(refDir) ?? '—'
 }
 
 // Ports nach Status klassifizieren — active/reserved -> active, stale -> stale, conflict-risk -> conflict.
@@ -105,7 +109,7 @@ function dbArea(doc: PortsDoc | null): SystemArea {
 // „Ollama aktiv" — kein statischer Snapshot-Eintrag mehr. Der alte Hardcode
 // („wirkungslos, Ollama entfernt", Stand 2026-06-07) war ein Falschpositiv:
 // Ollama laeuft, die Modelle liegen im konfigurierten lokalen Modellordner
-// (Befund 2026-07-19: OLLAMA_MODELS u.a. gesetzt, E:\models\ollama vorhanden).
+// (Befund 2026-07-19: OLLAMA_MODELS u.a. gesetzt, Modell-Unterordner vorhanden).
 export function ollamaEnvEntry(): SystemArea['entries'][number] | null {
   const count = Object.keys(process.env).filter((key) => key.startsWith('OLLAMA')).length
   if (count === 0) return null
@@ -125,9 +129,10 @@ function envArea(): SystemArea {
   }
 }
 
-// Statisch gehaltene Versionsangaben als datierten Snapshot kennzeichnen, damit das UI
-// nie suggeriert, die Werte seien live erfasst (Quelle: VALIDATED_REFERENCE).
-const STATIC_STAND = 'Stand 2026-06-07'
+// Statisch gehaltene Angaben klar als NICHT live kennzeichnen, damit das UI nie
+// suggeriert, die Werte seien gerade erfasst worden. Bewusst ohne Kalenderdatum:
+// ein hartcodierter Stichtag altert still und behauptet Aktualitaet (WP-7).
+const STATIC_STAND = 'statische Liste — nicht live erfasst'
 function stampStatic(areas: SystemArea[]): SystemArea[] {
   return areas.map((a) => ({ ...a, blurb: `${a.blurb} · ${STATIC_STAND}` }))
 }
@@ -150,19 +155,22 @@ const VERSION_SPECS: ToolSpec[] = [
 // Spawns laufen non-blocking und nur einmal pro App-Lauf.
 async function liveVersionAreas(platform: NodeJS.Platform = process.platform): Promise<SystemArea[]> {
   const live = await getVersionsCached(VERSION_SPECS)
-  const v = (id: string, fallback: string): string => live[id] ?? fallback
+  // Kein Versions-Hardcode als Fallback mehr: nicht erfasst -> '—' und Status
+  // 'stale'. Eine gecachte Wunschversion anzuzeigen waere erfundene Realitaet.
+  const v = (id: string): string => live[id] ?? '—'
+  const st = (id: string): EntryStatus => (live[id] ? 'active' : 'stale')
   const copy = sysScanPlatformCopy(platform)
   return [
     { id: 'runtimes', label: 'Laufzeiten', icon: 'box', blurb: 'Node, Python, PHP, Git (live).', entries: [
-      { id: 'node', name: 'Node.js', status: 'active', v: v('node', '22.18.0'), desc: 'engines: >=22 in Projekten' },
-      { id: 'pnpm', name: 'pnpm', status: 'active', v: v('pnpm', '10.33.4'), desc: 'Bevorzugter Manager — NIEMALS npm/yarn' },
-      { id: 'python', name: 'Python', status: 'active', v: v('python', '3.13.7'), desc: 'Haupt · 3.11.9 separat fuer Open WebUI' },
-      { id: 'php', name: 'PHP', status: 'active', v: v('php', '8.4.20'), desc: 'CLI, ZTS x64' },
-      { id: 'git', name: 'Git', status: 'active', v: v('git', '2.51.0'), desc: 'LFS + Longpaths aktiviert' }
+      { id: 'node', name: 'Node.js', status: st('node'), v: v('node'), desc: 'engines: >=22 in Projekten' },
+      { id: 'pnpm', name: 'pnpm', status: st('pnpm'), v: v('pnpm'), desc: 'Bevorzugter Manager — NIEMALS npm/yarn' },
+      { id: 'python', name: 'Python', status: st('python'), v: v('python'), desc: 'Haupt · separate Version fuer Open WebUI moeglich' },
+      { id: 'php', name: 'PHP', status: st('php'), v: v('php'), desc: 'CLI' },
+      { id: 'git', name: 'Git', status: st('git'), v: v('git'), desc: 'LFS + Longpaths aktiviert' }
     ] },
     { id: 'cli', label: 'CLI-Tools', icon: 'term', blurb: 'Standalone-Installationen, Version live.', entries: [
-      { id: 'claude', name: 'Claude Code', status: 'active', v: v('claude', 'CLI'), desc: copy.claudeDescription },
-      { id: 'codex', name: 'Codex CLI', status: 'active', v: v('codex', 'CLI'), desc: 'Native Installer · OpenAI/Codex · Auto-Update' }
+      { id: 'claude', name: 'Claude Code', status: st('claude'), v: v('claude'), desc: copy.claudeDescription },
+      { id: 'codex', name: 'Codex CLI', status: st('codex'), v: v('codex'), desc: 'Native Installer · OpenAI/Codex · Auto-Update' }
     ] }
   ]
 }
@@ -200,7 +208,7 @@ export async function scanSystem(platform: NodeJS.Platform = process.platform): 
     return { updated: refUpdated(), areas }
   } catch (e) {
     console.error('[scan:sys]', 'scanSystem failed')
-    return { updated: '2026-06-04', areas: [] }
+    return { updated: '—', areas: [] }
   }
 }
 
@@ -213,6 +221,10 @@ function sourceState(local?: string, latest?: string): SourceState {
   return 'recent'
 }
 
+// Quellen NUR aus dem realen Daemon-State. Der frueher hier stehende Hardcode
+// (Claude 2.1.165 / Codex 0.137.0 „current") hat bei fehlendem State einen
+// Versionsgleichstand behauptet, den niemand geprueft hatte — ersatzlos raus:
+// keine Quelle -> leere Liste -> ehrlicher Empty-State im UI.
 function watcherSources(state: DaemonState | null): WatcherSource[] {
   const out: WatcherSource[] = []
   const cli = (id: string, name: string): void => {
@@ -222,32 +234,13 @@ function watcherSources(state: DaemonState | null): WatcherSource[] {
   }
   cli('claude-cli', 'Claude Code CLI')
   cli('codex-cli', 'Codex CLI')
-  if (out.length === 0) {
-    out.push({ name: 'Claude Code CLI', kind: 'CLI', current: '2.1.165', latest: '2.1.165', tier: 1, state: 'current' })
-    out.push({ name: 'Codex CLI', kind: 'CLI', current: '0.137.0', latest: '0.137.0', tier: 1, state: 'current' })
-  }
   return out
 }
 
-// Neuesten Changelog je Tool aus references/*-changelog/ (Dateiname YYYY-MM-DD--tool--vX.md).
-function latestChangelogs(): WatcherChangelog[] {
-  const dirs = ['claude-changelog', 'codex-changelog', 'electron-changelog']
-  const out: WatcherChangelog[] = []
-  for (const d of dirs) {
-    try {
-      const files = listFiles(path.join(refDir, d)).sort()
-      const last = files[files.length - 1]
-      if (!last) continue
-      const m = last.match(/^([0-9-]+)--([a-z0-9-]+)--v?([^.]+)\.md$/i)
-      if (m) out.push({ tool: m[2], version: m[3], date: m[1], summary: `Letzter erfasster ${m[2]}-Changelog-Eintrag (lokal abgelegt).` })
-    } catch { /* graceful */ }
-  }
-  return out.length ? out : [{ tool: 'claude-code', version: '2.1.165', date: '2026-06-03', summary: 'CLI + VS-Code-Extension auf Versionsgleichstand.' }]
-}
-
 // Statischer Fallback (Welle-3-INT): die fruehere inline scanWatcher-Logik. Wird
-// nur genutzt, wenn watcher-live keine Quellen liefert (Scope-B fehlt/leer), damit
-// die Updates-Sektion nie leer einrastet. Read-only, kein Secret.
+// nur genutzt, wenn watcher-live keine Quellen liefert (Scope-B fehlt/leer).
+// Liefert ausschliesslich real Gelesenes — bei leerer Quelle bleibt die Sektion
+// bewusst leer statt einen erfundenen Stand zu zeigen. Read-only, kein Secret.
 function scanWatcherStatic(): Watcher {
   const state = readJson<DaemonState>(path.join(trackDir, 'toolchain-daemon-state.json'))
   const sources = watcherSources(state)
@@ -257,11 +250,16 @@ function scanWatcherStatic(): Watcher {
     { id: 3, label: 'Stufe 3', mode: 'flag-only', cls: 'dup', desc: 'Nur markiert, keine automatische Aktion.' }
   ]
   const daemon: Watcher['daemon'] = {
-    status: 'Ready', lastResult: '0', schedule: 'Task-Scheduler (run-hidden)',
+    status: state ? 'Ready' : 'Unknown',
+    lastResult: state ? '0' : '—',
+    schedule: 'Task-Scheduler (run-hidden)',
     tokens: '0 Daemon-LLM-Token', sources: sources.length, updated: refUpdated(),
     note: 'Deterministische Erkennung von Tool-/Modell-Updates; legt Changelog-Volltexte lokal ab.'
   }
-  return { daemon, tiers, sources, changelogs: latestChangelogs() }
+  // Changelog-Feed aus dem realen Bestand: dynamisches Scannen aller
+  // `*-changelog`-Ordner, beide Namensschemata, ordneruebergreifend die
+  // juengsten Eintraege. Kein Platzhalter mehr bei leerer Quelle.
+  return { daemon, tiers, sources, changelogs: changelogFeed(refDir) }
 }
 
 export interface WatcherScanSources {
@@ -284,7 +282,7 @@ export async function scanWatcher(
   } catch (e) {
     console.error('[scan:watcher]', 'scanWatcher failed')
     return {
-      daemon: { status: 'Unknown', lastResult: '—', schedule: '—', tokens: '—', sources: 0, updated: '2026-06-04', note: 'Watcher-State nicht lesbar.' },
+      daemon: { status: 'Unknown', lastResult: '—', schedule: '—', tokens: '—', sources: 0, updated: '—', note: 'Watcher-State nicht lesbar.' },
       tiers: [], sources: [], changelogs: []
     }
   }

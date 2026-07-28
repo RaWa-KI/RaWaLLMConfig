@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ConfigEntry } from '@shared/contract'
+import { readFullErrText } from '../lib/read-full-error-text'
 
 // Geladener Vollinhalt-Zustand (Owner-Override: Secret-Klasse wird maskiert
 // ANGEZEIGT, nicht geblockt). `masked`/`maskedCount` aus ReadFullResultData.
@@ -9,22 +10,8 @@ export interface FullState {
   maskedCount: number
 }
 
-// Mappt die distinkten Backend-Fehler (res.error) auf owner-lesbare Hinweise —
-// statt sie zu einer Generikmeldung zu kollabieren.
-function readFullErrText(err: string | null): string {
-  switch (err) {
-    case 'nicht-gefunden':
-      return 'Datei nicht gefunden.'
-    case 'ordner':
-      return 'Pfad verweist auf einen Ordner, nicht auf eine Datei.'
-    case 'nicht-lesbar':
-      return 'Datei nicht lesbar (Zugriff verweigert).'
-    case 'invalid-request':
-      return 'Ungültige Anfrage (kein Pfad hinterlegt).'
-    default:
-      return 'Inhalt nicht anzeigbar.'
-  }
-}
+// Fehlertexte kommen aus dem gemeinsamen Modul lib/read-full-error-text.ts —
+// dieselbe Quelle nutzen EditForm und OverviewEditor (Reiter "Detail & Edit").
 
 // Hook: Fetch-/State-Logik für ConfigTab.
 // Verwaltet Vollinhalt-Laden, Fehlermeldungen und Loading-Zustand.

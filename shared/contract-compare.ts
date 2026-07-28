@@ -8,7 +8,7 @@
 // damit beliebig viele Spalten gehen (Q5 LOCKED: weiche Grenze, KEINE harte Obergrenze).
 
 // Eine auswaehlbare Datei im Vergleich (= eine Spalte). origin = sprechende Ebene
-// ("~/.claude", "Projekte (Parent)", "WS: RaWaLLMConfig") aus ConfigEntry.origin.
+// ("~/.claude", "Projektordner", "WS: RaWaLLMConfig") aus ConfigEntry.origin.
 export interface CompareCandidate {
   id: string // stabile Auswahl-ID (Entry-ID oder Pfad)
   path: string // absoluter Dateipfad (Lade-Quelle, secret-guarded)

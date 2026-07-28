@@ -68,6 +68,8 @@ function keyPresent(secretRefs: string[]): boolean {
 
 // Key-Status-Eintrag: name/desc/fields tragen NUR den booleschen Status und die
 // Env-NAMEN, niemals den Wert. status 'active' wenn gesetzt, sonst 'stale'.
+// fileBacked: false (WP-5, B6/B7): path ist die API-Basis (URL), keine Datei —
+// der Renderer zeigt einen Hinweis statt Datei-Edit/CRUD.
 function keyEntry(prov: CloudProvider): ConfigEntry {
   const set = keyPresent(prov.secretRefs)
   const names = prov.secretRefs.join(' / ')
@@ -79,6 +81,7 @@ function keyEntry(prov: CloudProvider): ConfigEntry {
     path: prov.apiBase,
     desc: set ? 'Gesetzt (Wert maskiert)' : `Nicht gesetzt — in ${prov.secretRefs[0]} hinterlegen`,
     updated: '',
+    fileBacked: false,
     fields: {
       'Env-Variable': names,
       'Status': set ? 'gesetzt' : 'nicht gesetzt',
@@ -87,6 +90,7 @@ function keyEntry(prov: CloudProvider): ConfigEntry {
 }
 
 // Modell-Eintrag (reine Anzeige; status 'stale' = Beispiel, kein Live-Check).
+// fileBacked: false (WP-5): Katalog-Eintrag ohne eigene Datei (path = URL).
 function modelEntry(prov: CloudProvider, model: string): ConfigEntry {
   return {
     id: `cloud-${prov.id}-${slug(model)}`,
@@ -96,6 +100,7 @@ function modelEntry(prov: CloudProvider, model: string): ConfigEntry {
     path: prov.apiBase,
     desc: `${prov.label}-Modell (Beispiel)`,
     updated: '',
+    fileBacked: false,
     fields: { 'API-Basis': prov.apiBase },
   }
 }

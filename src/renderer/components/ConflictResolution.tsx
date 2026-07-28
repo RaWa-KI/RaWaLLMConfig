@@ -28,11 +28,11 @@ function copyFor(reason: string): ConflictCopy {
   }
   if (/MCP-Register.*Plugin-Ordner/i.test(reason)) {
     return {
-      title: 'Ein MCP-Server ist eingetragen, aber die Plugin-Dateien fehlen.',
-      meaning: 'Die App findet den Start-Eintrag, aber keinen passenden Ordner dazu. Dadurch kann der Server nicht sauber geprüft oder gestartet werden.',
-      keep: 'Wenn der Eintrag richtig ist: die fehlenden Plugin-Dateien ergänzen.',
+      title: 'Ein eingetragener MCP-Server hat keinen gleichnamigen Plugin-Ordner.',
+      meaning: 'Im MCP-Register steht ein Server-Eintrag, zu dem die App keinen passenden Ordner mit diesem Namen findet. Meist ist der Ordner umbenannt oder verschoben worden, oder der Eintrag zeigt noch auf einen alten Namen.',
+      keep: 'Wenn der Eintrag gelten soll: nachsehen, wie der Ordner wirklich heißt, und Eintrag und Ordnername aneinander angleichen.',
       add: 'Wenn der Ordner nur verschoben wurde: mit „Verschieben“ den Pfad korrigieren.',
-      archive: 'Wenn der Eintrag alt ist: archivieren oder durch die richtige Datei ersetzen.'
+      archive: 'Wenn der Eintrag alt ist: mit „Archivieren“ sichern. Dabei wird nichts ersatzlos gelöscht.'
     }
   }
   if (/json|parse/i.test(reason)) {

@@ -15,17 +15,23 @@
   border: var(--card-border);
   border-radius: var(--radius);
   box-shadow: var(--card-shadow-sm);
-  overflow: hidden;
+  /* clip statt hidden: klippt weiterhin an den Radien, erzeugt aber KEINEN
+     eigenen Scrollport — sonst klebt .cvg-thead an dieser (nie scrollenden)
+     Karte statt am echten Scroll-Container .main. */
+  overflow: clip;
 }
 
-/* ── Tabellen-Kopf ────────────────────────────────────────────── */
+/* ── Tabellen-Kopf (bleibt beim Scrollen sichtbar) ─────────────── */
 .cvg-thead {
   display: grid;
-  grid-template-columns: 1fr 90px 90px 90px 32px;
+  grid-template-columns: 1fr 90px 90px 90px 90px 32px;
   gap: 0;
   padding: 10px 16px;
   background: var(--bg);
   border-bottom: 2px solid var(--ink);
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .cvg-th {
@@ -36,13 +42,8 @@
   color: var(--text-lt);
 }
 
-.cvg-th--name {
-  font-size: 12px;
-}
-
-.cvg-th--expand {
-  width: 32px;
-}
+.cvg-th--name { font-size: 12px; }
+.cvg-th--expand { width: 32px; }
 
 /* ── Tbody ────────────────────────────────────────────────────── */
 .cvg-tbody {
@@ -63,7 +64,7 @@
 
 .cvg-row-head {
   display: grid;
-  grid-template-columns: 1fr 90px 90px 90px 32px;
+  grid-template-columns: 1fr 90px 90px 90px 90px 32px;
   align-items: center;
   gap: 0;
   padding: 10px 16px;

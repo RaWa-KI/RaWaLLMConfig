@@ -1,7 +1,7 @@
 // coverage.ts — Cross-Tool-Spiegelungs-Matrix (read-only). Baut pro logischer
-// Config (key = normalisierter Name + Kategorie ueber shared/claude/codex) EINE
-// CoverageRow mit drei Zellen (Shared/Claude/Codex). Bidirektional: auch
-// tool-only-Configs (nur Codex / nur Claude) erzeugen eine Zeile.
+// Config (key = normalisierter Name + Kategorie ueber shared/claude/codex/kimi)
+// EINE CoverageRow mit vier Zellen (Shared/Claude/Codex/Kimi). Bidirektional:
+// auch tool-only-Configs (nur Codex / nur Claude / nur Kimi) erzeugen eine Zeile.
 //
 // Asymmetrie-bewusst (Bericht Teil 2): Claude bezieht Shared ueber das
 // Plugin-System — fehlt eine echte ~/.claude-Datei, ist die Config aber
@@ -24,6 +24,7 @@ import { normalizeCat, normalizeKey } from './dedupe-key'
 import {
   classifyClaude,
   classifyCodex,
+  classifyKimi,
   classifyPresent,
   classifyReference,
   compareDrift
@@ -31,8 +32,9 @@ import {
 import type { DriftResult, FamilyPresence } from './coverage-classify'
 
 // Familien, die in der Spiegelung erscheinen (Reihenfolge = Referenz-Vorrang).
-type CoverageFamily = 'shared' | 'claude' | 'codex'
-const COVERAGE_FAMILIES: CoverageFamily[] = ['shared', 'claude', 'codex']
+// kimi (WP-8, B9) steht hinten — bestehende Referenz-Ordnung bleibt stabil.
+type CoverageFamily = 'shared' | 'claude' | 'codex' | 'kimi'
+const COVERAGE_FAMILIES: CoverageFamily[] = ['shared', 'claude', 'codex', 'kimi']
 
 // Gebuendelter Zustand eines logischen Config-Schluessels ueber alle Familien.
 interface KeyBucket {
@@ -127,7 +129,8 @@ function buildRow(bucket: KeyBucket, hasClaudePlugins: boolean): CoverageRow {
     name: bucket.name,
     shared: cells.shared,
     claude: cells.claude,
-    codex: cells.codex
+    codex: cells.codex,
+    kimi: cells.kimi
   }
   attachDrift(row, cells.drift)
   return row
@@ -152,19 +155,21 @@ function driftFor(
   return compareDrift(ref.entry.path, present.entry.path)
 }
 
-// Die drei Zellen + der (erste) Drift fuer den Drilldown bestimmen.
+// Die vier Zellen + der (erste) Drift fuer den Drilldown bestimmen.
 function buildCells(
   bucket: KeyBucket,
   ref: FamilyPresence | undefined,
   hasClaudePlugins: boolean
-): { shared: CoverageCell; claude: CoverageCell; codex: CoverageCell; drift?: DriftResult } {
+): { shared: CoverageCell; claude: CoverageCell; codex: CoverageCell; kimi: CoverageCell; drift?: DriftResult } {
   const sPres = bucket.presence.shared
   const cPres = bucket.presence.claude
   const xPres = bucket.presence.codex
+  const kPres = bucket.presence.kimi
   const hasSingleFileEvidence = countPresent(bucket) === 1
   const sDrift = driftFor(sPres, ref)
   const cDrift = driftFor(cPres, ref)
   const xDrift = driftFor(xPres, ref)
+  const kDrift = driftFor(kPres, ref)
   const shared = classifyShared(sPres, sDrift, hasSingleFileEvidence)
   const claude = cPres && hasSingleFileEvidence
     ? classifyReference(cPres)
@@ -172,7 +177,10 @@ function buildCells(
   const codex = xPres && hasSingleFileEvidence
     ? classifyReference(xPres)
     : classifyCodex(xPres, xDrift, bucket.cat)
-  return { shared, claude, codex, drift: firstAbweichend(sDrift, cDrift, xDrift) }
+  const kimi = kPres && hasSingleFileEvidence
+    ? classifyReference(kPres)
+    : classifyKimi(kPres, kDrift, bucket.cat)
+  return { shared, claude, codex, kimi, drift: firstAbweichend(sDrift, cDrift, xDrift, kDrift) }
 }
 
 // Shared ist Referenz, aber nur Tool-only/Single-Evidence wird als "vorhanden" markiert.

@@ -49,6 +49,31 @@ function endpointCategory(manifest: ProviderManifest): Category | null {
   }
 }
 
+// Multi-Root-Dedupe (B2): die Root-Schleife unten liefert je Root eine
+// Kategorie — llm-Customs byte-identisch, spec-Kategorien mit gleicher id und
+// differierenden Eintraegen. Ohne Merge zeigt die Seitenleiste alles x N Roots.
+// Merge nach Category.id: die erste Huelle (label/icon/path/blurb) gewinnt
+// (Reihenfolge = erster Auftritt, deterministisch), Eintraege werden vereinigt
+// mit Dedupe nach Entry-id (deckt identische Customs UND differierende
+// spec-Inhalte ab; erste Entry-Fassung gewinnt).
+function mergeCategories(categories: Category[]): Category[] {
+  const byId = new Map<string, Category>()
+  for (const cat of categories) {
+    const existing = byId.get(cat.id)
+    if (!existing) {
+      byId.set(cat.id, cat)
+      continue
+    }
+    const seen = new Set(existing.entries.map((e) => e.id))
+    for (const entry of cat.entries) {
+      if (seen.has(entry.id)) continue
+      seen.add(entry.id)
+      existing.entries.push(entry)
+    }
+  }
+  return [...byId.values()]
+}
+
 // Alle Kategorie-Specs des Manifests gegen ALLE aufgeloesten Roots ausfuehren.
 // Reihenfolge: je Root in Eingabe-Reihenfolge, darin je CategorySpec in
 // Manifest-Reihenfolge (deterministisch, wie die Bestands-Scanner). Ein
@@ -58,6 +83,8 @@ function endpointCategory(manifest: ProviderManifest): Category | null {
 // (secret-frei, gekappt). So bleibt der Teilausfall EINER Kategorie sichtbar
 // (scanProvider leitet ihn als scanError weiter), ohne die restlichen Kategorien
 // zu verwerfen (Bestands-Verhalten bleibt: geloggt + uebersprungen).
+// B2: Nach der Root-Schleife wird nach Category.id gemergt (mergeCategories) —
+// sonst vervielfachen aktive Nutzer-Quellen jede Kategorie in der Seitenleiste.
 function runCategories(roots: string[], manifest: ProviderManifest, errors: string[]): Category[] {
   const out: Category[] = []
   // Metadaten-only Provider (Cloud, Teil D) haben keine Roots -> ein synthetischer
@@ -75,7 +102,7 @@ function runCategories(roots: string[], manifest: ProviderManifest, errors: stri
       }
     }
   }
-  return out
+  return mergeCategories(out)
 }
 
 /**

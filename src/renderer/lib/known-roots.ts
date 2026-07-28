@@ -4,6 +4,7 @@
 // Category traegt einen realen absoluten Pfad (z.B. C:/Users/u/.claude/settings.json);
 // die schreibbare Wurzel ist das Praefix bis einschliesslich des Allowlist-Segments:
 //   .codex                       -> …/.codex
+//   .kimi-code                   -> …/.kimi-code
 //   .claude (nicht nach .shared) -> …/.claude
 //   .shared/.claude              -> …/.shared/.claude  (zwei-Segment-Trunk-Wurzel)
 // So bleibt die Allowlist hart (nur .claude/.codex/.shared je WS) und der Dialog
@@ -18,7 +19,11 @@ import {
 // Allowlist-Segmente (Spiegel von import-targets.ALLOWED_ROOT_SEGMENTS). Bewusst
 // dupliziert klein gehalten: dieses Modul kennt nur die Wurzel-Ableitung, nicht
 // die Secret-/Foreign-Klassifikation.
-const ROOT_SEGMENTS = new Set(['.claude', '.codex', '.shared'])
+// HR16-Paritaet: `.kimi-code` ist das dritte native Tool-Home. Main-seitig wird
+// es erst schreibbar, wenn der Nutzer es im Onboarding als Quelle uebernimmt
+// (source-store -> userSourceRoots -> configRootList) — genau dann tauchen auch
+// Kimi-Pfade in den Config-Daten auf, aus denen diese Wurzeln abgeleitet werden.
+const ROOT_SEGMENTS = new Set(['.claude', '.codex', '.kimi-code', '.shared'])
 
 // WS-/projectRoot-Segment: der Main-Write-Scope (config-roots.ConfigRoots)
 // enthaelt ausser .claude/.codex/.shared auch den Projekt-Root (.../RaWaLLMConfig),

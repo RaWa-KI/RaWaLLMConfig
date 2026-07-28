@@ -10,6 +10,7 @@ import type {
   UserSource
 } from '@shared/contract-sources'
 import { sourceBridge } from './sourceBridge'
+import { useStore } from './store'
 
 export interface SourceActions {
   pickFolder(): Promise<string | null>
@@ -105,8 +106,14 @@ function useSourceMutationActions(applyResult: (res: SourceMutateResult) => bool
   return { addSource, removeSource, setEnabled }
 }
 
+// WP-4 Schicht 2: Der Onboarding-Abschluss war der einzige Schreibpfad ohne
+// reloadConfig(). Neue Nutzerquellen liegen ausserhalb der vier beobachteten
+// Basiswurzeln, es kommt also auch kein Watcher-Event nach — ohne den Reload
+// zeigte die Startseite bis zum Neustart den Vorschreib-Stand.
 function useSourceOnboardingActions(state: SourceActionsState) {
   const { setSources, setOnboardingDone } = state
+  const { actions } = useStore()
+  const reloadConfig = actions.reloadConfig
 
   const completeOnboarding = useCallback(async (): Promise<void> => {
     const api = sourceBridge()
@@ -115,7 +122,8 @@ function useSourceOnboardingActions(state: SourceActionsState) {
       if (res.ok) setSources(res.sources)
     }
     setOnboardingDone(true)
-  }, [setSources, setOnboardingDone])
+    reloadConfig()
+  }, [setSources, setOnboardingDone, reloadConfig])
 
   const reopenOnboarding = useCallback(async (): Promise<void> => {
     const api = sourceBridge()

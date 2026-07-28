@@ -7,6 +7,8 @@ import { createIntegrationsApi } from './integrations-api'
 import { createDiagnosticsApi, type DiagnosticsApi } from './diagnostics-api'
 import { createErrorReportApi, type ErrorReportApi } from './error-report-api'
 import { createCoverageApi, type CoverageApi } from './coverage-api'
+import { createDriftApi, type DriftApi } from './drift-api'
+import { createSourcesApi } from './sources-api'
 import type {
   AppData,
   System,
@@ -82,18 +84,7 @@ import type {
   ArchiveRestoreRequest,
   ArchiveRestoreResult
 } from '@shared/contract-archive'
-import type {
-  SourcesApi,
-  AddSourceRequest,
-  SetSourceEnabledRequest,
-  SourceListResult,
-  DiscoveryResult,
-  ModelDiscoveryResult,
-  ProviderChoiceResult,
-  PickFolderResult,
-  OnboardingDoneResult,
-  SourceMutateResult
-} from '@shared/contract-sources'
+import type { SourcesApi } from '@shared/contract-sources'
 
 // Sichere contextBridge. Read-API bleibt unveraendert; Phase 2 ergaenzt die
 // VOLLE Write-API (NUR getypte Methoden ueber whitelisted Kanaele aus
@@ -177,31 +168,7 @@ const archive: ArchiveApi = {
     ipcRenderer.invoke(IPC_WRITE.archiveRestore, req)
 }
 
-// Endnutzer-Quellen-Verwaltung (OSS Teil C). Read-Methoden ungated; Mutationen
-// im Main via isWriteEnabled() gegated. Kein roher ipcRenderer, keine Magic-
-// Strings — read auf IPC.*, write auf IPC_WRITE.*. Nie Datei-Inhalt, nie Secret.
-const sources: SourcesApi = {
-  listSources: (): Promise<SourceListResult> =>
-    ipcRenderer.invoke(IPC.sourcesList),
-  discoverSources: (): Promise<DiscoveryResult> =>
-    ipcRenderer.invoke(IPC.sourcesDiscover),
-  discoverModels: (): Promise<ModelDiscoveryResult> =>
-    ipcRenderer.invoke(IPC.sourcesDiscoverModels),
-  listProviders: (): Promise<ProviderChoiceResult> =>
-    ipcRenderer.invoke(IPC.providersList),
-  pickFolder: (): Promise<PickFolderResult> =>
-    ipcRenderer.invoke(IPC.sourcesPickFolder),
-  getOnboardingDone: (): Promise<OnboardingDoneResult> =>
-    ipcRenderer.invoke(IPC.sourcesOnboardingGet),
-  addSource: (req: AddSourceRequest): Promise<SourceMutateResult> =>
-    ipcRenderer.invoke(IPC_WRITE.sourcesAdd, req),
-  removeSource: (id: string): Promise<SourceMutateResult> =>
-    ipcRenderer.invoke(IPC_WRITE.sourcesRemove, id),
-  setSourceEnabled: (req: SetSourceEnabledRequest): Promise<SourceMutateResult> =>
-    ipcRenderer.invoke(IPC_WRITE.sourcesSetEnabled, req),
-  setOnboardingDone: (done: boolean): Promise<SourceMutateResult> =>
-    ipcRenderer.invoke(IPC_WRITE.sourcesSetOnboarding, done)
-}
+const sources: SourcesApi = createSourcesApi(ipcRenderer)
 
 const write: WriteApi = {
   writeApply: (req: WriteRequest): Promise<WriteResult> =>
@@ -278,8 +245,9 @@ const integrity: IntegrityApi = {
 const integrations = createIntegrationsApi(ipcRenderer)
 const diagnostics = createDiagnosticsApi(ipcRenderer)
 const coverage = createCoverageApi(ipcRenderer)
+const drift = createDriftApi(ipcRenderer)
 
-const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi } = {
+const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & DriftApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi } = {
   ...read,
   ...write,
   ...updates,
@@ -293,6 +261,7 @@ const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & Graph
   ...integrity,
   ...diagnostics,
   ...coverage,
+  ...drift,
   integrations,
   errorReport: createErrorReportApi(ipcRenderer)
 }

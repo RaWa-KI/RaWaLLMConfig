@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { AppData, Category, DuplicateSet, LlmConfig } from '@shared/contract'
 import type { CoverageRow } from '@shared/contract-coverage'
 import { normalizeCat } from '@shared/cat-key'
@@ -8,13 +8,15 @@ import { Icon } from '../../components/Icon'
 import { FocusNotice } from '../../components/FocusNotice'
 import { SectionFallback } from '../../components/SectionFallback'
 import { readOverviewFocus } from '../overview/overview-navigation'
-import { OverviewView, SearchView, type SearchHit } from './config-parts'
+import { CategoryNavItem, OverviewView, SearchView } from './config-parts'
 import { DuplicatePanel } from './DuplicatePanel'
+import { DriftPanel } from './DriftPanel'
 import { ConfigWriteConfirm } from './ConfigWriteConfirm'
 import { ConfigDiagnostics } from './ConfigDiagnostics'
 import { DiagnosticsSummary } from './DiagnosticsSummary'
 import { CategoryModeTabs } from './CategoryModeTabs'
 import { categoryLabel } from './category-label'
+import { groupCategoriesBySource } from './category-groups'
 import { buildHits } from './config-filter'
 import { resolveConfigFocus } from './config-focus'
 
@@ -96,13 +98,10 @@ function useConfigOverviewFocus(data: AppData | null) {
   }, [actions, data, ui.catId, ui.llm, ui.mode, ui.search, ui.sel, ui.statusFilter])
 }
 
-function categoryFlag(cat: Category) {
-  if (cat.entries.some((e) => e.status === 'conflict')) return 'var(--terra)'
-  if (cat.entries.some((e) => e.status === 'stale')) return 'var(--amber)'
-  if (cat.entries.some((e) => e.status === 'dup')) return 'var(--papa)'
-  return null
-}
-
+// Sidebar-Kategorie: Gruppierung nach Quell-Werkzeug (WP-9). Die Userglobal-
+// Familie zeigte gleichnamige Achsen (Agents/Agents/Skills) flach untereinander;
+// jetzt traegt jede Gruppe eine Zwischenueberschrift und jedes Label sein
+// Quell-Praefix. Reine Anzeige — Filter/Dedupe laufen weiter ueber normalizeCat.
 function CategorySidebar({
   ad,
   catId,
@@ -115,32 +114,24 @@ function CategorySidebar({
   onPick(id: string): void
 }) {
   const { ui } = useStore()
+  const groups = useMemo(() => groupCategoriesBySource(ad.categories), [ad.categories])
   return (
     <aside className="sidebar">
       <div className="side-label">Kategorien</div>
-      {ad.categories.map((c) => {
-        const flag = categoryFlag(c)
-        return (
-          <button
-            key={c.id}
-            type="button"
-            className={'nav-item' + (catId === c.id && !searching ? ' on' : '')}
-            onClick={() => onPick(c.id)}
-          >
-            <span className="ni-ic">{Icon[c.icon]}</span>
-            <span className="ni-txt">{categoryLabel(ui.displayMode, c)}</span>
-            {flag && (
-              <span
-                className="ni-flag"
-                ref={(el) => {
-                  if (el) el.style.background = flag
-                }}
-              />
-            )}
-            <span className="ni-count">{c.entries.length}</span>
-          </button>
-        )
-      })}
+      {groups.map((g) => (
+        <Fragment key={g.key}>
+          {g.title && <div className="side-label">{g.title}</div>}
+          {g.categories.map((c) => (
+            <CategoryNavItem
+              key={c.id}
+              cat={c}
+              label={categoryLabel(ui.displayMode, c)}
+              active={catId === c.id && !searching}
+              onPick={onPick}
+            />
+          ))}
+        </Fragment>
+      ))}
       {ad.categories.length === 0 && <div className="empty-state">Noch keine Kategorien.</div>}
     </aside>
   )
@@ -248,7 +239,12 @@ function CategoryBody({
       </Suspense>
     )
   }
-  return <DuplicatePanel dups={diff.dups} labels={ad.diffLabels} cat={cat} />
+  return (
+    <>
+      {(ad.driftRelations?.length ?? 0) > 0 && <DriftPanel relations={ad.driftRelations ?? []} />}
+      <DuplicatePanel dups={diff.dups} labels={ad.diffLabels} cat={cat} />
+    </>
+  )
 }
 
 function CategoryView({ ad, cat }: { ad: LlmConfig; cat: Category }) {
@@ -256,11 +252,13 @@ function CategoryView({ ad, cat }: { ad: LlmConfig; cat: Category }) {
   const isShared = ui.llm === 'shared'
   const diff = diffDataForCategory(ad, cat, isShared)
   // DisplayMode-Weiche (Teil E, Owner-Entscheid D1–D3): simple sieht keine Pfade,
-  // keine Register-Modi (Spiegelung/Vergleich) und keine Diff-Zeilen. Bleibt der
-  // gespeicherte Modus fuer simple unzulaessig, faellt die Anzeige auf Uebersicht
-  // zurueck — ohne State-Eingriff (Wechsel zu expert zeigt den Modus wieder).
+  // keine Register-Modi und keine Diff-Zeilen; unzulaessige Modi fallen ohne
+  // State-Eingriff auf Uebersicht zurueck. Ausnahme (WP-2): ein Vergleich MIT
+  // fertigem Preset ist ein Einsprung aus Konflikt/Spiegelung und wird auch im
+  // Einfach-Modus gezeigt — der Vergleich-Tab bleibt dort weiter ausgeblendet.
   const expert = ui.displayMode === 'expert'
-  const mode: Mode = expert || (ui.mode === 'overview' || (ui.mode === 'diff' && !isShared)) ? ui.mode : 'overview'
+  const presetCompare = ui.mode === 'compare' && !!ui.comparePreset
+  const mode: Mode = expert || presetCompare || ui.mode === 'overview' || (ui.mode === 'diff' && !isShared) ? ui.mode : 'overview'
   // Stabiler Open-Callback (Teilplan C): Inline-Arrow wuerde die Referenz brechen.
   const openEntry = useCallback((id: string) => actions.openEntry(cat.id, id), [actions, cat.id])
   return (

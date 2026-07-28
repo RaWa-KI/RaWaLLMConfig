@@ -59,12 +59,21 @@ export interface CoverageComparePresetSource {
   createdAt: string
 }
 
+// Herkunft eines Vergleichs-Presets. 'coverage' = Einsprung aus der
+// Spiegelungs-Matrix, 'conflict' = Einsprung aus dem Konflikt-Kasten des
+// Detail-Drawers ("Unterschiede ansehen"). Die Herkunft steuert nur Texte und
+// die Modus-Weiche — der Vergleichspfad selbst ist fuer beide identisch.
+export type ComparePresetOrigin = 'coverage' | 'conflict'
+
 export interface CoverageComparePreset {
-  source: 'coverage'
+  source: ComparePresetOrigin
   row: CoverageCompareRowContext
   candidates: CompareCandidate[]
   createdFrom: CoverageComparePresetSource
 }
+
+// Sprechender Alias: das Preset traegt inzwischen beide Herkunftsarten.
+export type ComparePreset = CoverageComparePreset
 
 // Offener Import-Ziel-Dialog: vom Gate klassifizierte Items + erlaubte
 // Ziel-Wurzeln. null = kein Dialog offen. Reine UI-Sicht; der Write laeuft

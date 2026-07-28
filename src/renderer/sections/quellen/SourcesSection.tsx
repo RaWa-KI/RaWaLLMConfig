@@ -45,38 +45,62 @@ export function SourcesSection() {
 
   return (
     <main id="settings-tab-sources" className="main qs-wrap">
-      <div className="view-head">
-        <div className="view-title">
-          <h2>Zusätzliche Ordner</h2>
-          <p>
-            Diese Ordner durchsucht die App zusätzlich nach Einstellungsdateien. Die Standard-Ordner
-            werden ohnehin gelesen — hier ergänzt du nur eigene Pfade.
-          </p>
-        </div>
-        <div className="qs-actions">
-          <button type="button" className="btn-ghost" onClick={() => void syncAll()} disabled={src.loading}>
-            {Icon.refresh}
-            Neu syncen
-          </button>
-          <button type="button" className="btn-ghost" onClick={() => setAdding(true)} disabled={src.loading}>
-            {Icon.plus}
-            Quelle hinzufügen
-          </button>
-        </div>
-      </div>
+      <SourcesHeader
+        loading={src.loading}
+        onSync={() => void syncAll()}
+        onAdd={() => setAdding(true)}
+      />
 
       <SourcesBody src={src} onToggle={onToggle} onRemove={onRemove} />
 
       {adding && (
-        <AddSourceDialog
-          providers={src.providers}
-          pickFolder={src.pickFolder}
-          addSource={src.addSource}
-          onClose={() => setAdding(false)}
-          onResult={(ok) => onAddResult(ok)}
-        />
+        <AddSourceHost src={src} onClose={() => setAdding(false)} onResult={onAddResult} />
       )}
     </main>
+  )
+}
+
+// Offener Hinzufuegen-Dialog (nur gerendert, solange `adding` gesetzt ist).
+function AddSourceHost(props: {
+  src: ReturnType<typeof useSources>
+  onClose(): void
+  onResult(ok: boolean): void
+}) {
+  const { src, onClose, onResult } = props
+  return (
+    <AddSourceDialog
+      providers={src.providers}
+      pickFolder={src.pickFolder}
+      addSource={src.addSource}
+      onClose={onClose}
+      onResult={(ok) => onResult(ok)}
+    />
+  )
+}
+
+// Kopfzeile: Titel, Guidance und die beiden Aktionen (Sync + Hinzufuegen).
+function SourcesHeader(props: { loading: boolean; onSync(): void; onAdd(): void }) {
+  const { loading, onSync, onAdd } = props
+  return (
+    <div className="view-head">
+      <div className="view-title">
+        <h2>Zusätzliche Ordner</h2>
+        <p>
+          Diese Ordner durchsucht die App zusätzlich nach Einstellungsdateien. Die Standard-Ordner
+          werden ohnehin gelesen — hier ergänzt du nur eigene Pfade.
+        </p>
+      </div>
+      <div className="qs-actions">
+        <button type="button" className="btn-ghost" onClick={onSync} disabled={loading}>
+          {Icon.refresh}
+          Neu syncen
+        </button>
+        <button type="button" className="btn-ghost" onClick={onAdd} disabled={loading}>
+          {Icon.plus}
+          Quelle hinzufügen
+        </button>
+      </div>
+    </div>
   )
 }
 

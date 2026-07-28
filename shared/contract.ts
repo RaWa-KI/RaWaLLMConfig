@@ -2,8 +2,12 @@
 // Stabiler IPC-/Renderer-Vertrag; die visuelle Darstellung ist davon entkoppelt.
 // Scanner-Payloads tragen keine Secret-Werte, nur sichere Metadaten.
 
-import type { CoverageRow } from './contract-coverage'
 export type { CoverageState, CoverageCell, CoverageRow } from './contract-coverage'
+// HR27-Split (WP-5): LlmConfig lebt in contract-llm.ts; Import (lokale
+// Verwendung in AppData) + Re-Export halten alle bestehenden Importe aus
+// '@shared/contract' stabil.
+import type { LlmConfig } from './contract-llm'
+export type { LlmConfig } from './contract-llm'
 // Type-only-Import (zur Compile-Zeit geloescht -> kein Laufzeit-Zyklus, obwohl
 // contract-write seinerseits IpcResult aus dieser Datei zieht): watcherReadFull
 // ist eine Read-Route und gehoert in ElectronApi, nutzt aber die ReadFull-Typen.
@@ -34,7 +38,7 @@ export interface ConfigEntry {
   // blenden sich dann aus. Fehlt das Flag, bleibt das Verhalten unveraendert.
   inventory?: true
   // Additiv-optional (F6): sprechender Ursprung eines Eintrags fuer den
-  // Vergleich, z.B. "~/.claude", "Projekte (Parent)", "WS: RaWaLLMConfig".
+  // Vergleich, z.B. "~/.claude", "Projektordner", "WS: RaWaLLMConfig".
   // Genutzt von Instructions (CLAUDE.md/AGENTS.md ueber alle WS). Fehlt das
   // Feld, bleibt das Renderer-Verhalten unveraendert.
   origin?: string
@@ -52,6 +56,13 @@ export interface ConfigEntry {
   // NIE Werte — Secret-Werte landen hier nie. Genutzt fuer Volltext-/Schluessel-
   // Suche. Fehlt das Feld, bleibt das Verhalten unveraendert.
   searchKeys?: string[]
+  // Additiv-optional (WP-5, B6/B7): false = der Eintrag hat KEINE eigene
+  // bearbeitbare Datei (Endpoint-/Katalog-/Key-Eintrag; path traegt dann z.B.
+  // eine URL oder API-Basis). Der Renderer blendet Bearbeiten-Panel,
+  // CRUD-Aktionen und Prefill aus, zeigt einen erklaerenden Hinweis und ruft
+  // kein readFull auf. Fehlt das Flag, gilt true (dateibasiert) — Verhalten
+  // unveraendert.
+  fileBacked?: boolean
 }
 
 export interface Category {
@@ -132,23 +143,6 @@ export interface DiffLabels {
 export interface ComingSoon {
   title: string
   text: string
-}
-
-export interface LlmConfig {
-  categories: Category[]
-  duplicates: DuplicateSet[]
-  diffLabels?: DiffLabels
-  comingSoon?: ComingSoon
-  // Additiv-optional (A8-1): gesetzt, wenn der Familien-Scan real gecrasht ist
-  // (Provider-Vollausfall). Traegt NUR die Klartext-Fehler-message (secret-frei,
-  // gekappt) — kein Objekt-/Stack-Dump. Fehlt das Feld -> Scan lief fehlerfrei.
-  // Unterscheidet einen echten Scan-Crash von "nichts konfiguriert" (leere
-  // Familie ohne scanError). Renderer zeigt dafuer ein sichtbares Fehler-Signal.
-  scanError?: string
-  // Additiv-optional (WP-01): nur auf der 'shared'-Familie befuellt; fehlt das
-  // Feld -> Renderer-Verhalten unveraendert. Enthaelt die Spiegelungs-Matrix
-  // (Cross-Tool-Abdeckung Shared/Claude/Codex pro logischer Config).
-  coverage?: CoverageRow[]
 }
 
 export interface LlmDef {

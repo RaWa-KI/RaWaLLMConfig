@@ -6,6 +6,7 @@ import { useStore } from '../../state/store'
 import { useVirtualRows } from '../../lib/useVirtualRows'
 import { OverviewEntry } from './OverviewEntry'
 import { categoryLabel } from './category-label'
+import { categoryFlag } from './category-groups'
 
 // Read-only Praesentationsteile der Config-Sektion (1:1 Prototyp-Optik).
 // Phase 1: NUR Anzeige — keine CRUD-/Reconcile-/Notiz-Pfade.
@@ -17,6 +18,38 @@ const SCOPE_LABEL: Record<Scope, string> = {
   shared: 'Geteilt'
 }
 const SCOPE_ORDER: Scope[] = ['managed', 'global', 'project', 'local', 'shared']
+
+// Sidebar-Eintrag einer Kategorie (WP-9). Aus ConfigSection.tsx hierher gezogen
+// (HR27-Zeilenbudget); das Label kommt fertig projiziert von aussen und traegt in
+// der Userglobal-Familie sein Quell-Praefix („Claude · Assistenten").
+export function CategoryNavItem({
+  cat,
+  label,
+  active,
+  onPick
+}: {
+  cat: Category
+  label: string
+  active: boolean
+  onPick(id: string): void
+}) {
+  const flag = categoryFlag(cat)
+  return (
+    <button type="button" className={'nav-item' + (active ? ' on' : '')} onClick={() => onPick(cat.id)}>
+      <span className="ni-ic">{Icon[cat.icon]}</span>
+      <span className="ni-txt">{label}</span>
+      {flag && (
+        <span
+          className="ni-flag"
+          ref={(el) => {
+            if (el) el.style.background = flag
+          }}
+        />
+      )}
+      <span className="ni-count">{cat.entries.length}</span>
+    </button>
+  )
+}
 
 interface RowProps {
   cat: Category

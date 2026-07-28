@@ -3,18 +3,18 @@
 // schreibt/aendert NIE Config. Secrets werden nie getragen — die Scanner liefern
 // nur Namen/Status/Pfade/Metadaten. Jeder Scanner ist einzeln gekapselt: faellt
 // einer aus, bleibt seine Familie leer und der Rest der App lebt weiter.
-import path from 'node:path'
 import os from 'node:os'
-import type { AppData, Category, ConfigEntry, LlmConfig, LlmDef, Machine, Snapshot } from '@shared/contract'
-import { isPathEqualOrUnder } from '@shared/path-compare'
+import type { AppData, LlmConfig, LlmDef, Machine, Snapshot } from '@shared/contract'
 import { scanMcp } from './mcp-scan'
 import { markMcpConflicts } from './mcp-conflicts'
 import { scanRegistry, scanRegistryAsync } from './engine/build-data'
 import { isProviderScanEnabled } from './integration-filter'
 import { buildAuditConfig } from './scan-audit-categories'
 import { findDuplicates } from '../services/dedupe'
+import { findDriftRelations } from '../services/drift-relation'
 import { buildCoverage } from '../services/coverage'
-import { configRoots } from '../services/config-roots'
+// HR27-Split: die userglobal-Ableitung (inkl. Kimi-Quelle) liegt in scan-userglobal.
+import { buildUserglobal } from './scan-userglobal'
 import { coverageEntryKey, createCoverageAckStore } from '../services/coverage-ack-store'
 import { yieldToEventLoop } from '../lib/yield-loop'
 
@@ -30,8 +30,11 @@ const FAMILY_PLUGINS_ID: Record<'claude' | 'codex' | 'shared', string> = {
 // scanMcp()-Ergebnis je Familie in deren Kategorien einfuegen: vorhandene
 // plugins-Kategorie ersetzen, sonst anhaengen. Mutiert die LlmConfig nicht
 // destruktiv — baut categories neu auf.
-// Owner-Punkt 7: wenn Plugin-Scan-Sicht (Ordner) und MCP-Merge-Sicht (JSON-Server)
-// inhaltlich divergieren, werden betroffene Eintraege mit status:'conflict' markiert.
+// Owner-Punkt 7 (praegediert 2026-07-27): Divergenz zwischen Plugin-Scan-Sicht
+// (Ordner) und MCP-Merge-Sicht (JSON-Server) markiert nur noch die Ordner-
+// Richtung als Konflikt (Ordner mit MCP-Deklaration ohne Registereintrag).
+// Register-Eintraege ohne Ordner sind Dokulage-Normalfall (npx/URL) und werden
+// als aktive Eintraege uebernommen, nicht mehr als Konflikt.
 function mergeMcp(
   cfg: LlmConfig,
   mcp: ReturnType<typeof scanMcp>,
@@ -45,10 +48,10 @@ function mergeMcp(
   const existingIdx = cfg.categories.findIndex((c) => c.id === pluginsId)
   const existing = existingIdx >= 0 ? cfg.categories[existingIdx] : null
 
-  // Konflikt-Erkennung: Eintraege im MCP-Scanner vs. Plugin-Scanner-Ordner-Sicht
-  // divergieren wenn ein Name in der MCP-Merge-Sicht vorkommt, aber NICHT in der
-  // Ordner-basierten Scan-Sicht (oder umgekehrt). Betroffene Eintraege erhalten
-  // status:'conflict' damit der Renderer sie hervorheben kann.
+  // Konflikt-Erkennung (Richtung Ordner→Register): ein Ordner-Eintrag mit
+  // MCP-Deklaration, der NICHT im MCP-Register steht, erhaelt status:'conflict'.
+  // Umgekehrt sind Register-Eintraege ohne Ordner legitim (Dokulage 2026-07-27)
+  // und fliessen als aktive Eintraege ein — kein Konflikt.
   // FIX 2: existing (reiche scanDir-Kategorie) als Basis behalten; MCP-Eintraege
   // nur additiv/konflikt-markiert einmischen — kein Ersetzen durch mcpCat als Basis.
   const mergedCat = markMcpConflicts(cat, existing)
@@ -61,53 +64,6 @@ function mergeMcp(
   } else {
     cfg.categories.push(mergedCat)
   }
-}
-
-function isUnderRoot(rawPath: string, rawRoot: string): boolean {
-  if (!rawPath || !rawRoot) return false
-  return isPathEqualOrUnder(path.resolve(rawPath), path.resolve(rawRoot), process.platform)
-}
-
-function cloneUserEntry(entry: ConfigEntry, source: string, sourceLabel: string): ConfigEntry {
-  return {
-    ...entry,
-    id: `userglobal-${source}-${entry.id}`,
-    scope: 'global',
-    origin: `${sourceLabel} · Userglobal`,
-    fields: { ...(entry.fields ?? {}), Werkzeug: sourceLabel, Ebene: 'Userglobal' }
-  }
-}
-
-function cloneUserCategory(cat: Category, source: string, sourceLabel: string, root: string): Category | null {
-  const entries = cat.entries
-    .filter((entry) => isUnderRoot(entry.path, root))
-    .map((entry) => cloneUserEntry(entry, source, sourceLabel))
-  if (entries.length === 0) return null
-  const baseId = cat.id.replace(/^(codex|shared)-/, '')
-  return {
-    ...cat,
-    id: `userglobal-${source}-${baseId}`,
-    label: `${sourceLabel} · ${cat.label}`,
-    path: isUnderRoot(cat.path, root) ? cat.path : root,
-    blurb: `Userglobale ${sourceLabel}-Dateien: ${cat.blurb}`,
-    entries
-  }
-}
-
-function buildUserglobal(data: Record<string, LlmConfig>): LlmConfig {
-  const roots = configRoots()
-  const sources = [
-    { key: 'claude', label: 'Claude', root: roots.claudeHome },
-    { key: 'codex', label: 'Codex', root: roots.codexHome }
-  ]
-  const categories: Category[] = []
-  for (const source of sources) {
-    for (const cat of data[source.key]?.categories ?? []) {
-      const userCat = cloneUserCategory(cat, source.key, source.label, source.root)
-      if (userCat) categories.push(userCat)
-    }
-  }
-  return { categories, duplicates: [] }
 }
 
 // data-Block bauen: alle Familien ueber die Provider-Registry scannen
@@ -166,24 +122,28 @@ function hasEntries(cfg: LlmConfig | undefined): boolean {
   return !!cfg && cfg.categories.some((c) => c.entries.length > 0)
 }
 
-function visible(def: LlmDef, cfg: LlmConfig | undefined): boolean {
+// Sichtbarkeit haengt allein an der Familien-Config (Eintraege oder Scan-Fehler);
+// der LlmDef selbst spielt keine Rolle (frueherer ungenutzter Parameter entfernt).
+function visible(cfg: LlmConfig | undefined): boolean {
   return hasEntries(cfg) || !!cfg?.scanError
 }
 
 function buildLlms(data: Record<string, LlmConfig>): LlmDef[] {
   const known: LlmDef[] = [
     { id: 'shared', glyph: '⊕', name: 'Shared', sub: 'Cross-Workspace', color: 'var(--sage)', path: '.shared', scanError: data.shared?.scanError },
-    { id: 'userglobal', glyph: '◎', name: 'Userglobal', sub: '~/.claude + ~/.codex', color: 'var(--amber)', path: '~', scanError: data.userglobal?.scanError },
+    { id: 'userglobal', glyph: '◎', name: 'Userglobal', sub: '~/.claude + ~/.codex + ~/.kimi-code', color: 'var(--amber)', path: '~', scanError: data.userglobal?.scanError },
     { id: 'claude', glyph: '✳', name: 'Claude', sub: 'Anthropic', color: 'var(--terra)', path: '~/.claude', scanError: data.claude?.scanError },
     { id: 'codex', glyph: '◇', name: 'Codex', sub: 'OpenAI', color: 'var(--papa)', path: '~/.codex', scanError: data.codex?.scanError },
+    // HR16-Paritaet: dritter nativer Loader mit eigener Familie (~/.kimi-code).
+    { id: 'kimi', glyph: '◈', name: 'Kimi', sub: 'Moonshot', color: 'var(--sage)', path: '~/.kimi-code', scanError: data.kimi?.scanError },
     { id: 'local', glyph: '▢', name: 'Lokal', sub: 'llama.cpp', color: 'var(--lisa)', path: '~/.ollama', scanError: data.local?.scanError },
     { id: 'cloud', glyph: '✦', name: 'Cloud-APIs', sub: 'OpenAI · Anthropic · Gemini', color: 'var(--sage)', path: 'API', scanError: data.cloud?.scanError }
-  ].filter((def) => visible(def, data[def.id]))
+  ].filter((def) => visible(data[def.id]))
   const knownIds = new Set(known.map((l) => l.id))
   const extras: LlmDef[] = Object.keys(data)
     // audit = Register-only (Masterplan Teil E): Daten bleiben, kein Familien-Tab.
     .filter((id) => !knownIds.has(id) && id !== 'audit')
-    .filter((id) => visible({ id, glyph: '', name: '', sub: '', color: '', path: '' }, data[id]))
+    .filter((id) => visible(data[id]))
     .map((id) => ({ id, glyph: '◆', name: id, sub: 'Nutzerdefiniert', color: 'var(--amber)', path: id, scanError: data[id]?.scanError }))
   return [...known, ...extras]
 }
@@ -221,6 +181,7 @@ export function scanAll(): AppData {
   } catch (err) {
     console.error('[scan:dedupe]', err instanceof Error ? err.message : 'dedupe-error')
   }
+  findDriftRelations(data)
   // Spiegelungs-Matrix (Cross-Tool-Abdeckung) — nur auf der shared-Familie.
   // buildCoverage kapselt eigene Fehler (try/catch -> []); fehlendes Feld laesst
   // den Renderer unveraendert.
@@ -230,12 +191,7 @@ export function scanAll(): AppData {
     console.error('[scan:coverage]', err instanceof Error ? err.message : 'coverage-error')
   }
   data.audit = buildAuditConfig()
-  return {
-    snapshot: buildSnapshot(),
-    machines: buildMachines(),
-    llms: buildLlms(data),
-    data
-  }
+  return { snapshot: buildSnapshot(), machines: buildMachines(), llms: buildLlms(data), data }
 }
 
 // Gechunkte Async-Variante (Teilplan B): gleiche Aggregation wie scanAll, aber
@@ -252,6 +208,7 @@ export async function scanAllAsync(): Promise<AppData> {
   } catch (err) {
     console.error('[scan:dedupe]', err instanceof Error ? err.message : 'dedupe-error')
   }
+  findDriftRelations(data)
   await yieldToEventLoop()
   try {
     if (data.shared) data.shared.coverage = buildCoverage(data)
@@ -259,10 +216,5 @@ export async function scanAllAsync(): Promise<AppData> {
     console.error('[scan:coverage]', err instanceof Error ? err.message : 'coverage-error')
   }
   data.audit = buildAuditConfig()
-  return {
-    snapshot: buildSnapshot(),
-    machines: buildMachines(),
-    llms: buildLlms(data),
-    data
-  }
+  return { snapshot: buildSnapshot(), machines: buildMachines(), llms: buildLlms(data), data }
 }

@@ -3,6 +3,7 @@ import type { EntryStatus } from '@shared/contract'
 import type { DisplayMode, ImportDialogState, Mode, Section, Selection, StoreActions, StoreValue, ToastMsg, UiState } from './types'
 import { useComparePresetState } from './compare-preset'
 import { useConfigLoad } from './useConfigLoad'
+import { shouldApplyDefaultCat } from './default-cat-guard'
 
 const StoreContext = createContext<StoreValue | null>(null)
 const DISPLAY_MODE_KEY = 'rawallmconfig.displayMode'
@@ -150,10 +151,10 @@ function useStoreUiEffects(ui: StoreUi, configData: StoreValue['config']['data']
   }, [ui])
   useEffect(() => {
     const cats = configData?.data[ui.state.llm]?.categories ?? []
-    if (cats.length === 0) return
-    if (ui.state.catId == null || !cats.some((c) => c.id === ui.state.catId)) {
-      ui.setCatId(cats[0]?.id ?? null)
-    }
+    // WP-1 (B1): Kein Default, solange ein Config-Focus ansteht — sonst
+    // ueberschreibt cats[0] das Ziel des gefuehrten Sprungs (Race).
+    if (!shouldApplyDefaultCat(cats, ui.state.catId)) return
+    ui.setCatId(cats[0]?.id ?? null)
   }, [configData, ui])
   useEffect(() => {
     const a = systemData?.areas[0]?.id

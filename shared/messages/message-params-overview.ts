@@ -52,6 +52,9 @@ export type OverviewMessageParamsMap = {
   "tasks.expert.meaning": undefined
   "tasks.expert.expertTarget": undefined
   "tasks.card.status": { status: string }
+  "tasks.card.missing": { topics: string }
+  "tasks.card.open": { topics: string }
+  "tasks.status.available": undefined
   "simpleMode.label": undefined
   "simpleMode.showDetails": undefined
   "simpleMode.hideDetails": undefined
@@ -138,6 +141,7 @@ export type OverviewMessageParamsMap = {
   "guidedFlows.firstStart.title": undefined
   "guidedFlows.firstStart.body": undefined
   "guidedFlows.firstStart.target": undefined
+  "guidedFlows.firstStart.reason": undefined
   "guidedFlows.firstStart.step.one": undefined
   "guidedFlows.firstStart.step.two": undefined
   "guidedFlows.firstStart.step.three": undefined
@@ -145,6 +149,8 @@ export type OverviewMessageParamsMap = {
   "guidedFlows.checkProblem.title": undefined
   "guidedFlows.checkProblem.body": undefined
   "guidedFlows.checkProblem.target": undefined
+  "guidedFlows.checkProblem.reason": undefined
+  "guidedFlows.checkProblem.reason.card": { target: string }
   "guidedFlows.checkProblem.step.one": undefined
   "guidedFlows.checkProblem.step.two": undefined
   "guidedFlows.checkProblem.step.three": undefined
@@ -152,6 +158,7 @@ export type OverviewMessageParamsMap = {
   "guidedFlows.prepareChange.title": undefined
   "guidedFlows.prepareChange.body": undefined
   "guidedFlows.prepareChange.target": undefined
+  "guidedFlows.prepareChange.reason": undefined
   "guidedFlows.prepareChange.step.one": undefined
   "guidedFlows.prepareChange.step.two": undefined
   "guidedFlows.prepareChange.step.three": undefined
@@ -159,6 +166,7 @@ export type OverviewMessageParamsMap = {
   "guidedFlows.activateModule.title": undefined
   "guidedFlows.activateModule.body": undefined
   "guidedFlows.activateModule.target": undefined
+  "guidedFlows.activateModule.reason": undefined
   "guidedFlows.activateModule.step.one": undefined
   "guidedFlows.activateModule.step.two": undefined
   "guidedFlows.activateModule.step.three": undefined
@@ -167,6 +175,7 @@ export type OverviewMessageParamsMap = {
   "guidedFlows.intro": undefined
   "guidedFlows.selectHint": undefined
   "guidedFlows.symptomTitle": undefined
+  "guidedFlows.symptom.reason": { target: string }
   "guidedFlows.cancel": undefined
   "guidedFlows.backToDetails": { target: string }
   "guidedFlows.stepCount": { current: string; total: string }

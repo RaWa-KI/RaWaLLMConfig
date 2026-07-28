@@ -188,6 +188,40 @@ test('shared: Engine-Manifest == scanShared (deep-equal categories)', () => {
   expectSameCategories(alt().categories, scanProvider(manifest).categories)
 })
 
+// ── KIMI ────────────────────────────────────────────────────────────────────
+// Kimi (WP-10) hat KEINEN Alt-Scanner — die Familie entsteht erst mit dem
+// Manifest. Statt eines Migrations-Vergleichs wird hier die Engine-Seite des
+// Vertrags gepinnt: Kategorie-Identitaet/-Reihenfolge, Wurzel-Aufloesung unter
+// der Sandbox und die Secret-Leitplanke (kein Wert, kein credentials-Dateiname).
+test('kimi: Engine-Manifest liefert die 5 Kategorien gegen die Sandbox-Wurzel', () => {
+  const r = join(sandboxRoot, '.kimi-code')
+  w(join(r, 'AGENTS.md'), '# Kimi Startanker\n\nText.\n')
+  w(join(r, 'config.toml'), '[profile]\nmodel = "x"\napi_key = "synthetischer-wert-789"\n')
+  w(join(r, 'workspaces.json'), JSON.stringify({ workspaces: {} }, null, 2))
+  w(join(r, 'hooks', 'guard.mjs'), '// kimi hook\n')
+  w(join(r, 'credentials', 'kimi-code.json'), JSON.stringify({ access_token: 'synthetisch-abc' }, null, 2))
+
+  bustScanCache()
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  const { kimiManifest } = require('../../src/main/scan/manifests/kimi.manifest') as { kimiManifest: ProviderManifest }
+  const { scanProvider } = require('../../src/main/scan/engine/scan-engine') as {
+    scanProvider: (m: ProviderManifest) => LlmConfig
+  }
+  /* eslint-enable @typescript-eslint/no-var-requires */
+  const cfg = scanProvider(kimiManifest)
+
+  expect(cfg.categories.map((c) => c.id)).toEqual([
+    'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-hooks', 'kimi-workspaces',
+  ])
+  // Wurzel-Aufloesung: sandbox-aware ueber den roots-Getter (fixedRoot).
+  expect(cfg.categories[0].path).toBe(r)
+  // Secret-Leitplanke: weder Wert noch credentials-Dateiname im Ergebnis.
+  const dump = JSON.stringify(cfg)
+  expect(dump).not.toContain('synthetischer-wert-789')
+  expect(dump).not.toContain('synthetisch-abc')
+  expect(dump).not.toContain('kimi-code.json')
+})
+
 // ── LLM (lokal) ─────────────────────────────────────────────────────────────
 // Modellroots sind Env/Home, leichte externe Kandidaten und aktive local-
 // Nutzerquellen. Alt-Scanner und Manifest rufen DIESELBEN Funktionen

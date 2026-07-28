@@ -29,7 +29,14 @@ export function UpdatesSourceList({
       <div className="rows">
         {sources.length === 0
           ? <EmptySources />
-          : sources.map((s) => <SourceRow key={(history ? 'hist-' : '') + s.name} s={s} />)}
+          : sources.map((s) => (
+            // Sprungziel fuer Diagnose-/Flow-Fokus 'watcher-source-<name>' (WP-5).
+            // Nur die aktuelle Liste traegt den Anker; die Historie wuerde ihn
+            // sonst ein zweites Mal mit derselben id belegen.
+            history
+              ? <SourceRow key={'hist-' + s.name} s={s} />
+              : <div key={s.name} id={`watcher-source-${s.name}`}><SourceRow s={s} /></div>
+          ))}
       </div>
     </>
   )

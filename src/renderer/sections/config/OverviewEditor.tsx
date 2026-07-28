@@ -6,6 +6,11 @@ import { useStore } from '../../state/store'
 import type { DisplayMode } from '../../state/types'
 import { useEditorFullContent, type FullState } from './use-editor-full-content'
 import { LineNumberedTextarea } from '../../components/LineNumberedText'
+import {
+  isReadFullGuardError,
+  readFullErrText,
+  READ_FULL_GUARD_TEXT
+} from '../../lib/read-full-error-text'
 import './OverviewEditor.css'
 
 // OverviewEditor — einspaltiger Direkt-Editor EINER Datei in der Skills-Übersicht
@@ -92,10 +97,12 @@ function OverviewEditorBody({
   onChange(v: string): void
 }) {
   if (full.loading) return <div className="ove-hint">Vollinhalt wird geladen …</div>
-  if (full.error === 'owner-only/not-in-scope') {
-    return <div className="ove-denied">Nur für Eigentümer / nicht im Bearbeitungsumfang (Secret-Pfad).</div>
+  // Sonderfall zuerst: Der Secret-Guard ist eine Schutzentscheidung, kein
+  // Ladefehler — er wird VOR dem allgemeinen Fehlermapping ausgegeben.
+  if (isReadFullGuardError(full.error)) {
+    return <div className="ove-denied">{READ_FULL_GUARD_TEXT}</div>
   }
-  if (full.error) return <div className="ove-denied">Inhalt konnte nicht geladen werden.</div>
+  if (full.error) return <div className="ove-denied">{readFullErrText(full.error)}</div>
   return (
     <LineNumberedTextarea
       className="ove-code mono"

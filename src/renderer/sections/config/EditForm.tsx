@@ -6,6 +6,11 @@ import { useStore } from '../../state/store'
 import type { DisplayMode } from '../../state/types'
 import { LineNumberedTextarea } from '../../components/LineNumberedText'
 import { useEditorFullContent } from './use-editor-full-content'
+import {
+  isReadFullGuardError,
+  readFullErrText,
+  READ_FULL_GUARD_TEXT
+} from '../../lib/read-full-error-text'
 import './EditForm.css'
 
 // Feld-Editor (Teil C, WP-04). KRITISCH: Der Code-Editor laedt den VOLLEN Datei-
@@ -13,8 +18,31 @@ import './EditForm.css'
 // editiert NIE das gekuerzte entry.code. Owner-Override/D046: lokale Owner-Sicht
 // bekommt den rohen Vollinhalt ohne Reveal-/Maskier-Gate; Daten-Sicherheit bleibt
 // beim Speichern ueber Schreibmodus, Confirm und backup-first.
+// WP-5 (B6/B7): Eintraege ohne eigene Datei (fileBacked === false, z.B.
+// Inferenz-Endpoints) duerfen KEIN readFull ausloesen — EditForm ist darum eine
+// hook-lose Huelle, die den Hook tragenden Editor (EditFormFile) nur im
+// dateibasierten Fall mountet.
+
+// Laienverstaendlicher Hinweis (HR28) fuer Eintraege ohne eigene Datei.
+const NO_FILE_EDIT_HINT =
+  'Dieser Eintrag hat keine eigene Datei — es gibt keinen Dateiinhalt zu ' +
+  'bearbeiten. Ändern kannst du ihn in den Einstellungen des jeweiligen Programms.'
 
 export function EditForm({ entry, onDone }: { entry: ConfigEntry; onDone(): void }) {
+  // Hook-lose Verzweigung: bei fileBacked === false wird EditFormFile (und
+  // damit useEditorFullContent -> config:readFull) GAR NICHT gemountet.
+  if (entry.fileBacked === false) {
+    return (
+      <div className="edit-form">
+        <div className="ef-label">Inhalt bearbeiten</div>
+        <div className="ef-hint">{NO_FILE_EDIT_HINT}</div>
+      </div>
+    )
+  }
+  return <EditFormFile entry={entry} onDone={onDone} />
+}
+
+function EditFormFile({ entry, onDone }: { entry: ConfigEntry; onDone(): void }) {
   const wc = useWriteConfig()
   const { ui } = useStore()
   const { full, setFull } = useEditorFullContent(entry.path)
@@ -35,16 +63,16 @@ export function EditForm({ entry, onDone }: { entry: ConfigEntry; onDone(): void
     })
   }, [wc, entry.path, entry.name, saveBlocked, full.content])
 
-  const guardDenied = full.error === 'owner-only/not-in-scope'
+  // Sonderfall zuerst: Der Secret-Guard ist eine Schutzentscheidung, kein
+  // Ladefehler — er wird VOR dem allgemeinen Fehlermapping ausgegeben.
+  const guardDenied = isReadFullGuardError(full.error)
   return (
     <div className="edit-form">
       <div className="ef-label">Inhalt bearbeiten</div>
       {full.loading && <div className="ef-hint">Vollinhalt wird geladen …</div>}
-      {!full.loading && guardDenied && (
-        <div className="ef-denied">Nur für Eigentümer / nicht im Bearbeitungsumfang (Secret-Pfad).</div>
-      )}
+      {!full.loading && guardDenied && <div className="ef-denied">{READ_FULL_GUARD_TEXT}</div>}
       {!full.loading && !guardDenied && full.error && (
-        <div className="ef-denied">Inhalt konnte nicht geladen werden.</div>
+        <div className="ef-denied">{readFullErrText(full.error)}</div>
       )}
       {full.ready && (
         <EditFormEditor

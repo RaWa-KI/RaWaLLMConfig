@@ -3,6 +3,7 @@ import type { ConfigEntry } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
 import { useWriteConfig } from '../../state/store-write-config'
+import type { WriteConfigValue } from '../../state/store-write-config'
 import { PathPicker } from './PathPicker'
 import { buildKnownPaths } from './known-paths'
 import './EntryActions.css'
@@ -11,6 +12,10 @@ import './EntryActions.css'
 // NIE "loeschen"), verschieben (move). Jede Aktion oeffnet den Confirm-Flow ueber
 // store-write (requestWrite -> ConfirmDialog -> writeApply). Kein Direkt-IPC,
 // kein fs im Renderer. add/move brauchen einen Zielpfad (Owner-Eingabe).
+// WP-5 (Owner-Auflage): das Prefill der Zielpfad-Eingabe nutzt IMMER entry.path,
+// NIE den Kategorie-Pfad (cat.path kann eine URL sein, z.B. bei Endpoint-
+// Kategorien). Eintraege ohne eigene Datei (fileBacked === false) erreichen
+// diese Komponente gar nicht — DrawerEdit zeigt dort nur einen Hinweis.
 
 interface EntryActionsProps {
   entry: ConfigEntry
@@ -54,61 +59,100 @@ export function EntryActions({ entry, parentPath }: EntryActionsProps) {
   function toggle(kind: Exclude<Pending, null>) {
     const next = open === kind ? null : kind
     setOpen(next)
-    setTarget(next === 'add' ? parentPath.replace(/\/?$/, '/') : entry.path)
+    // Owner-Auflage (WP-5): Prefill immer der EINTRAGS-Pfad, nie cat.path.
+    setTarget(entry.path)
   }
-
-  // Write-Gate: Buttons deaktiviert wenn Write-Modus nicht aktiv.
-  const gateDisabled = !wc.writeEnabled
-  const gateTitle = wc.writeReason ?? undefined
 
   return (
     <div className="entry-actions">
-      <div className="ea-row">
-        <button
-          type="button"
-          className="ea-btn"
-          onClick={() => toggle('add')}
-          disabled={wc.busy || gateDisabled}
-          title={gateDisabled ? gateTitle : undefined}
-        >
-          {Icon.plus}
-          <span>Hinzufügen</span>
-        </button>
-        <button
-          type="button"
-          className="ea-btn"
-          onClick={() => toggle('move')}
-          disabled={wc.busy || gateDisabled}
-          title={gateDisabled ? gateTitle : undefined}
-        >
-          {Icon.arrow}
-          <span>Verschieben</span>
-        </button>
-        <button
-          type="button"
-          className="ea-btn danger"
-          onClick={onArchive}
-          disabled={wc.busy || gateDisabled}
-          title={gateDisabled ? gateTitle : undefined}
-        >
-          {Icon.archive}
-          <span>Archivieren</span>
-        </button>
-      </div>
+      <ActionRow wc={wc} onToggle={toggle} onArchive={onArchive} />
       {open && (
-        <div className="ea-target">
-          <PathPicker
-            value={target}
-            onChange={setTarget}
-            options={knownPaths}
-            placeholder={open === 'add' ? 'Pfad der neuen Datei suchen …' : 'Neuen Zielpfad suchen …'}
-            onSubmit={submitTarget}
-          />
-          <button type="button" className="ea-btn primary" onClick={submitTarget} disabled={!target.trim()}>
-            Weiter …
-          </button>
-        </div>
+        <TargetInput
+          open={open}
+          target={target}
+          knownPaths={knownPaths}
+          onChange={setTarget}
+          onSubmit={submitTarget}
+        />
       )}
+    </div>
+  )
+}
+
+// Aktions-Zeile (Write-Gate: Buttons deaktiviert wenn Write-Modus nicht aktiv).
+function ActionRow({
+  wc,
+  onToggle,
+  onArchive
+}: {
+  wc: WriteConfigValue
+  onToggle(kind: Exclude<Pending, null>): void
+  onArchive(): void
+}) {
+  const gateDisabled = !wc.writeEnabled
+  const gateTitle = wc.writeReason ?? undefined
+  return (
+    <div className="ea-row">
+      <button
+        type="button"
+        className="ea-btn"
+        onClick={() => onToggle('add')}
+        disabled={wc.busy || gateDisabled}
+        title={gateDisabled ? gateTitle : undefined}
+      >
+        {Icon.plus}
+        <span>Hinzufügen</span>
+      </button>
+      <button
+        type="button"
+        className="ea-btn"
+        onClick={() => onToggle('move')}
+        disabled={wc.busy || gateDisabled}
+        title={gateDisabled ? gateTitle : undefined}
+      >
+        {Icon.arrow}
+        <span>Verschieben</span>
+      </button>
+      <button
+        type="button"
+        className="ea-btn danger"
+        onClick={onArchive}
+        disabled={wc.busy || gateDisabled}
+        title={gateDisabled ? gateTitle : undefined}
+      >
+        {Icon.archive}
+        <span>Archivieren</span>
+      </button>
+    </div>
+  )
+}
+
+// Zielpfad-Eingabe fuer move/add (PathPicker + Bestaetigen-Button).
+function TargetInput({
+  open,
+  target,
+  knownPaths,
+  onChange,
+  onSubmit
+}: {
+  open: Exclude<Pending, null>
+  target: string
+  knownPaths: string[]
+  onChange(v: string): void
+  onSubmit(): void
+}) {
+  return (
+    <div className="ea-target">
+      <PathPicker
+        value={target}
+        onChange={onChange}
+        options={knownPaths}
+        placeholder={open === 'add' ? 'Pfad der neuen Datei suchen …' : 'Neuen Zielpfad suchen …'}
+        onSubmit={onSubmit}
+      />
+      <button type="button" className="ea-btn primary" onClick={onSubmit} disabled={!target.trim()}>
+        Weiter …
+      </button>
     </div>
   )
 }

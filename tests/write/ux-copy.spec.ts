@@ -15,8 +15,9 @@ test('module descriptions differ between simple and expert wording', () => {
 
 test('settings helper copy names local file fallback and language pack state', () => {
   expect(prefsStoreHint().body).toContain('Datenbank')
-  expect(prefsStoreHint().body).toContain('lokal gelesen und gespeichert')
-  expect(prefsStoreHint().action).toContain('weiterarbeiten')
+  expect(prefsStoreHint().body).toContain('direkt auf diesem Computer')
+  expect(prefsStoreHint().body).toContain('optional')
+  expect(prefsStoreHint().body).not.toContain('nicht erreichbar')
   expect(prefsStoreHint().title).not.toContain('DB')
   expect(prefsStoreHint().title).not.toContain('Fallback')
   expect(languagePackHint()).toContain('Deutsch und Englisch')

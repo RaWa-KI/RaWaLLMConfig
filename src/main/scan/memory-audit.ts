@@ -1,4 +1,5 @@
-// Isolated _memory audit. Not wired into scan-index/buildData yet.
+// _memory audit. Verdrahtet in scan-audit-categories.ts (buildAuditConfig ->
+// Kategorie 'audit-memory') und direkt getestet in tests/write/scanner-c10.spec.ts.
 import fs from 'node:fs'
 import path from 'node:path'
 

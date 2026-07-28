@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Category, ConfigEntry } from '@shared/contract'
+import type { CompareCandidate } from '@shared/contract-compare'
+import type { ComparePreset, Section } from '../state/types'
 import { useConfigTab } from './use-config-tab'
 import { useStore } from '../state/store'
 import { Icon } from '../components/Icon'
@@ -21,6 +23,65 @@ function findSel(cats: Category[] | undefined, catId: string, entryId: string): 
   const cat = cats?.find(c => c.id === catId)
   const entry = cat?.entries.find(e => e.id === entryId)
   return cat && entry ? { cat, entry } : null
+}
+
+// Vergleichs-Schluessel eines Eintrags: Name ohne Endung, klein geschrieben.
+// Damit findet `settings.json` auch `settings` (gleiche logische Config auf
+// einer anderen Ebene).
+function compareKey(name: string): string {
+  return name.replace(/\.[a-z0-9]+$/i, '').trim().toLowerCase()
+}
+
+// Gegenstuecke eines Konflikt-Eintrags. Reihenfolge der Suche:
+// 1. explizite Kopie-Beziehung (dupOf in beide Richtungen),
+// 2. sonst gleicher logischer Name in derselben Kategorie.
+// Findet sich nichts, bleibt die Liste leer — dann ist der Konflikt eine
+// Einzeldatei und die Vergleichsansicht sagt das ehrlich.
+export function conflictPartners(cat: Category, entry: ConfigEntry): ConfigEntry[] {
+  const others = cat.entries.filter((e) => e.id !== entry.id && !!e.path)
+  const copies = others.filter((e) => e.id === entry.dupOf || e.dupOf === entry.id)
+  if (copies.length > 0) return copies
+  const key = compareKey(entry.name)
+  return key ? others.filter((e) => compareKey(e.name) === key) : []
+}
+
+function candidateOf(entry: ConfigEntry): CompareCandidate {
+  return { id: entry.id, path: entry.path as string, label: entry.name, origin: entry.origin }
+}
+
+// Konflikt-Preset: genau das Konfliktpaar (Eintrag + Gegenstueck/e), nicht die
+// ganze Kategorie. Der Vergleich startet damit in der Vergleichsansicht von
+// selbst — Herkunft 'conflict'.
+export function conflictComparePreset(
+  cat: Category,
+  entry: ConfigEntry,
+  ctx: { section: Section; llm: string },
+): ComparePreset {
+  const involved = [entry, ...conflictPartners(cat, entry)]
+  return {
+    source: 'conflict',
+    row: {
+      cat: cat.label,
+      name: entry.name,
+      cells: involved.map((e) => ({
+        id: e.id,
+        label: e.name,
+        state: e.scope,
+        path: e.path ?? null,
+        note: e.conflictReason ?? null,
+        notes: e.conflictReason ? [e.conflictReason] : [],
+      })),
+      notes: entry.conflictReason ? [entry.conflictReason] : undefined,
+    },
+    candidates: involved.filter((e) => !!e.path).map(candidateOf),
+    createdFrom: {
+      section: ctx.section,
+      llm: ctx.llm,
+      catId: cat.id,
+      rowId: `conflict:${cat.id}:${entry.id}`,
+      createdAt: new Date().toISOString(),
+    },
+  }
 }
 
 export function Drawer() {
@@ -48,8 +109,13 @@ export function Drawer() {
             close={actions.closeEntry}
             displayMode={ui.displayMode}
             openCompare={() => {
-              const ids = found.cat.entries.filter((candidate) => candidate.path).map((candidate) => candidate.id)
-              actions.setCompareSelection(ids)
+              // Nur das Konfliktpaar (Eintrag + Gegenstueck/e) uebernehmen — die
+              // fruehere Pauschalauswahl aller Kategorie-Eintraege hat den
+              // Konfliktkontext verloren. Das Preset startet den Vergleich in
+              // der Vergleichsansicht selbst.
+              const preset = conflictComparePreset(found.cat, found.entry, { section: ui.section, llm: ui.llm })
+              actions.setCompareSelection(preset.candidates.map((candidate) => candidate.id))
+              actions.setComparePreset(preset)
               actions.closeEntry()
               actions.setMode('compare')
             }}
@@ -208,7 +274,17 @@ function ConfigTab({ entry }: { entry: ConfigEntry }) {
         </>
       ) : (
         <div className="empty codeblock-empty">
-          {errText ? <p>{errText}</p> : <p>Keine Rohkonfiguration hinterlegt.</p>}
+          {errText ? (
+            <p>{errText}</p>
+          ) : entry.fileBacked === false ? (
+            <p>
+              Dieser Eintrag beschreibt einen Dienst (Server) — etwa einen lokalen Modell-Server.
+              Er hat keine eigene Datei, daher gibt es hier keine Rohkonfiguration anzuzeigen.
+              Geändert wird er am jeweiligen Server, nicht in dieser App.
+            </p>
+          ) : (
+            <p>Keine Rohkonfiguration hinterlegt.</p>
+          )}
         </div>
       )}
     </div>

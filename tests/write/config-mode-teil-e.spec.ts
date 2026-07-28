@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { deMessages, enMessages, isMessageKey, MESSAGE_KEYS, msgMode } from '../../shared/messages'
 import { msgMode as msgModeRenderer } from '../../src/renderer/lib/messages'
-import { categoryLabel } from '../../src/renderer/sections/config/category-label'
+import { categoryLabel, categorySource } from '../../src/renderer/sections/config/category-label'
+import { normalizeCat } from '../../shared/cat-key'
 
 // Teil E, WP2 (Owner-Entscheid D1–D3, 2026-07-18): Config-Form-Weiche je DisplayMode.
 // Verhaltenstests laufen gegen die Message-Projektion (shared/messages, Renderer-
@@ -60,10 +61,13 @@ test('simple mode hides Spiegelung/Vergleich tabs, expert keeps all category mod
   expect(modeTabs).toContain('{expert && (')
   expect(modeTabs).toContain("onClick={() => onMode('compare')}")
   // Gespeicherter Experten-Modus faellt im simple-Body auf Uebersicht zurueck
-  // (kein State-Eingriff, kein toter View).
+  // (kein State-Eingriff, kein toter View). Seit WP-2 gibt es genau eine
+  // Ausnahme: ein Vergleich MIT Preset (Einsprung aus Konflikt/Spiegelung)
+  // laeuft auch im Einfach-Modus — der Vergleich-Tab bleibt trotzdem expert-only.
   expect(configSection).toContain(
-    "const mode: Mode = expert || (ui.mode === 'overview' || (ui.mode === 'diff' && !isShared)) ? ui.mode : 'overview'"
+    "const mode: Mode = expert || presetCompare || ui.mode === 'overview' || (ui.mode === 'diff' && !isShared) ? ui.mode : 'overview'"
   )
+  expect(configSection).toContain("const presetCompare = ui.mode === 'compare' && !!ui.comparePreset")
   expect(configSection).toContain('<CategoryBody ad={ad} cat={cat} mode={mode}')
 })
 
@@ -87,7 +91,11 @@ test('categoryLabel projects simple everyday names and expert technical labels',
   // Familien-Praefixe laufen ueber dieselbe Achse (shared/cat-key.ts).
   expect(categoryLabel('simple', { id: 'shared-skills', label: 'Skills' })).toBe('Fähigkeiten')
   expect(categoryLabel('simple', { id: 'codex-agents', label: 'Agents' })).toBe('Assistenten')
-  expect(categoryLabel('simple', { id: 'userglobal-claude-rules', label: 'Rules' })).toBe('Regeln')
+  // WP-9: Userglobal mischt dieselbe Achse aus mehreren Loadern in EINER Liste —
+  // dort traegt das ANGEZEIGTE Label jetzt sein Quell-Werkzeug als Praefix
+  // (vorher: 'Regeln', drei Mal gleichnamig untereinander). Die Achse selbst
+  // bleibt unveraendert 'rules' (siehe normalizeCat-Assertions unten).
+  expect(categoryLabel('simple', { id: 'userglobal-claude-rules', label: 'Rules' })).toBe('Claude · Regeln')
   expect(categoryLabel('simple', { id: 'codex-instructions', label: 'Instructions' })).toBe('Anweisungen')
   expect(categoryLabel('simple', { id: 'mcp', label: 'MCP-Integrationen' })).toBe('Verbindungen')
   expect(categoryLabel('expert', { id: 'codex-hooks', label: 'Hooks' })).toBe('Hooks')
@@ -100,6 +108,35 @@ test('category name projection is wired into sidebar, head, search rows and dup 
   expect(configSection).toContain('categoryLabel(ui.displayMode, cat)')
   expect(configParts).toContain('categoryLabel(ui.displayMode, cat)')
   expect(duplicatePanel).toContain('categoryLabel(ui.displayMode, cat)')
+})
+
+test('WP-9: userglobal labels keep their source prefix in both modes', () => {
+  // Vorher standen in der Userglobal-Sidebar drei gleichnamige Kategorien
+  // untereinander ('Agents', 'Agents', 'Skills') — der Klick traf die falsche Datei.
+  expect(categoryLabel('expert', { id: 'userglobal-claude-agents', label: 'Claude · Agents' })).toBe('Claude · Agents')
+  expect(categoryLabel('expert', { id: 'userglobal-codex-agents', label: 'Codex · Agents' })).toBe('Codex · Agents')
+  expect(categoryLabel('expert', { id: 'userglobal-agents-skills', label: 'Kimi · Skills' })).toBe('Kimi · Skills')
+  expect(categoryLabel('simple', { id: 'userglobal-claude-agents', label: 'Claude · Agents' })).toBe('Claude · Assistenten')
+  expect(categoryLabel('simple', { id: 'userglobal-codex-agents', label: 'Codex · Agents' })).toBe('Codex · Assistenten')
+  expect(categoryLabel('simple', { id: 'userglobal-agents-skills', label: 'Kimi · Skills' })).toBe('Kimi · Fähigkeiten')
+  // Nicht-Userglobal-Familien bleiben praefixfrei: dort ist die Quelle bereits
+  // durch die gewaehlte Familie eindeutig.
+  expect(categoryLabel('simple', { id: 'codex-agents', label: 'Agents' })).toBe('Assistenten')
+  expect(categoryLabel('expert', { id: 'shared-skills', label: 'Skills' })).toBe('Skills')
+  // Praefix ist reine ANZEIGE: die Achse fuer Filter/Dedupe bleibt unveraendert.
+  expect(normalizeCat('userglobal-claude-agents')).toBe('agents')
+  expect(normalizeCat('userglobal-codex-agents')).toBe('agents')
+  expect(categorySource('userglobal-codex-hooks')).toBe('Codex')
+  expect(categorySource('codex-hooks')).toBeNull()
+})
+
+test('WP-9: sidebar groups categories by source and keeps the axis filter', () => {
+  // Gruppierung + Zwischenueberschrift statt flacher Liste.
+  expect(configSection).toContain('groupCategoriesBySource(ad.categories)')
+  expect(configSection).toContain('{g.title && <div className="side-label">{g.title}</div>}')
+  // Filter/Dedupe der Kategorie laufen weiter ueber die normalisierte Achse.
+  expect(configSection).toContain('const catAxis = normalizeCat(cat.id)')
+  expect(configSection).toContain('normalizeCat(d.cat) === catAxis')
 })
 
 test('duplicates tab label comes from the mode projection', () => {
