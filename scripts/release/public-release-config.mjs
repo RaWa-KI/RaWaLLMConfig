@@ -41,6 +41,8 @@ export const SCRIPT_FILES = new Set([
   'scripts/generate-update-manifest.mjs',
   'scripts/git-hooks/pre-commit',
   'scripts/install-git-hooks.mjs',
+  'scripts/hr27-lines-baseline.json',
+  'scripts/hr27-lines-check.mjs',
   'scripts/linux-package-smoke.mjs',
   'scripts/perf-smoke.mjs',
   'scripts/ui-smoke.mjs',
