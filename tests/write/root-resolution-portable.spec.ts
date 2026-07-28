@@ -123,14 +123,17 @@ test('Prefs-UI zeigt fehlende Wurzeln als nicht konfiguriert', () => {
 
 // Integrations-Verdrahtung (Hauptsession): initPrefsStore persistiert den
 // Legacy-Seed ueber seedLegacyRootPrefs — einmalig (Marker), ohne Ueberschreiben.
+// exists wird explizit injiziert (nicht ueber das Modul-Global): auf Windows-CI
+// divergierte das Global zwischen Spec- und src-Instanz (.claude/debugging.md
+// 2026-07-28) — der Test waere sonst vom echten fs-Check abhaengig.
 test('Persistente Migration: seedLegacyRootPrefs schreibt Wurzeln + Marker einmalig', async () => {
-  setRootExistsProvider(() => true)
+  const alwaysExists = () => true
   const writes: Array<[string, unknown]> = []
   const fakeStore = {
     getAll: async () => ({}),
     set: async (key: string, value: unknown) => { writes.push([key, value]); return { ok: true } }
   }
-  const merged = await seedLegacyRootPrefs(fakeStore as never, {})
+  const merged = await seedLegacyRootPrefs(fakeStore as never, {}, alwaysExists)
   expect(writes.map(([key]) => key)).toEqual([
     'roots.sharedClaude', 'roots.workspaceParent', 'roots.projectRoot',
     ROOTS_LEGACY_MIGRATION_KEY
@@ -138,7 +141,7 @@ test('Persistente Migration: seedLegacyRootPrefs schreibt Wurzeln + Marker einma
   expect(merged[ROOTS_LEGACY_MIGRATION_KEY]).toBe('done')
   // Zweiter Lauf (Marker gesetzt) schreibt nichts mehr — idempotent.
   writes.length = 0
-  const again = await seedLegacyRootPrefs(fakeStore as never, merged)
+  const again = await seedLegacyRootPrefs(fakeStore as never, merged, alwaysExists)
   expect(writes).toEqual([])
   expect(again).toBe(merged)
 })

@@ -30,7 +30,7 @@ export type RootPrefKey = 'roots.sharedClaude' | 'roots.workspaceParent' | 'root
 export const ROOTS_LEGACY_MIGRATION_KEY = 'roots.legacyMigration'
 
 export type RootPrefs = Partial<Record<RootPrefKey | typeof ROOTS_LEGACY_MIGRATION_KEY, string>>
-type RootExists = (path: string) => boolean
+export type RootExists = (path: string) => boolean
 let rootPrefsProvider: () => RootPrefs = () => ({})
 let rootExists: RootExists = fs.existsSync
 

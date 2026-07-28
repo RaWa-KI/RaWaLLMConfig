@@ -24,7 +24,7 @@ import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
 import { setRootPrefsProvider } from './services/config-roots'
 import {
-  legacyRootPrefsSeed, ROOTS_LEGACY_MIGRATION_KEY, type RootPrefs
+  legacyRootPrefsSeed, ROOTS_LEGACY_MIGRATION_KEY, type RootPrefs, type RootExists
 } from './services/config-root-resolution'
 
 // Schreib-Store passend zum write-context bauen: im Sandbox-Modus liegen prefs.json
@@ -40,12 +40,17 @@ function refreshRootPrefs(all: Record<string, PrefValue>): void { _rootPrefs = a
 // Aufloesung behalten UND die Prefs-UI die Werte zeigt. Idempotent ueber den
 // Marker (legacyRootPrefsSeed liefert bei gesetztem Marker {}); nur im
 // Produktiv-Modus aufgerufen (Sandbox hat explizite Wurzeln). Exportiert
-// fuer den Wiring-Test.
+// fuer den Wiring-Test. `exists` ist die explizite Test-Seam: der Wiring-Test
+// injiziert seinen Provider direkt statt ueber das Modul-Global
+// (setRootExistsProvider) — auf Windows-CI divergierte das Global zwischen
+// Spec- und src-Modulinstanz (Pfad-Casing, Run 30336669003) und der Test
+// griff auf den echten fs-Check zu.
 export async function seedLegacyRootPrefs(
   store: PersistencePort,
-  all: Record<string, PrefValue>
+  all: Record<string, PrefValue>,
+  exists?: RootExists
 ): Promise<Record<string, PrefValue>> {
-  const seed = legacyRootPrefsSeed(all as unknown as RootPrefs)
+  const seed = legacyRootPrefsSeed(all as unknown as RootPrefs, exists)
   const entries = Object.entries(seed)
   if (entries.length === 0) return all
   const merged: Record<string, PrefValue> = { ...all }
