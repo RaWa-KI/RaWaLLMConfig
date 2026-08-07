@@ -94,6 +94,9 @@ export function isAllowedPublicPath(relPath) {
   if (SCRIPT_FILES.has(relPath) || relPath.startsWith('scripts/release/')) return true
   if (relPath === 'build/icon.ico' || relPath === 'build/icon.png') return true
   if (relPath === 'tests/seed-sandbox.mjs') return true
+  // HR27-Split-Modul von seed-sandbox.mjs — ohne dieses File bricht der
+  // Public-CI-Smoke mit ERR_MODULE_NOT_FOUND (Befund CI-Run 2026-08-07).
+  if (relPath === 'tests/seed-sandbox-foundation.mjs') return true
   if (relPath.startsWith('docs/brand/')) return true
   if (relPath.startsWith('src/')) return true
   if (relPath.startsWith('shared/')) return true

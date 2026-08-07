@@ -120,9 +120,15 @@ test('F4F9 refresh: refreshVersions() leert den Result-Cache -> erneuter Spawn',
 // gewinnen; „not recognized" ist ein PATH-Problem, keine fehlende Ausgabe.
 test('resolveBinCandidate: bekannte Installationsorte gewinnen vor dem PATH', () => {
   const home = homedir()
-  const local = join(home, '.local', 'bin', 'claude.exe')
+  // Plattform-ehrlich (CI-Ubuntu-Fail 2026-08-07): win32 prueft .exe/.cmd,
+  // POSIX den nackten Namen unter ~/.local/bin.
+  const local = process.platform === 'win32'
+    ? join(home, '.local', 'bin', 'claude.exe')
+    : join(home, '.local', 'bin', 'claude')
   expect(resolveBinCandidate('claude', (p) => p === local)).toBe(local)
-  const npm = process.env.APPDATA ? join(process.env.APPDATA, 'npm', 'codex.cmd') : null
+  const npm = process.platform === 'win32' && process.env.APPDATA
+    ? join(process.env.APPDATA, 'npm', 'codex.cmd')
+    : null
   if (npm) expect(resolveBinCandidate('codex', (p) => p === npm)).toBe(npm)
   // Kein Kandidat vorhanden -> unveraenderter PATH-Weg.
   expect(resolveBinCandidate('php', () => false)).toBe('php')
