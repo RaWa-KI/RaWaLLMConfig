@@ -15,13 +15,14 @@ export function sectionVisibleForMode(section: Section, mode: DisplayMode): bool
   return mode === 'expert' || !isExpertOnlySection(section)
 }
 
-// Settings-Untertabs updates/sources/modules sind per Modus-Weiche in
-// SettingsSection Experten-Bereiche: eine Diagnose-Route dorthin ist im
-// Simple-Modus ein totes Ziel (der Tab rendert nicht), obwohl die Sektion
-// „Einstellungen" selbst sichtbar bleibt. Befund 2026-07-19: Laien landeten
-// ueber eine Diagnosekarte auf dem Darstellungs-Tab ohne Handlungsfaehrung.
+// Settings-Untertabs sources/modules sind per Modus-Weiche in SettingsSection
+// Experten-Bereiche: eine Diagnose-Route dorthin ist im Simple-Modus ein totes
+// Ziel (der Tab rendert nicht), obwohl die Sektion „Einstellungen" selbst
+// sichtbar bleibt. Befund 2026-07-19: Laien landeten ueber eine Diagnosekarte
+// auf dem Darstellungs-Tab ohne Handlungsfaehrung. WP-F6 (2026-08-07): der
+// Updates-Tab ist in beiden Modi sichtbar — `settings-tab-updates` loest daher
+// auch im Simple-Modus auf.
 const EXPERT_ONLY_SETTINGS_FOCUS: ReadonlyArray<string> = [
-  'settings-tab-updates',
   'settings-tab-sources',
   'settings-tab-modules'
 ]

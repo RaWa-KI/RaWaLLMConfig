@@ -2,13 +2,13 @@ import { _electron as electron } from '@playwright/test'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync
+  existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { closeElectronApp } from './audit-probe/launch.mjs'
-import { clickNav, gotoSection, setDisplayMode, waitForStartup } from './audit-probe/qa-helpers.mjs'
+import { clickNav, gotoSection, setDisplayMode, setDisplayModeVisible, waitForStartup } from './audit-probe/qa-helpers.mjs'
 import {
   failPayload, STEP_TIMEOUT_MS, UI_SMOKE_TIMEOUT_MS, withDeadline, writeJson
 } from './audit-probe/timeouts.mjs'
@@ -18,6 +18,7 @@ const reportPath = join(outDir, 'ui-smoke-flows.json')
 const screenshotPath = join(outDir, 'ui-smoke-flows.png')
 const state = { status: 'PASS', generatedAt: new Date().toISOString(), steps: [] }
 let app = null
+let runtimeRoot = null
 
 function assert(condition, message) {
   if (!condition) throw new Error(message)
@@ -29,7 +30,9 @@ function record(id, evidence) {
 }
 
 function prepareRuntime() {
-  const root = mkdtempSync(join(tmpdir(), 'rawallm-s9-flows-'))
+  const suiteTmp = join(tmpdir(), 'rawa-suite', 'rawallm')
+  mkdirSync(suiteTmp, { recursive: true })
+  const root = mkdtempSync(join(suiteTmp, 'rawallm-s9-flows-'))
   execFileSync(process.execPath, ['tests/seed-sandbox.mjs', root], { encoding: 'utf8' })
   const userData = join(root, 'user-data')
   const sourceRoot = join(root, 'source-ui')
@@ -183,6 +186,29 @@ async function checkConfigAndUpdate(win, runtime) {
   })
 }
 
+// Routen-Sweep (P1, 2026-08-07): Hinweise-Seite (Config-Sektion) → Klick auf
+// die Diagnose-Aktion „… Dubletten" → DuplicatePanel der Zielfamilie wird
+// sichtbar, OBWOHL die Config-Sektion bereits aktiv ist (Same-Section-
+// Navigation, vorher toter Klick). Beide Modi: simple zeigt den Alltagstext,
+// expert das Aktions-Label mit Ziel.
+async function checkDiagnosisRoute(win) {
+  for (const mode of ['simple', 'expert']) {
+    await setDisplayModeVisible(win, mode)
+    await gotoSection(win, 'Ändern')
+    const hinweise = win.locator('.sidebar .nav-item', { hasText: 'Hinweise' }).first()
+    await hinweise.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+    await hinweise.click()
+    const row = win.locator('.ov-diag-row', { hasText: 'claude Dubletten' }).first()
+    await row.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+    await row.locator('.ov-diag-action').click()
+    await win.locator('.dup-panel').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+    await win.locator('.focus-notice').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+    const activeTab = (await win.locator('.mode-tabs .mode-tab.on').first().innerText()).trim()
+    assert(/Duplikate|Doppelte/.test(activeTab), `Duplikate-Tab nicht aktiv (${mode}): ${activeTab}`)
+    record(`diagnosis-route-${mode}`, { sameSection: true, activeTab, duplicatePanel: true, focusNotice: true })
+  }
+}
+
 async function checkArchiveAndDiagnostics(win, runtime) {
   // Breiten-unabhaengig: <=1120px wandert der Wiederherstellen-Tab ins Mehr-Menue.
   await gotoSection(win, 'Wiederherstellen')
@@ -215,6 +241,7 @@ async function waitFor(check, label) {
 async function run() {
   mkdirSync(outDir, { recursive: true })
   const runtime = prepareRuntime()
+  runtimeRoot = runtime.root
   const launched = await launch(runtime)
   app = launched.app
   const win = launched.win
@@ -223,12 +250,14 @@ async function run() {
   await addSource(win, runtime, dialogs)
   await setProjectRoot(win, runtime, dialogs)
   await checkConfigAndUpdate(win, runtime)
+  await checkDiagnosisRoute(win)
   await checkArchiveAndDiagnostics(win, runtime)
   await win.screenshot({ path: screenshotPath, fullPage: true })
   state.screenshot = 'tests/audit-runtime/ui-smoke-flows/ui-smoke-flows.png'
   writeJson(reportPath, state)
 }
 
+let exitCode = 0
 try {
   await withDeadline(run(), UI_SMOKE_TIMEOUT_MS, 'ui-smoke-flows')
   const closed = await closeElectronApp(app)
@@ -241,5 +270,10 @@ try {
     status: 'FAIL', report: reportPath,
     error: error instanceof Error ? error.message : String(error)
   }, null, 2))
-  process.exit(1)
+  exitCode = 1
+} finally {
+  if (runtimeRoot) {
+    try { rmSync(runtimeRoot, { recursive: true, force: true }) } catch { /* ignore */ }
+  }
 }
+if (exitCode !== 0) process.exit(exitCode)

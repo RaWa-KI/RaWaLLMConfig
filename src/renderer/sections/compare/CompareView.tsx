@@ -16,7 +16,7 @@ import './CompareView.css'
 // CompareView — Container der N-Spalten-Side-by-side-Vergleichsansicht (WP-5).
 // Rendert oben die Auswahl-Leiste (CompareToolbar), ruft bei „Vergleichen" den
 // read-only IPC-Aggregator (compareMulti, bereits maskiert) und zeigt N alignte
-// Spalten (CompareColumn). Optik bewusst wie die Duplikate (Reuse diff-shared).
+// Spalten ueber CompareVirtualRows. Optik bewusst wie die Duplikate (Reuse diff-shared).
 // Zusammenfassung/Marker-Feinschliff/Lade-Hinweise kommen in WP-6 — hier sind
 // klar benannte Slots (CompareSummary, je Spaltenkopf ein Lade-Badge) vorbereitet.
 

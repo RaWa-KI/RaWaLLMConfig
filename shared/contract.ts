@@ -14,13 +14,32 @@ export type { LlmConfig } from './contract-llm'
 import type { ReadFullRequest, ReadFullResult } from './contract-write'
 
 export type Scope = 'managed' | 'global' | 'project' | 'local' | 'shared'
-export type EntryStatus = 'active' | 'stale' | 'conflict' | 'dup' | 'archived' | 'acknowledged'
+// WP-F4F9 (2026-08-07): drei neue Status trennen „nicht pruefbar" / „Beispiel" /
+// „nicht eingerichtet" von 'stale' — 'stale' („veraltet") darf nur noch bei
+// BELEGT alter Version gesetzt werden, nie bei Spawn-Fehler oder Katalog-Eintrag.
+//   unknown       = Pruefung war nicht moeglich (z.B. CLI-Spawn fehlgeschlagen)
+//   info          = neutrale Zusatzinfo ohne Pruefung (z.B. Modell-Beispiel)
+//   notConfigured = bewusst/noch nicht eingerichtet (z.B. Cloud-Key nicht gesetzt)
+export type EntryStatus =
+  | 'active' | 'stale' | 'conflict' | 'dup' | 'archived' | 'acknowledged'
+  | 'unknown' | 'info' | 'notConfigured'
 export type SourceState = 'current' | 'recent' | 'update' | 'gated' | 'flag'
+// WP-F4F9: Auslieferungskanal eines Versions-Eintrags — CLI (`<bin> --version`),
+// Editor-Extension und Desktop-App-Update sind getrennte Kanaele mit getrennter
+// Aktualitaets-Wahrheit und werden in der Zeile getrennt ausgewiesen.
+export type UpdateChannel = 'cli' | 'extension' | 'desktop'
 export type DiffKind = 'ctx' | 'add' | 'del'
 export type Verdict = 'same' | 'diff'
 export type LoadMode = 'immer' | 'bedingt' | 'bei-bedarf' | 'unbekannt'
 
 // ── Config-Familie (claude/codex/shared/local + custom) ──────────────────
+// Additiv-optional (WP-F3): konkrete Fundstelle einer gebündelten Sammelzeile
+// (Audit-Summary im Coverage-Register) — Name plus Pfad, nie Werte.
+export interface CoverageItem {
+  name: string
+  path: string
+}
+
 export interface ConfigEntry {
   id: string
   name: string
@@ -63,6 +82,22 @@ export interface ConfigEntry {
   // kein readFull auf. Fehlt das Flag, gilt true (dateibasiert) — Verhalten
   // unveraendert.
   fileBacked?: boolean
+  // Additiv-optional (Diagnosekarten-Regel WP1, 2026-07-28): Nutzungsabsicht
+  // des Nutzers fuer diesen Anbieter (Quellen-Toggle, Default aus). Nur bei
+  // providerEnabled === true darf ein fehlender Cloud-API-Key eine
+  // Diagnosekarte „Key nicht gesetzt" erzeugen — ein OAuth-/Login-Setup ohne
+  // Keys zeigt sonst Dauer-Rauschen. Fehlt das Flag, gilt keine Karte.
+  providerEnabled?: boolean
+  // Additiv-optional (WP-F4F9): Auslieferungskanal des Eintrags
+  // (CLI/Extension/Desktop) — wird in der Zeile ausgewiesen. Fehlt das Feld,
+  // bleibt das Renderer-Verhalten unveraendert.
+  channel?: UpdateChannel
+  // Additiv-optional (WP-F3): die ersten konkreten Fundstellen einer
+  // gebündelten Sammelzeile (gekappt an der Quelle); coverageItemsTotal
+  // trägt die Gesamtzahl — der Renderer zeigt „+ n weitere". Fehlen die
+  // Felder, bleibt das Renderer-Verhalten unveraendert.
+  coverageItems?: CoverageItem[]
+  coverageItemsTotal?: number
 }
 
 export interface Category {
@@ -130,7 +165,10 @@ export interface DuplicateSet {
   // nur EINE Spiegel-Seite gegen den Shared-Trunk zeigt. Fehlt das Feld, bleibt das
   // Renderer-Verhalten unveraendert (alle Sets werden angezeigt).
   mirrorFamily?: 'claude' | 'codex' | 'local' | 'shared'
-  confidence?: 'heuristic' | 'named-mirror'
+  // 'content-hash' = inhaltsbasierte Erkennung (Plan C: Groessen-Bucket +
+  // SHA-256-Gruppe), unabhaengig von Namen/Flach-Scan; die anderen Werte sind
+  // die namens-/pfadbasierte Heuristik (dedupe.ts).
+  confidence?: 'heuristic' | 'named-mirror' | 'content-hash'
 }
 
 export interface DiffLabels {
@@ -173,76 +211,14 @@ export interface Snapshot {
   label: string
 }
 
-// ── System-Umgebung (sys-Familie) ────────────────────────────────────────
-export interface SystemEntry {
-  id?: string
-  name: string
-  status: EntryStatus
-  v?: string
-  desc: string
-  fields?: Record<string, string>
-  path?: string // optionaler Dateipfad fuer readFull-Drilldown (Cluster C/B; nie Secret)
-  manualFields?: string[] // Feld-Schluessel mit manuellem Override (Cluster C system-store; "manuell"-Badge)
-  conflictReason?: string // bei status==='conflict': Klartext der Konflikt-Art (z.B. Port-Konflikt-Risiko)
-}
-
-export interface SystemArea {
-  id: string
-  label: string
-  icon: string
-  blurb: string
-  entries: SystemEntry[]
-}
-
-export interface System {
-  updated: string
-  areas: SystemArea[]
-}
-
-// ── Toolchain-Watcher (Updates-Sektion) ──────────────────────────────────
-export interface WatcherDaemon {
-  status: string
-  lastResult: string
-  schedule: string
-  tokens: string
-  sources: number
-  updated: string
-  note: string
-}
-
-export interface WatcherTier {
-  id: 1 | 2 | 3
-  label: string
-  mode: string
-  cls: string
-  desc: string
-}
-
-export interface WatcherSource {
-  name: string
-  kind: string
-  current: string
-  latest: string
-  tier: 1 | 2 | 3
-  state: SourceState
-  note?: string
-  path?: string // optionaler Quelldateipfad fuer readFull-Drilldown (Cluster B; nie Secret)
-}
-
-export interface WatcherChangelog {
-  tool: string
-  version: string
-  date: string
-  summary: string
-  path?: string // optionaler Pfad zum Volltext-Changelog (Cluster B/C; nie Secret)
-}
-
-export interface Watcher {
-  daemon: WatcherDaemon
-  tiers: WatcherTier[]
-  sources: WatcherSource[]
-  changelogs: WatcherChangelog[]
-}
+// ── System-Umgebung + Toolchain-Watcher: in contract-system.ts ausgelagert
+// (HR27-Split, WP2 2026-07-28). Re-Export haelt alle bestehenden Importe aus
+// '@shared/contract' stabil (Muster: LlmConfig aus contract-llm).
+import type { System, Watcher } from './contract-system'
+export type {
+  SystemEntry, SystemArea, System,
+  WatcherDaemon, WatcherTier, WatcherSource, WatcherChangelog, Watcher
+} from './contract-system'
 
 // ── Aggregiertes App-Modell (config:getAll) ──────────────────────────────
 export interface AppData {

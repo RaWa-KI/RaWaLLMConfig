@@ -1,14 +1,20 @@
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { AppData, Category, DuplicateSet, LlmConfig } from '@shared/contract'
 import type { CoverageRow } from '@shared/contract-coverage'
 import { normalizeCat } from '@shared/cat-key'
+import { useLocale } from '../../state/store-locale'
 import { useStore } from '../../state/store'
 import type { Mode } from '../../state/types'
 import { Icon } from '../../components/Icon'
 import { FocusNotice } from '../../components/FocusNotice'
 import { SectionFallback } from '../../components/SectionFallback'
 import { readOverviewFocus } from '../overview/overview-navigation'
-import { CategoryNavItem, OverviewView, SearchView } from './config-parts'
+import { useOverviewFocusVersion } from '../overview/use-overview-focus'
+import { selectDiagnosisCards } from '../overview/overview-selectors'
+import { OverviewView, SearchView } from './config-parts'
+import { CategorySidebar } from './CategorySidebar'
+import { DIAGNOSIS_CAT_ID } from './diagnosis-cat'
+import { DiagnosisView } from './DiagnosisView'
 import { DuplicatePanel } from './DuplicatePanel'
 import { DriftPanel } from './DriftPanel'
 import { ConfigWriteConfirm } from './ConfigWriteConfirm'
@@ -16,9 +22,9 @@ import { ConfigDiagnostics } from './ConfigDiagnostics'
 import { DiagnosticsSummary } from './DiagnosticsSummary'
 import { CategoryModeTabs } from './CategoryModeTabs'
 import { categoryLabel } from './category-label'
-import { groupCategoriesBySource } from './category-groups'
 import { buildHits } from './config-filter'
-import { resolveConfigFocus } from './config-focus'
+import { resolveConfigFocusTarget } from './config-focus'
+import { applyConfigFocusTarget } from './config-focus-apply'
 
 // Vergleich/Spiegelung als Lazy-Chunks (Teilplan C): selten geoeffnete,
 // datenreiche Views loesen sich aus dem Startbundle.
@@ -26,14 +32,28 @@ const CompareView = lazy(() => import('../compare/CompareView').then((m) => ({ d
 const CoverageView = lazy(() => import('../coverage/CoverageView').then((m) => ({ default: m.CoverageView })))
 
 // Config-Sektion: Kategorie-Sidebar + Anzeige (Uebersicht / Duplikate) oder
-// Suchtreffer. WP-D-a: EntryDetailPanel als Overlay entfernt (dual-drawer-overlay-
+// Suchtreffer. WP-D-a: Altes Detail-Overlay entfernt (dual-drawer-overlay-
 // occludes-editpanel); Detail laeuft nur noch ueber den Drawer-Tab 'detail'.
-// EntryDetailPanel-Import entfernt — Komponente bleibt im Codebase (HR7).
+// Das alte Overlay ist archiviert; der aktive Pfad ist DrawerDetailTab.
 export function ConfigSection() {
-  const { config, ui, actions } = useStore()
+  const { config, system, watcher, ui, actions } = useStore()
+  const { locale } = useLocale()
   useConfigOverviewFocus(config.data)
+  // WP3: Anzahl offener Diagnosekarten fuer das Sidebar-Badge „Diagnose“.
+  const diagnosisCount = selectDiagnosisCards(
+    config.data, system.data, watcher.data, config.error, system.error, watcher.error, locale
+  ).length
   const ad = config.data?.data[ui.llm]
   if (!ad) {
+    // Die Diagnose-Kategorie ist familien-unabhaengig: sie bleibt auch dann
+    // erreichbar, wenn die aktive Familie keine Config-Daten hat.
+    if (ui.catId === DIAGNOSIS_CAT_ID) {
+      return (
+        <main className="main">
+          <DiagnosisView />
+        </main>
+      )
+    }
     return (
       <div className="empty">
         {Icon.plug}
@@ -51,6 +71,7 @@ export function ConfigSection() {
         ad={ad}
         catId={ui.catId}
         searching={searching}
+        diagnosisCount={diagnosisCount}
         onPick={(id) => {
           actions.setSearch('')
           if (ui.statusFilter !== null) actions.toggleStatusFilter(ui.statusFilter)
@@ -74,67 +95,29 @@ export function ConfigSection() {
   )
 }
 
+// Fokus-Effekt (Routen-Sweep 2026-08-07): loest ALLE config-* Fokus-Familien
+// auf (Entry, Familie, LLM, Dubletten) statt nur Entry-Ziele — der Diagnose-
+// Klick „Problem pruefen: <familie> Dubletten" landet damit direkt im
+// DuplicatePanel der richtigen Kategorie. Die Fokus-Version haengt in den
+// Abhaengigkeiten, damit der Effekt auch bei Same-Section-Navigation feuert
+// (sessionStorage allein loest keinen Render aus). Der applied-Schluessel
+// traegt die Version: jeder Klick wirkt erneut, ein bereits angewendeter
+// Fokus zwingt aber nie zurueck (WP-F2-Navigationsschutz bleibt erhalten).
+// applied wird erst gesetzt, wenn applyConfigFocusTarget den Zielzustand
+// BESTAETIGT (true) — der Store-LLM-Reset-Effekt laeuft nach diesem Effekt
+// und wuerde einen nur einmal gesetzten Zustand sonst wieder ueberschreiben.
 function useConfigOverviewFocus(data: AppData | null) {
   const { ui, actions } = useStore()
+  const focusVersion = useOverviewFocusVersion()
   const applied = useRef('')
   useEffect(() => {
     const focus = readOverviewFocus('config')
-    const target = resolveConfigFocus(data, focus?.focusId)
+    const target = resolveConfigFocusTarget(data, focus?.focusId)
     if (!focus?.focusId || !target) return
-    const key = `${focus.focusId}:${target.llm}:${target.catId}:${target.entryId}`
+    const key = `${focusVersion}:${focus.focusId}`
     if (applied.current === key) return
-    if (ui.llm !== target.llm) {
-      actions.setLlm(target.llm)
-      return
-    }
-    if (ui.search.trim()) actions.setSearch('')
-    if (ui.statusFilter !== null) actions.toggleStatusFilter(ui.statusFilter)
-    if (ui.catId !== target.catId) actions.setCatId(target.catId)
-    if (ui.mode !== 'overview') actions.setMode('overview')
-    if (ui.sel?.catId !== target.catId || ui.sel.entryId !== target.entryId) {
-      actions.openEntry(target.catId, target.entryId)
-    }
-    applied.current = key
-  }, [actions, data, ui.catId, ui.llm, ui.mode, ui.search, ui.sel, ui.statusFilter])
-}
-
-// Sidebar-Kategorie: Gruppierung nach Quell-Werkzeug (WP-9). Die Userglobal-
-// Familie zeigte gleichnamige Achsen (Agents/Agents/Skills) flach untereinander;
-// jetzt traegt jede Gruppe eine Zwischenueberschrift und jedes Label sein
-// Quell-Praefix. Reine Anzeige — Filter/Dedupe laufen weiter ueber normalizeCat.
-function CategorySidebar({
-  ad,
-  catId,
-  searching,
-  onPick
-}: {
-  ad: LlmConfig
-  catId: string | null
-  searching: boolean
-  onPick(id: string): void
-}) {
-  const { ui } = useStore()
-  const groups = useMemo(() => groupCategoriesBySource(ad.categories), [ad.categories])
-  return (
-    <aside className="sidebar">
-      <div className="side-label">Kategorien</div>
-      {groups.map((g) => (
-        <Fragment key={g.key}>
-          {g.title && <div className="side-label">{g.title}</div>}
-          {g.categories.map((c) => (
-            <CategoryNavItem
-              key={c.id}
-              cat={c}
-              label={categoryLabel(ui.displayMode, c)}
-              active={catId === c.id && !searching}
-              onPick={onPick}
-            />
-          ))}
-        </Fragment>
-      ))}
-      {ad.categories.length === 0 && <div className="empty-state">Noch keine Kategorien.</div>}
-    </aside>
-  )
+    if (applyConfigFocusTarget(target, ui, actions)) applied.current = key
+  }, [actions, data, focusVersion, ui])
 }
 
 function ConfigMain({ ad }: { ad: LlmConfig }) {
@@ -179,6 +162,9 @@ function ConfigMain({ ad }: { ad: LlmConfig }) {
     )
   }
   const cat = ad.categories.find((c) => c.id === ui.catId)
+  // WP3: Die Pseudo-Kategorie „Diagnose“ ist keine Scan-Kategorie — sie zeigt
+  // die dauerhaften Diagnosekarten aus dem Overview-Modell.
+  if (!cat && ui.catId === DIAGNOSIS_CAT_ID) return <DiagnosisView />
   if (!cat) return <ConfigEmpty ad={ad} />
   return <CategoryView ad={ad} cat={cat} />
 }

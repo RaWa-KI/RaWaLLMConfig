@@ -37,6 +37,22 @@ test('B3: fehlender Cloud-API-Key wird Info-Karte „Key nicht gesetzt" mit Hand
   expect(card.changeHint).toContain('OPENAI_API_KEY')
 })
 
+// WP1 (Diagnosekarten-Regel 2026-07-28): ohne aktivierte Nutzungsabsicht
+// (providerEnabled !== true, Default aus) erzeugt ein fehlender Key KEINE
+// Karte — ein OAuth-/Login-Setup ohne API-Keys zeigt null Key-Karten.
+test('WP1: fehlender Key eines NICHT aktivierten Anbieters erzeugt keine Karte', () => {
+  const disabled = keyEntryMissing()
+  delete disabled.providerEnabled
+  const config = shell({
+    cloud: {
+      duplicates: [],
+      categories: [{ id: 'cloud-openai', label: 'OpenAI', icon: '', path: '', blurb: '', entries: [disabled] }]
+    }
+  })
+  const cards = buildDiagnosisCards({ config, system: readySystem(), watcher: readyWatcher(), errors: [] })
+  expect(cards).toEqual([])
+})
+
 test('B3: Filter logik ist ausgelagert und verdrahtet (HR27-Split)', () => {
   const model = readFileSync(resolve(process.cwd(), 'src/renderer/sections/overview/diagnosis-model.ts'), 'utf8')
   expect(model).toContain("from './diagnosis-cards-filter'")
@@ -80,9 +96,25 @@ function keyEntryMissing(): ConfigEntry {
     desc: 'Nicht gesetzt — in OPENAI_API_KEY hinterlegen',
     updated: '',
     fileBacked: false,
+    // WP1: Die Karte darf nur bei aktivierter Nutzungsabsicht erscheinen.
+    providerEnabled: true,
     fields: { 'Env-Variable': 'OPENAI_API_KEY', Status: 'nicht gesetzt' }
   }
 }
+
+// P2-2 (Kritiker 2026-08-07): Neutral-Stati erzeugen auch dateibasiert nie
+// eine Warnkarte — Spiegel der System-Seite (Falschpositiv-Regel).
+test('Neutral-Stati (unknown/info/notConfigured) erzeugen keine Karte, auch fileBacked', () => {
+  const neutral: ConfigEntry['status'][] = ['unknown', 'info', 'notConfigured']
+  for (const status of neutral) {
+    const entry: ConfigEntry = { ...missingFolderEntry(), status, fileBacked: true }
+    const cards = buildDiagnosisCards({
+      config: shell({ local: { duplicates: [], categories: [{ id: 'gguf-models', label: 'Modelle', icon: '', path: '', blurb: '', entries: [entry] }] } }),
+      system: readySystem(), watcher: readyWatcher(), errors: []
+    })
+    expect(cards, `Status ${status} darf keine Karte erzeugen`).toEqual([])
+  }
+})
 
 function missingFolderEntry(): ConfigEntry {
   return {

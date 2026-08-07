@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AppData, System, Watcher } from '@shared/contract'
 import type { Slice } from './types'
 import { loadingSlice, type ConfigWatcherFsBridge } from './config-load-bridge'

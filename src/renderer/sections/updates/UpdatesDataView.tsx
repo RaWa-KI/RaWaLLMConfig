@@ -13,17 +13,20 @@ import {
 import { TierCard } from './UpdatesCards'
 import { ChangelogList } from './UpdatesChangelogList'
 import { UpdatesDaemonCard } from './UpdatesDaemonCard'
+import { UpdatesRefreshButton } from './UpdatesRefreshButton'
 import { UpdatesSourceList } from './UpdatesSourceList'
 
 export function UpdatesDataView({
   configData,
   filter,
   onFilter,
+  onReload,
   watcher
 }: {
   configData: AppData | null
   filter: string
   onFilter: (value: string) => void
+  onReload: () => void
   watcher: Watcher
 }) {
   const kinds = ['all', ...Array.from(new Set(watcher.sources.map((s) => s.kind)))]
@@ -61,6 +64,8 @@ export function UpdatesDataView({
             })}
           </p>
         </div>
+        {/* WP-F4F9: Refresh auch im Updates-/Watcher-Bereich (vorher nur System). */}
+        <UpdatesRefreshButton onReload={onReload} />
       </div>
       <p className="watcher-help">{watcherHelp()}</p>
       <FocusNotice section="updates" />

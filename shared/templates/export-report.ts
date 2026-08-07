@@ -45,7 +45,3 @@ export function fullBundleFilename(exported: string): string {
 export function conflictBundleFilename(exported: string): string {
   return `${CONFLICT_EXPORT_METADATA.filenamePrefix}-${bundleDateStamp(exported)}.json`
 }
-
-export function bundleSummaryText(meta: ExportReportMetadata, entryCount: number): string {
-  return `${meta.title}: ${entryCount} Eintraege`
-}

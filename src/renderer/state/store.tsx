@@ -3,7 +3,7 @@ import type { EntryStatus } from '@shared/contract'
 import type { DisplayMode, ImportDialogState, Mode, Section, Selection, StoreActions, StoreValue, ToastMsg, UiState } from './types'
 import { useComparePresetState } from './compare-preset'
 import { useConfigLoad } from './useConfigLoad'
-import { shouldApplyDefaultCat } from './default-cat-guard'
+import { shouldApplyDefaultCat, dropUnresolvableConfigFocus } from './default-cat-guard'
 
 const StoreContext = createContext<StoreValue | null>(null)
 const DISPLAY_MODE_KEY = 'rawallmconfig.displayMode'
@@ -151,6 +151,9 @@ function useStoreUiEffects(ui: StoreUi, configData: StoreValue['config']['data']
   }, [ui])
   useEffect(() => {
     const cats = configData?.data[ui.state.llm]?.categories ?? []
+    // WP-F2: Unaufloesbaren Config-Fokus verwerfen, bevor der Guard ihn 5 Min
+    // lang als Blocker wertet (Guided-Focus-Race-Schutz bleibt unveraendert).
+    dropUnresolvableConfigFocus(configData)
     // WP-1 (B1): Kein Default, solange ein Config-Focus ansteht — sonst
     // ueberschreibt cats[0] das Ziel des gefuehrten Sprungs (Race).
     if (!shouldApplyDefaultCat(cats, ui.state.catId)) return

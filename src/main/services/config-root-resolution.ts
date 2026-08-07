@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 export interface ConfigRoots {
   claudeHome: string
@@ -82,8 +82,22 @@ export function discoverRoot(preferred: string | null, defaultPath: string, exis
     : { value: null, source: 'none' }
 }
 
-function prefRoot(key: RootPrefKey): string | null {
-  return rootPrefsProvider()[key]?.trim() || null
+// sharedClaude meint die `.claude`-Ebene UNTER dem Shared-Ordner. Die
+// Einstellungs-UI fragt aber nach dem „Gemeinsamen Konfigurationsordner" —
+// Nutzer waehlen dort naturgemaess `<shared>` selbst (Owner-Befund 2026-08-07:
+// Pref `...\.shared` liess sharedDataRoots eine Ebene zu hoch ableiten →
+// leerer Changelog-Feed, falsche Referenz-Pfade). Beide Formen sind gueltig:
+// zeigt der Wert nicht selbst auf `.claude` und existiert `<wert>/.claude`,
+// wird auf die `.claude`-Ebene normalisiert.
+export function normalizeSharedClaude(d: RootDiscovery, exists: RootExists): RootDiscovery {
+  if (!d.value) return d
+  if (basename(d.value) === '.claude') return d
+  const child = join(d.value, '.claude')
+  return exists(child) ? { value: child, source: d.source } : d
+}
+
+function prefRoot(key: RootPrefKey, prefs: RootPrefs): string | null {
+  return prefs[key]?.trim() || null
 }
 
 // ── MIGRATIONS-CODE (B13, Review-Auflage P1) ───────────────────────────────
@@ -129,7 +143,13 @@ export function legacyRootPrefsSeed(
   return seed
 }
 
-export function discoverConfigRoots(): ConfigRootDiscovery {
+// Explizite Injection (prefs/exists) bevorzugt — Test-Seam ohne Modul-Global
+// (.claude/debugging.md 2026-07-28: Global kann zwischen Spec- und
+// src-Instanz divergieren). Default bleibt der Produktions-Provider/-fs-Check.
+export function discoverConfigRoots(
+  prefs?: RootPrefs,
+  exists: RootExists = rootExists
+): ConfigRootDiscovery {
   const sandbox = sandboxRoot()
   if (sandbox) return {
     sharedClaude: { value: join(sandbox, '.shared', '.claude'), source: 'sandbox' },
@@ -138,10 +158,11 @@ export function discoverConfigRoots(): ConfigRootDiscovery {
   }
   // Lazy, idempotente Migration (B13): ungesetzte optionale Wurzeln fallen auf
   // die bisherige Aufloesung zurueck, solange deren Pfade hier existieren.
-  const seed = legacyRootPrefsSeed(rootPrefsProvider())
+  const effectivePrefs = prefs ?? rootPrefsProvider()
+  const seed = legacyRootPrefsSeed(effectivePrefs, exists)
   return {
-    sharedClaude: discoverRoot(prefRoot('roots.sharedClaude'), seed['roots.sharedClaude'] ?? '', rootExists),
-    workspaceParent: discoverRoot(prefRoot('roots.workspaceParent'), seed['roots.workspaceParent'] ?? '', rootExists),
-    projectRoot: discoverRoot(prefRoot('roots.projectRoot'), seed['roots.projectRoot'] ?? '', rootExists)
+    sharedClaude: normalizeSharedClaude(discoverRoot(prefRoot('roots.sharedClaude', effectivePrefs), seed['roots.sharedClaude'] ?? '', exists), exists),
+    workspaceParent: discoverRoot(prefRoot('roots.workspaceParent', effectivePrefs), seed['roots.workspaceParent'] ?? '', exists),
+    projectRoot: discoverRoot(prefRoot('roots.projectRoot', effectivePrefs), seed['roots.projectRoot'] ?? '', exists)
   }
 }

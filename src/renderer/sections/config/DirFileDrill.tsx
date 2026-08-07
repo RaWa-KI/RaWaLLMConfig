@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { DiffLabels, DiffLine, DirFileEntry } from '@shared/contract'
 import { Icon } from '../../components/Icon'
-import { SECRET_PAAR } from '@shared/dup-labels'
+import { SECRET_PAAR, istIntraLabels } from '@shared/dup-labels'
 import { DiffColumn, MaskedBadge, buildFallbackLines } from './diff-shared'
 import { MergeEditor } from './MergeEditor'
 import { OrphanActions, type DirBases } from './DirOrphanActions'
@@ -71,6 +71,7 @@ function DirDiffDrill({ f, labels }: { f: DirFileEntry; labels: DiffLabels }) {
       mirrorPath={f.mirrorPath ?? ''}
       initialTrunk={c.trunk}
       initialMirror={c.mirror}
+      labels={istIntraLabels(labels) ? labels : undefined}
     />
   )
 }
@@ -91,6 +92,7 @@ function DirSameDrill({ f, labels }: { f: DirFileEntry; labels: DiffLabels }) {
         mirrorPath={f.mirrorPath ?? f.trunkPath ?? ''}
         initialTrunk={c.content}
         initialMirror={c.content}
+        labels={istIntraLabels(labels) ? labels : undefined}
       />
     )
   }
@@ -142,7 +144,15 @@ function DirSingleDrill({
   const tag = trunkSide ? labels.trunkTag : labels.mirrorTag
   // Edit-Zugang: vorhandene Seite editieren (gated MergeEditor mit gleichem Inhalt).
   if (edit && !c.masked) {
-    return <MergeEditor trunkPath={path} mirrorPath={path} initialTrunk={c.content} initialMirror={c.content} />
+    return (
+      <MergeEditor
+        trunkPath={path}
+        mirrorPath={path}
+        initialTrunk={c.content}
+        initialMirror={c.content}
+        labels={istIntraLabels(labels) ? labels : undefined}
+      />
+    )
   }
   return (
     <div className="dir-drill">

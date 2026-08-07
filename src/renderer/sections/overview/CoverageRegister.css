@@ -56,6 +56,14 @@
 .ov-coverage-details span { overflow-wrap: anywhere; color: var(--warm-gray); font-family: var(--font-data); }
 .ov-coverage-more { justify-self: start; }
 
+/* WP-F3: Einzelbefund-Liste im Expand — Name + Pfad (Experten-Modus),
+   Kappungszeile „+ n weitere". Pfade brechen weich um (kein Overflow). */
+.ov-coverage-items { display: grid; gap: 3px; margin: 0; padding-left: 18px; }
+.ov-coverage-items li { display: flex; min-width: 0; flex-wrap: wrap; gap: 2px 8px; }
+.ov-coverage-details .ov-coverage-item-name { overflow-wrap: anywhere; color: var(--text); font-family: var(--font-ui); font-weight: 750; }
+.ov-coverage-details .ov-coverage-item-path { font-size: 11px; }
+.ov-coverage-items-more { color: var(--warm-gray); list-style: none; }
+
 /* „So lassen"-Aktion (E-WP3): Button + Disabled-Hinweis in der Detailzeile. */
 .ov-coverage-ack { display: flex; align-items: center; gap: 8px; margin: 0; }
 .ov-coverage-details .ov-coverage-ack-hint { font-family: var(--font-ui); font-size: 11px; font-weight: 750; }

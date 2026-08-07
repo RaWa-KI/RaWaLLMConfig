@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useStore } from '../../state/store'
-import { Icon } from '../../components/Icon'
 import { UpdatesDataView } from './UpdatesDataView'
 import './UpdatesSection.css'
 
@@ -9,7 +8,7 @@ import './UpdatesSection.css'
 // Praesentations- und Listenmodule liegen colocated in diesem Ordner.
 
 export function UpdatesSection() {
-  const { watcher, config } = useStore()
+  const { watcher, config, actions } = useStore()
   const [filter, setFilter] = useState('all')
 
   if (watcher.loading) {
@@ -29,5 +28,5 @@ export function UpdatesSection() {
     )
   }
 
-  return <UpdatesDataView configData={config.data} filter={filter} onFilter={setFilter} watcher={watcher.data} />
+  return <UpdatesDataView configData={config.data} filter={filter} onFilter={setFilter} onReload={actions.reload} watcher={watcher.data} />
 }

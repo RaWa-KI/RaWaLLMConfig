@@ -10,6 +10,9 @@ export const IPC = {
   configListDir: 'config:listDir',
   // Versions-Refresh (PERF-HOCH-01): leert den CLI-Versions-Cache im Main
   systemRefreshVersions: 'system:refreshVersions',
+  // read-only „Zeigen": Pfad im Datei-Manager anzeigen (shell.showItemInFolder,
+  // bewusst NICHT shell.openPath — zeigt statt öffnet; Secret-Guard im Handler)
+  systemOpenPath: 'system:openPath',
   // Endnutzer-Quellen-Verwaltung (OSS Teil C) — read-only Kanaele (kein Gate).
   sourcesList: 'sources:list',
   sourcesDiscover: 'sources:discover',
@@ -21,6 +24,18 @@ export const IPC = {
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
+
+// Request/Result fuer system:openPath (WP-F14). Read-only: es fliesst nur ein
+// Pfad hin und ein Anzeige-Status zurueck — nie Datei-Inhalt, nie Secret-Werte.
+export interface OpenPathRequest {
+  path: string
+}
+
+// shown: 'file' = Datei im Ordner selektiert; 'folder' = (nur) Ordner gezeigt
+// (Secret-Pfade werden nie selektiert/geoeffnet, nur ihr Ordner gezeigt).
+export interface OpenPathData {
+  shown: 'file' | 'folder'
+}
 
 export const IPC_EVENTS = {
   configChanged: 'config:changed'

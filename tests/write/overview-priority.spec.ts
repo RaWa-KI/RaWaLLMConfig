@@ -10,9 +10,12 @@ test('overview keeps the safe primary action ahead of diagnostics (teilplan e or
     overviewSection.indexOf('function OverviewHead')
   )
   const nextAction = content.indexOf('<NextAction')
-  const diagnostics = content.indexOf('<DiagnosisCards')
+  // WP3: im Overview steht nur noch die einzeilige Zusammenfassung; die
+  // Karten leben in der Sidebar-Kategorie „Diagnose“.
+  const diagnostics = content.indexOf('<DiagnosisSummary')
 
   expect(nextAction).toBeGreaterThan(0)
   expect(nextAction).toBeLessThan(diagnostics)
+  expect(content).not.toContain('<DiagnosisCards')
   expect(overviewSection).toContain("!task.primary && (props.displayMode === 'expert' || task.id !== 'expert')")
 })

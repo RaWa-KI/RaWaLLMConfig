@@ -189,10 +189,6 @@
   height: 14px;
 }
 
-.cvg-expand-placeholder {
-  width: 28px;
-}
-
 /* ── Diff-Bereich (aufgeklappt) ───────────────────────────────── */
 .cvg-row-diff {
   margin: 0 16px 12px;

@@ -7,7 +7,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { LlmConfig, Category, ConfigEntry } from '@shared/contract'
 import { diffLabels } from '@shared/dup-labels'
-import { isSecretPathForRead } from '../services/secret-guard'
 import { configRoots } from '../services/config-roots'
 import { collectClaudeMds } from './claude-scan-instructions'
 import {

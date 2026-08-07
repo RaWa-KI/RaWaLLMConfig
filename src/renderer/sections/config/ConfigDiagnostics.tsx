@@ -6,15 +6,33 @@ import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
 import './ConfigDiagnostics.css'
 
+// WP-F11: Eintrags-Verweis mit Ziel-ID, damit „Technisches Detail" nicht nur
+// Namen nennt, sondern per Klick den Drawer des Eintrags öffnet.
+export interface DiagnosticRef {
+  entryId: string
+  name: string
+}
+
 interface Diagnostic {
   id: string
   title: string
   meaning: string
   importance: string
   action: string
-  names?: string[]
+  refs?: DiagnosticRef[]
   detail?: string
 }
+
+// Kappung der Detail-Verweise: maximal 4 sichtbar, Rest als „+ n weitere".
+export const REF_CAP = 4
+
+export function capRefs(refs: DiagnosticRef[]): { shown: DiagnosticRef[]; hiddenCount: number } {
+  return { shown: refs.slice(0, REF_CAP), hiddenCount: Math.max(0, refs.length - REF_CAP) }
+}
+
+// Lokales Label (WP-F11): bewusst NICHT in shared/messages — dort arbeiten
+// parallele Agenten; Kandidat für WP-MSG-Nachzug.
+const MORE_LABEL = (n: number) => `+ ${n} weitere`
 
 const ROSTER_LIMITS: Record<string, { max: number; title: string; technical: string }> = {
   skills: { max: 12, title: msg('configWarnings.title.manySkills'), technical: 'Skill-Roster' },
@@ -30,7 +48,7 @@ function fieldHas(fields: Record<string, string> | undefined, key: string): bool
   return (fields.frontmatter ?? '').toLowerCase().split(/\s*,\s*/).includes(needle)
 }
 
-function frontmatterDiagnostics(cat: Category): Diagnostic[] {
+export function frontmatterDiagnostics(cat: Category): Diagnostic[] {
   const hinted = cat.entries.filter((e) => e.fields?.['Frontmatter-Hinweis'])
   if (!hinted.length) return []
   return [{
@@ -40,7 +58,7 @@ function frontmatterDiagnostics(cat: Category): Diagnostic[] {
     importance: msg('configWarnings.importance.fileHeader'),
     action: msg('configWarnings.action.fileHeader'),
     detail: `${hinted.length} Eintraege haben unbekannte oder wirkungslose Frontmatter-Schluessel.`,
-    names: hinted.slice(0, 4).map((e) => e.name),
+    refs: hinted.map((e) => ({ entryId: e.id, name: e.name })),
   }]
 }
 
@@ -57,7 +75,7 @@ function ruleDiagnostics(cat: Category): Diagnostic[] {
       importance: msg('configWarnings.importance.ruleScope'),
       action: msg('configWarnings.action.ruleScope'),
       detail: `${globs.length} Rule${globs.length === 1 ? '' : 's'} nutzen globs statt paths und laden dadurch immer.`,
-      names: globs.slice(0, 4).map((e) => e.name),
+      refs: globs.map((e) => ({ entryId: e.id, name: e.name })),
     })
   }
   if (always.length) {
@@ -87,7 +105,7 @@ function rosterDiagnostics(cat: Category): Diagnostic[] {
   }]
 }
 
-function tokenDiagnostics(cat: Category): Diagnostic[] {
+export function tokenDiagnostics(cat: Category): Diagnostic[] {
   const heavy = cat.entries.filter((e) => (e.tokensEstimated ?? 0) > 2000)
   if (!heavy.length) return []
   return [{
@@ -97,7 +115,7 @@ function tokenDiagnostics(cat: Category): Diagnostic[] {
     importance: msg('configWarnings.importance.largeSources'),
     action: msg('configWarnings.action.largeSources'),
     detail: `${heavy.length} Eintraege liegen ueber ca. 2.000 Tokens.`,
-    names: heavy.slice(0, 4).map((e) => `${e.name} (ca. ${e.tokensEstimated} Tokens)`),
+    refs: heavy.map((e) => ({ entryId: e.id, name: `${e.name} (ca. ${e.tokensEstimated} Tokens)` })),
   }]
 }
 
@@ -148,6 +166,33 @@ export function ConfigWarningRow(props: {
   )
 }
 
+// WP-F11: Detail-Text plus klickbare Eintrags-Verweise. Jeder Verweis öffnet
+// per openEntry(catId, entryId) den Drawer des Eintrags (mit Pfad); optisch
+// dezenter unterstrichener Link, technisch Button (Tastatur/Screenreader).
+function DiagnosticDetail(props: { catId: string; detail?: string; refs?: DiagnosticRef[] }) {
+  const { actions } = useStore()
+  const { shown, hiddenCount } = capRefs(props.refs ?? [])
+  return (
+    <>
+      {props.detail}
+      {props.detail && shown.length > 0 ? ' ' : null}
+      {shown.map((ref, i) => (
+        <span key={ref.entryId}>
+          {i > 0 && ', '}
+          <button
+            type="button"
+            className="cfg-diag-ref"
+            onClick={() => actions.openEntry(props.catId, ref.entryId)}
+          >
+            {ref.name}
+          </button>
+        </span>
+      ))}
+      {hiddenCount > 0 && ` ${MORE_LABEL(hiddenCount)}`}
+    </>
+  )
+}
+
 export function toggleExpanded(current: Set<string>, id: string): Set<string> {
   const next = new Set(current)
   if (next.has(id)) next.delete(id)
@@ -177,8 +222,8 @@ export function ConfigDiagnostics({ cat }: { cat: Category }) {
           action={item.action}
           expanded={expanded.has(item.id)}
           onToggle={() => setExpanded((current) => toggleExpanded(current, item.id))}
-          technicalDetail={expert && (item.detail || item.names)
-            ? [item.detail, item.names?.join(', ')].filter(Boolean).join(' ')
+          technicalDetail={expert && (item.detail || item.refs?.length)
+            ? <DiagnosticDetail catId={cat.id} detail={item.detail} refs={item.refs} />
             : undefined}
         />
       ))}

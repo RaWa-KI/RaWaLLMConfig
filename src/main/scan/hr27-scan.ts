@@ -47,6 +47,8 @@ export const HR27_SKIP_DIRS = new Set([
   'seeds',
   'memory',
   'agent-memory',
+  // Runtime-/Evidenzartefakte sind per .gitignore nicht versionierter Output.
+  'audit-runtime',
 ])
 
 const PLAN_RX = /^(PLAN|COMPLETED_PLAN|SUPERSEDED_PLAN|WIP_PLAN|DRAFT_PLAN)-.*\.md$/i

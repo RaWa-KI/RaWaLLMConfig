@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, IPC_EVENTS } from '@shared/channels'
+import type { OpenPathRequest, OpenPathData } from '@shared/channels'
 import type { IntegrationsApi } from '@shared/channels-integrations'
 import { IPC_WRITE } from '@shared/channels-write'
 import { IPC_UPDATES, IPC_UPDATES_EVENTS } from '@shared/channels-updates'
@@ -34,7 +35,6 @@ import type {
   ExplainResult,
   WriteStatusResult,
   WriteSetEnabledRequest,
-  DirActionRequest,
   DirActionResult,
   DirReconcileRequest,
   DirReconcileResult,
@@ -124,6 +124,19 @@ export interface RefreshApi {
 const refresh: RefreshApi = {
   refreshVersions: (): Promise<IpcResult<boolean>> =>
     ipcRenderer.invoke(IPC.systemRefreshVersions)
+}
+
+// Read-only „Zeigen" (WP-F14): Pfad im Datei-Manager anzeigen (system:openPath,
+// Main nutzt shell.showItemInFolder + Secret-Guard — zeigt statt öffnet).
+// Eigene Bridge-Methode analog ListDirApi/RefreshApi, weil ElectronApi sie
+// nicht fuehrt. Es fliesst nur der Pfad hin — nie Datei-Inhalt, nie Secrets.
+export interface OpenPathApi {
+  openPath(req: OpenPathRequest): Promise<IpcResult<OpenPathData>>
+}
+
+const openPath: OpenPathApi = {
+  openPath: (req: OpenPathRequest): Promise<IpcResult<OpenPathData>> =>
+    ipcRenderer.invoke(IPC.systemOpenPath, req)
 }
 
 // Read-only graphify-Ingest (Graph-Sektion, Cluster B). Eigene Bridge-Methode,
@@ -247,13 +260,14 @@ const diagnostics = createDiagnosticsApi(ipcRenderer)
 const coverage = createCoverageApi(ipcRenderer)
 const drift = createDriftApi(ipcRenderer)
 
-const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & DriftApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi } = {
+const api: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & OpenPathApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & DriftApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi } = {
   ...read,
   ...write,
   ...updates,
   ...configWatcherFs,
   ...list,
   ...refresh,
+  ...openPath,
   ...graph,
   ...compare,
   ...archive,

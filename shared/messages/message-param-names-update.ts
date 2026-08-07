@@ -75,4 +75,6 @@ export const UPDATE_MESSAGE_PARAM_NAMES = {
   "update.watcher.static": [],
   "update.watcher.lastResult": ["lastResult"],
   "update.watcher.daemonSchedule": [],
+  "update.watcher.refresh": [],
+  "update.watcher.refreshing": [],
 } as const satisfies MessageParamNamesFor<UpdateMessageParamsMap>

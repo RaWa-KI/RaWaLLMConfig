@@ -11,6 +11,7 @@ import { scanRegistry, scanRegistryAsync } from './engine/build-data'
 import { isProviderScanEnabled } from './integration-filter'
 import { buildAuditConfig } from './scan-audit-categories'
 import { findDuplicates } from '../services/dedupe'
+import { findContentDuplicates } from '../services/dedupe-content-scan'
 import { findDriftRelations } from '../services/drift-relation'
 import { buildCoverage } from '../services/coverage'
 // HR27-Split: die userglobal-Ableitung (inkl. Kimi-Quelle) liegt in scan-userglobal.
@@ -178,6 +179,9 @@ export function scanAll(): AppData {
   const data = buildData()
   try {
     findDuplicates(data)
+    // Plan C: inhaltsbasierte Dubletten (Groesse+SHA-256), unabhaengig von
+    // Namen/Flach-Scan/Merge — haengt an die Namens-Erkennung an.
+    findContentDuplicates(data)
   } catch (err) {
     console.error('[scan:dedupe]', err instanceof Error ? err.message : 'dedupe-error')
   }
@@ -205,6 +209,7 @@ export async function scanAllAsync(): Promise<AppData> {
   await yieldToEventLoop()
   try {
     findDuplicates(data)
+    findContentDuplicates(data)
   } catch (err) {
     console.error('[scan:dedupe]', err instanceof Error ? err.message : 'dedupe-error')
   }

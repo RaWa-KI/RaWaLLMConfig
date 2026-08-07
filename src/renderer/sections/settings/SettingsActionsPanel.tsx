@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { ImportTargetDialog } from '../../components/ImportTargetDialog'
 import { useDisplayModeSwitch } from '../../components/useDisplayModeSwitch'
@@ -6,6 +7,7 @@ import { parseImportSource, applyImportItems } from '../../lib/import'
 import { knownRootsFromConfig } from '../../lib/known-roots'
 import { msg, msgText } from '../../lib/messages'
 import { useStore } from '../../state/store'
+import { hasUpdateBridge, readUpdateState } from '../../state/update-manager-bridge'
 import { DisplayModeControl } from './DisplayModeControl'
 
 type StoreActions = ReturnType<typeof useStore>['actions']
@@ -29,6 +31,7 @@ export function SettingsActionsPanel() {
             <h3>{msgText('settings.tab.tweaks')}</h3>
           </div>
           <DisplayModeControl active={displayMode} onSelect={onDisplayMode} />
+          <AppVersionFooter />
         </div>
         {displayMode === 'expert' && (
           <div className="settings-action-card">
@@ -68,6 +71,27 @@ export function SettingsActionsPanel() {
         />
       )}
     </>
+  )
+}
+
+// WP-F6: sichtbare App-Version als Fusszeile der Darstellungs-Karte (beide
+// Modi). Quelle ist der bestehende Update-Kanal (updatesGetState —
+// currentVersion = app.getVersion() im Main); ohne Bridge bleibt die Zeile weg.
+function AppVersionFooter() {
+  const [version, setVersion] = useState<string | null>(null)
+  useEffect(() => {
+    if (!hasUpdateBridge('updatesGetState')) return
+    let alive = true
+    void readUpdateState().then((res) => {
+      if (alive && res.data?.currentVersion) setVersion(res.data.currentVersion)
+    })
+    return () => { alive = false }
+  }, [])
+  if (!version) return null
+  return (
+    <p className="settings-app-version">
+      {msg('settings.appVersion', { version })}
+    </p>
   )
 }
 

@@ -34,6 +34,19 @@ export type { Seite } from './dup-labels-seiten'
 export { SEITE, SICHERUNG } from './dup-labels-anker'
 import { SEITE } from './dup-labels-anker'
 
+// Intra-Familien-Duplikate (Owner-Befund P1 2026-08-07): ehrliche neutrale
+// Labels, wenn BEIDE Fundstellen derselben Familie entstammen (content-hash) —
+// Definitionen im Leaf-Modul ./dup-labels-intra, hier nur Re-Export.
+export {
+  FUNDSTELLE,
+  familienName,
+  isIntraFamilyDup,
+  unterscheidendeAbschnitte,
+  intraFamilyLabels,
+  istIntraLabels,
+  intraIntroSatz
+} from './dup-labels-intra'
+
 // Kurz-Anker (für Chips/Schnellwahl, wo wenig Platz ist).
 export const SEITE_KURZ = {
   shared: 'Shared — zentral',
@@ -118,13 +131,6 @@ export const VERSCHIEBEN_KATEGORIEN: ReadonlyArray<{ val: string; label: string 
   { val: 'agents', label: 'Agents' },
   { val: 'hooks', label: 'Hooks' }
 ]
-
-// Wirkungszeile des Verschieben-Dialogs (Quelle → Ziel → Wirkung) als Bausatz.
-// was = Anzeige-Text der Datei/des Ordners, version = Sprach-Anker der Seite,
-// ziel = effektiver Zielpfad. Sicherung-Hinweis hängt der Aufrufer an.
-export function verschiebenWirkung(was: string, version: string, ziel: string): string {
-  return `${was} (${version}) wandert nach ${ziel}`
-}
 
 // ── Bestätigungs-Dialog (CONFIRM) ───────────────────────────────────────────
 // seite-parametrisiert in ./dup-labels-seiten (oben re-exportiert).

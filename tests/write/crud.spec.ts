@@ -14,7 +14,6 @@ import type { WriteResult } from '../../shared/contract-write'
 import { parseImportSource, applyImportItems } from '../../src/renderer/lib/import'
 import { buildConflictExportBundle, collectEntries, buildExportBundle } from '../../src/renderer/lib/export'
 import {
-  bundleSummaryText,
   conflictBundleFilename,
   conflictBundleReportMetadata,
   fullBundleFilename,
@@ -208,7 +207,7 @@ test('buildConflictExportBundle exportiert nur Konflikt-Eintraege', () => {
   expect(bundle.entries.map((e) => e.path)).toEqual(['bad.md'])
 })
 
-test('Export-Report-Templates halten Dateinamen und Reporttexte stabil', () => {
+test('Export-Report-Templates halten Dateinamen stabil', () => {
   const exported = '2026-07-07T07:15:30.000Z'
   const fullMeta = fullBundleReportMetadata()
   const conflictMeta = conflictBundleReportMetadata()
@@ -217,5 +216,4 @@ test('Export-Report-Templates halten Dateinamen und Reporttexte stabil', () => {
   expect(conflictBundleFilename(exported)).toBe('rawallmconfig-konflikte-2026-07-07.json')
   expect(fullMeta).toMatchObject({ app: 'rawallmconfig', version: 1, kind: 'full' })
   expect(conflictMeta).toMatchObject({ filter: 'conflicts', kind: 'conflicts' })
-  expect(bundleSummaryText(conflictMeta, 2)).toBe('Konflikt-Export: 2 Eintraege')
 })

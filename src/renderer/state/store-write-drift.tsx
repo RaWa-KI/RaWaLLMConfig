@@ -1,38 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { DriftDecision, DriftDecisionRecord } from '@shared/contract-drift'
+import { useCallback, useState } from 'react'
+import type { DriftDecision } from '@shared/contract-drift'
 import { DRIFT_FEHLER } from '@shared/drift-labels'
 import { useStore } from './store'
 
 // Drift-Store-Bridge (Plan 2026-07-20, WP4) — Muster store-write-reconcile.
-// readDriftDecisions ist ungated, writeDriftDecision im Main isWriteEnabled-
-// gegated. Nach erfolgreicher Festlegung reloadConfig() (der Scan wendet die
-// persistierten Decisions wieder an; markScanCachesStale ist serverseitig
-// bereits verdrahtet). KEIN Optimistic-Update — Quelle bleibt der Rescan.
-
-export interface DriftDecisionsState {
-  records: DriftDecisionRecord[]
-  loaded: boolean
-}
-
-// Laedt die persistierten Festlegungen beim Mount (ungated read).
-export function useDriftDecisions(): DriftDecisionsState {
-  const [records, setRecords] = useState<DriftDecisionRecord[]>([])
-  const [loaded, setLoaded] = useState(false)
-  useEffect(() => {
-    let alive = true
-    void (async () => {
-      if (typeof window === 'undefined' || !window.electronAPI) return
-      const res = await window.electronAPI.readDriftDecisions()
-      if (!alive) return
-      if (!res.error && res.data) setRecords(res.data.decisions)
-      setLoaded(true)
-    })()
-    return () => {
-      alive = false
-    }
-  }, [])
-  return { records, loaded }
-}
+// writeDriftDecision im Main unterliegt dem isWriteEnabled-Gate. Nach
+// erfolgreicher Festlegung reloadConfig() (der Scan wendet die persistierten
+// Decisions wieder an; markScanCachesStale ist serverseitig bereits verdrahtet).
+// KEIN Optimistic-Update — Quelle bleibt der Rescan.
 
 export interface DriftDecisionWriter {
   busy: boolean

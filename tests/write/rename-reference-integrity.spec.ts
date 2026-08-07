@@ -6,12 +6,11 @@ import { test, expect } from '@playwright/test'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { assertNotRealHome, makeSandbox, sandboxPath } from './fixtures'
-import { ctx, slash, writeText, readText } from './integrity-helpers'
+import { ctx, previewAndApply, slash, writeText, readText } from './integrity-helpers'
 import {
   previewIntegrity,
   applyIntegrity
 } from '../../src/main/services/integrity/apply-integrity'
-import { renameEntry } from '../../src/main/services/rename-move'
 
 // ── Test 1: Rename schreibt Wikilinks + strukturierte Pfade auf neuen Namen ─
 
@@ -121,10 +120,9 @@ test('applyIntegrity(rename beide) ist atomar — kein partieller Grün-Erfolg',
   }
 })
 
-// ── Test 3: alter renameEntry-Kanal darf Integrity-Schicht nicht umgehen ──
-// wird grün nach W5 (renameEntry leitet auf Integrity um)
+// ── Test 3: aktiver Rename-Kanal schreibt keine Alt-Referenzen ─────────────
 
-test('renameEntry hinterlässt keine alten Pflicht-Referenzstrings // wird grün nach W5', async () => {
+test('preview/apply Integrity hinterlässt keine alten Pflicht-Referenzstrings', async () => {
   const sb = makeSandbox()
   assertNotRealHome(sb.configDir)
 
@@ -140,19 +138,55 @@ test('renameEntry hinterlässt keine alten Pflicht-Referenzstrings // wird grün
     `Pfad: ${slash(from)}`
   ].join('\n'))
 
-  // Alter direkter renameEntry-Aufruf — sollte nach W5 die Integrity-Schicht nutzen
-  const res = renameEntry(
-    { sides: 'shared', newName, shared: { side: 'shared', path: from } },
-    { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, allowedRoots: [sb.configDir] }
+  const preview = await previewIntegrity(
+    { kind: 'rename', req: { sides: 'shared', newName, shared: { side: 'shared', path: from } } },
+    ctx(sb)
+  )
+  expect(preview.error).toBeNull()
+  const res = await applyIntegrity(
+    { plan: preview.data!, planHash: preview.data!.planHash },
+    ctx(sb)
   )
 
   // STUB-Erwartung: nach renameEntry darf kein alter Referenzstring in `ref` übrig bleiben.
   // Wird erst nach W5 grün — hier wird die Invariante formuliert.
   expect(res.error).toBeNull()
+  expect(res.data?.applied).toBe(true)
   expect(existsSync(newPath)).toBe(true)
 
   const after = readText(ref)
   // Diese Assertions sind nach W5 grün; aktuell möglicherweise noch rot:
   expect(after).not.toContain('[[agent-routing-old]]')
   expect(after).not.toContain(slash(from))
+})
+
+test('Integrity preview: relatives Ziel -> invalid-request, Quelle bleibt', async () => {
+  const sb = makeSandbox()
+  const from = sandboxPath(sb, 'mv-rel.md')
+  writeText(from, 'X')
+  const preview = await previewIntegrity(
+    { kind: 'move', req: { version: 'shared', fromPath: from, to: 'rel-ziel.md' } },
+    ctx(sb)
+  )
+  expect(preview.data).toBeNull()
+  expect(preview.error).toContain('to muss absoluter Pfad sein')
+  expect(existsSync(from)).toBe(true)
+  expect(existsSync(join(dirname(from), 'rel-ziel.md'))).toBe(false)
+})
+
+test('Integrity move: secret-Quelle bleibt geblockt, auch bei owner-freiem Ziel', async () => {
+  const sb = makeSandbox()
+  const from = sandboxPath(sb, 'auth.json')
+  const to = join(sb.root, 'ausserhalb', 'auth.json')
+  writeText(from, '{"dummy":true}')
+  const run = await previewAndApply(
+    { kind: 'move', req: { version: 'shared', fromPath: from, to } },
+    ctx(sb)
+  )
+  expect(run.preview.error).toBeNull()
+  expect(run.apply?.data?.applied).toBe(false)
+  expect(run.apply?.data?.rolledBack).toBe(true)
+  expect(run.apply?.error).toBeNull()
+  expect(existsSync(from)).toBe(true)
+  expect(existsSync(to)).toBe(false)
 })

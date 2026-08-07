@@ -6,7 +6,9 @@ import { navigateToOverviewAction } from './overview-navigation'
 
 // Bereichs-Navigation als Registerzeile (F-WP2d D3): neutraler Punkt links,
 // Titel + eine Kurzzeile, Status rechts, Chevron — keine Nav-Karten mehr.
-// Experten-Details bleiben im Experten-Modus unter der Kurzzeile sichtbar.
+// Experten-Details (F16, 2026-08-07): by design ZUGEKLAPPT und auf Begriff +
+// Ziel reduziert; die Laien-Benennung ist kein Experten-Detail (Owner-Vorgabe).
+// Aussen div role=button statt <button>, damit <details> legal verschachtelt ist.
 interface TaskCardProps {
   task: OverviewTask
   displayMode: DisplayMode
@@ -14,11 +16,20 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, displayMode, onOpen }: TaskCardProps) {
+  const open = () => navigateToOverviewAction(task.nextAction, onOpen)
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={'ov-task' + (task.primary ? ' primary' : '')}
-      onClick={() => navigateToOverviewAction(task.nextAction, onOpen)}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          open()
+        }
+      }}
     >
       <span className="ov-dot idle" aria-hidden="true" />
       <span className="ov-task-copy">
@@ -31,17 +42,22 @@ export function TaskCard({ task, displayMode, onOpen }: TaskCardProps) {
       </span>
       <span className="ov-task-state">{msg('tasks.card.status', { status: task.status })}</span>
       <span className="ov-task-arrow" aria-hidden="true">{Icon.chev}</span>
-    </button>
+    </div>
   )
 }
 
 function ExpertDetails({ task }: { task: OverviewTask }) {
   return (
-    <span className="ov-task-expert">
-      <span>{msg('expertDetails.primaryTerm', { term: task.primaryTerm })}</span>
-      <span>{msg('expertDetails.meaning', { meaning: task.meaning })}</span>
-      <span>{msg('expertDetails.technicalName', { term: task.expertTarget })}</span>
-      <span>{msg('expertDetails.rawTarget', { target: task.target })}</span>
-    </span>
+    <details
+      className="ov-task-expert-toggle"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <summary>{msg('expertDetails.rawDetails')}</summary>
+      <span className="ov-task-expert">
+        <span>{msg('expertDetails.technicalName', { term: task.expertTarget })}</span>
+        <span>{msg('expertDetails.rawTarget', { target: task.target })}</span>
+      </span>
+    </details>
   )
 }

@@ -4,6 +4,7 @@ import { useStore } from '../../state/store'
 import { useSources } from '../../state/useSources'
 import { SourceRow } from './SourceRow'
 import { AddSourceDialog } from './AddSourceDialog'
+import { CloudProviderToggles } from './CloudProviderToggles'
 import './quellen.css'
 
 // Quellen-Verwaltung: zeigt die vom Owner registrierten Config-Ordner an und
@@ -45,6 +46,8 @@ export function SourcesSection() {
 
   return (
     <main id="settings-tab-sources" className="main qs-wrap">
+      <CloudProviderToggles />
+
       <SourcesHeader
         loading={src.loading}
         onSync={() => void syncAll()}

@@ -93,7 +93,9 @@ function row(
     entry: entry({ id: entryId, status, loadMode }),
     familyId,
     categoryId,
-    key: `${familyId}:${categoryId}:${entryId}`
+    key: `${familyId}:${categoryId}:${entryId}`,
+    items: [],
+    itemsTotal: 0
   }
 }
 

@@ -39,6 +39,9 @@ export function UpdateConfiguredPanel({
             <span className="mono">{state.currentVersion}</span>
           </p>
         </div>
+        {/* WP-F4F9: Desktop-App-Update-Kanal ausweisen (Kanal selbst bleibt
+            unveraendert — nur die Kennzeichnung, getrennt von CLI/Extension). */}
+        <span className="pill ghost">{msg('channel.desktop')}</span>
       </div>
       <div className="ump-wrap">
         <SourceNotice state={state} />

@@ -72,4 +72,6 @@ export const UPDATE_MESSAGE_KEYS = [
   "update.watcher.static",
   "update.watcher.lastResult",
   "update.watcher.daemonSchedule",
+  "update.watcher.refresh",
+  "update.watcher.refreshing",
 ] as const

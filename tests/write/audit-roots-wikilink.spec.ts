@@ -96,7 +96,7 @@ test('B10: buildAuditConfig loest cross-root auf und buendelt zu 1 Karte mit Zae
     // die drei cross-root-Links (claudeHome, Kollision, Registry-Workspace)
     // duerfen NICHT als tot gemeldet werden.
     expect(refs!.entries).toHaveLength(1)
-    expect(refs!.entries[0].fields?.Befunde).toBe('1')
+    expect(refs!.entries[0].fields?.Fundstellen).toBe('1')
     expect(refs!.entries[0].desc).toContain('kaputt-link')
   } finally {
     if (saved === undefined) delete process.env.RAWALLM_SANDBOX_ROOT

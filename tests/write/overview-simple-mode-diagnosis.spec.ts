@@ -10,7 +10,9 @@ import { buildDiagnosisCards, pickNextDiagnosisCard } from '../../src/renderer/s
 
 test('actionVisibleForMode: Einstellungs-Experten-Tabs sind im Simple-Modus tote Ziele', () => {
   expect(actionVisibleForMode({ route: 'settings', focusId: 'settings-tab-sources' }, 'simple')).toBe(false)
-  expect(actionVisibleForMode({ route: 'settings', focusId: 'settings-tab-updates' }, 'simple')).toBe(false)
+  // WP-F6: der Updates-Tab ist in beiden Modi sichtbar — die Diagnose-Route
+  // dorthin loest auch im Simple-Modus auf.
+  expect(actionVisibleForMode({ route: 'settings', focusId: 'settings-tab-updates' }, 'simple')).toBe(true)
   expect(actionVisibleForMode({ route: 'settings', focusId: 'settings-tab-modules' }, 'simple')).toBe(false)
   expect(actionVisibleForMode({ route: 'settings', focusId: 'settings-tab-sources' }, 'expert')).toBe(true)
   expect(actionVisibleForMode({ route: 'settings' }, 'simple')).toBe(true)

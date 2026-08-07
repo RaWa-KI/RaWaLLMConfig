@@ -7,6 +7,7 @@ export type CoreMessageParamsMap = {
   "settings.tab.sources": undefined
   "settings.tab.modules": undefined
   "settings.reopenOnboarding": undefined
+  "settings.appVersion": { version: string }
   "onboarding.modelDiscovery.title": undefined
   "onboarding.modelDiscovery.empty": undefined
   "onboarding.modelDiscovery.chooseFolder": undefined
@@ -46,5 +47,11 @@ export type CoreMessageParamsMap = {
   "envMigrate.error.rollback": undefined
   "envMigrate.error.partial": undefined
   "envMigrate.error.unsupported": undefined
+  "status.unknown": undefined
+  "status.info": undefined
+  "status.notConfigured": undefined
+  "channel.cli": undefined
+  "channel.extension": undefined
+  "channel.desktop": undefined
   "envMigrate.unavailable.macos": undefined
 }

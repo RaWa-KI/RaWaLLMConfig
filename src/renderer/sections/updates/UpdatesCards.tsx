@@ -54,6 +54,8 @@ export function SourceRow({ s }: { s: WatcherSource }) {
         {s.latest && s.latest !== s.current && (
           <span className="vchip vchip-latest" title={msg('update.watcher.targetVersion')}>{s.latest}</span>
         )}
+        {/* WP-F4F9: Auslieferungskanal (CLI/Extension/Desktop) sichtbar trennen. */}
+        {s.channel && <span className="pill ghost">{msg(`channel.${s.channel}`)}</span>}
         <span className={'tierbadge t' + s.tier}>{msg('update.watcher.tierBadge', { tier: String(s.tier) })}</span>
         <span className={'pill ' + st.cls}>
           {st.cls !== 'ghost' && <span className="pd" />}

@@ -23,7 +23,7 @@ const HISTORY_MAX = 20
 // Modul-Level-State (Singleton, read via getUpdateState())
 // ---------------------------------------------------------------------------
 
-let state: UpdateStateData = {
+const state: UpdateStateData = {
   phase: 'idle',
   sourceConfigured: false,
   sourceKind: null,

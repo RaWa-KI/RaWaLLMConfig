@@ -5,7 +5,6 @@
 import { test, expect } from '@playwright/test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { diffLines } from '../../src/main/services/diff-lines'
 import { reconcile } from '../../src/main/services/reconcile'
 import { makeSandbox, seedFile, sandboxPath, exists } from './fixtures'
 import type { Sandbox } from './fixtures'
@@ -13,27 +12,6 @@ import type { Sandbox } from './fixtures'
 function opts(sb: Sandbox): { archiveRoot: string; auditPath: string } {
   return { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath }
 }
-
-test('diffLines klassifiziert ctx/add/del mit trunk/mirror-Flags korrekt', () => {
-  const trunk = 'a\nb\nc\n'
-  const mirror = 'a\nx\nc\n'
-  const lines = diffLines(trunk, mirror)
-  // gemeinsame Zeilen a + c sind ctx (both); b nur Trunk (del/trunkOnly); x nur Mirror (add/mirrorOnly).
-  const ctx = lines.filter((l) => l.t === 'ctx')
-  const del = lines.filter((l) => l.t === 'del')
-  const add = lines.filter((l) => l.t === 'add')
-  expect(ctx.map((l) => l.l)).toEqual(['a', 'c'])
-  expect(ctx.every((l) => l.both === true)).toBe(true)
-  expect(del).toHaveLength(1)
-  expect(del[0]).toMatchObject({ l: 'b', trunkOnly: true })
-  expect(add).toHaveLength(1)
-  expect(add[0]).toMatchObject({ l: 'x', mirrorOnly: true })
-})
-
-test('diffLines bei identischem Inhalt nur ctx (kein add/del)', () => {
-  const lines = diffLines('same\nlines\n', 'same\nlines\n')
-  expect(lines.every((l) => l.t === 'ctx')).toBe(true)
-})
 
 test('reconcile verweigert ohne gueltige Entscheidung (KEIN Auto-Merge)', () => {
   const sb = makeSandbox()

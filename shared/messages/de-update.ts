@@ -77,4 +77,6 @@ export const deUpdateMessages = {
   "update.watcher.static": "statisch",
   "update.watcher.lastResult": "LastResult {lastResult}",
   "update.watcher.daemonSchedule": "Daemon-Schedule",
+  "update.watcher.refresh": "Versionen aktualisieren",
+  "update.watcher.refreshing": "Aktualisiere …",
 } as const satisfies Pick<MessageCatalog, UpdateMessageKey>

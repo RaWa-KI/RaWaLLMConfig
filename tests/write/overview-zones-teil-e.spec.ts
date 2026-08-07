@@ -11,7 +11,9 @@ const coverageRegister = read('src/renderer/sections/overview/CoverageRegister.t
 
 test('zones keep the binding order status, next action, findings, register, area paths', () => {
   const content = modeContent()
-  const zoneOrder = ['<OverviewStatus', '<NextAction', '<DiagnosisCards', '<CoverageRegister', '<GuidedFlows', '<TaskGrid']
+  // WP3: die „findings“-Zone ist die einzeilige DiagnosisSummary; die Karten
+  // selbst sind in die Sidebar-Kategorie „Diagnose“ umgezogen.
+  const zoneOrder = ['<OverviewStatus', '<NextAction', '<DiagnosisSummary', '<CoverageRegister', '<GuidedFlows', '<TaskGrid']
   for (let index = 1; index < zoneOrder.length; index++) {
     expect(
       content.indexOf(zoneOrder[index]),

@@ -130,6 +130,18 @@ html[data-structure="retro"] .ov-mark {
   font-weight: 750;
 }
 
+/* WP3: einzeiliger Diagnose-Einstieg — die Karten leben in der eigenen
+   Sidebar-Kategorie; hier nur ein schmaler Link. */
+.ov-diagsummary {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.ov-diagsummary-link {
+  font-size: var(--font-size-meta);
+  font-weight: 700;
+}
+
 /* Bereichs-Navigation als Registerzeilen (F-WP2d D3) — keine Karten mehr. */
 .ov-task {
   display: flex;
@@ -237,4 +249,20 @@ html[data-structure="retro"] .ov-mark {
     justify-content: center;
   }
 
+}
+
+/* F16 (2026-08-07): Experten-Details by design zugeklappt (details/summary) */
+.ov-task-expert-toggle {
+  margin-top: 6px;
+}
+
+.ov-task-expert-toggle > summary {
+  cursor: pointer;
+  color: var(--warm-gray);
+  font-size: var(--font-size-eyebrow);
+  font-weight: var(--font-weight-meta);
+}
+
+.ov-task-expert-toggle > summary:hover {
+  color: var(--text-lt);
 }

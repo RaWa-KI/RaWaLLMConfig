@@ -65,9 +65,6 @@ test('msg replaces named placeholders without string concatenation', () => {
   expect(msg('diagnostics.panel.more', { hiddenCount: '7' })).toBe(
     '7 weitere Hinweise sind in der Detailprüfung sichtbar.'
   )
-  expect(msg('expertDetails.primaryTerm', { term: 'Einstellung ändern' })).toBe(
-    'Alltagssprache: Einstellung ändern'
-  )
   expect(msg('expertDetails.meaning', { meaning: 'Vor dem Schreiben prüfen' })).toBe(
     'Bedeutung: Vor dem Schreiben prüfen'
   )
@@ -138,7 +135,7 @@ test('no-param messages are returned unchanged', () => {
   expect(msg('simpleMode.backupHint')).toBe('Du speicherst erst, nachdem eine Sicherung angelegt wurde.')
   expect(msg('tasks.expert.body')).toBe('PC-Zustand, lokale Quellen, Regeln und technische Landkarte ansehen.')
   expect(msg('help.nav.title')).toBe('Hilfe')
-  expect(msg('help.mode.simple')).toContain('Alltagssprache')
+  expect(msg('help.mode.simple')).toContain('einfach erklärt')
   expect(msg('simpleMode.showDetails')).toBe('Details anzeigen')
   expect(msg('expertDetails.rawDetails')).toBe('Rohdaten und technische Details')
   expect(msg('diagnostics.status.problemFound')).toBe('Fehler gefunden')
@@ -162,7 +159,6 @@ test('NUX params are typed and mirrored in both locales', () => {
   expect(MESSAGE_PARAM_NAMES['overview.metric.openTopics.some']).toEqual(['topics'])
   expect(MESSAGE_PARAM_NAMES['overview.metric.setup.needed']).toEqual(['count', 'total'])
   expect(MESSAGE_PARAM_NAMES['tasks.card.status']).toEqual(['status'])
-  expect(MESSAGE_PARAM_NAMES['expertDetails.primaryTerm']).toEqual(['term'])
   expect(MESSAGE_PARAM_NAMES['expertDetails.meaning']).toEqual(['meaning'])
   expect(MESSAGE_PARAM_NAMES['expertDetails.technicalName']).toEqual(['term'])
   expect(MESSAGE_PARAM_NAMES['expertDetails.rawTarget']).toEqual(['target'])

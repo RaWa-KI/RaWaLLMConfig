@@ -1,3 +1,4 @@
+import type { DiffLabels } from '@shared/contract'
 import { SEITE, TAG, type Seite } from '@shared/dup-labels'
 
 // Spaltenkoepfe ueber dem editierbaren Paar-Diff (v4-Mockup §diff-col-head).
@@ -18,18 +19,26 @@ function mirrorLabel(seite: Seite): string {
 export function MergeColHead({
   trunkPath,
   mirrorPath,
-  seite
+  seite,
+  labels
 }: {
   trunkPath: string
   mirrorPath: string
   seite: Seite
+  // Optional: ehrliche Intra-Familien-Labels (Fundstelle A/B). Ohne labels
+  // bleibt der Bestand (Shared — zentrale Version / lokale Kopie) unveraendert.
+  labels?: DiffLabels
 }) {
+  const linksTitel = labels ? labels.trunk : SEITE.shared
+  const linksTag = labels ? labels.trunkTag : TAG.quelle
+  const rechtsTitel = labels ? labels.mirror : mirrorLabel(seite)
+  const rechtsTag = labels ? labels.mirrorTag : TAG.lokal
   return (
     <div className="merge-col-heads" aria-hidden="true">
       <div className="diff-col-head shared">
         <div className="dc-title">
-          {SEITE.shared}
-          <span className="dc-tag">{TAG.quelle}</span>
+          {linksTitel}
+          <span className="dc-tag">{linksTag}</span>
         </div>
         <div className="dc-path mono" title={trunkPath}>
           {trunkPath}
@@ -38,8 +47,8 @@ export function MergeColHead({
       <div className="merge-col-gutter" />
       <div className="diff-col-head claude">
         <div className="dc-title">
-          {mirrorLabel(seite)}
-          <span className="dc-tag">{TAG.lokal}</span>
+          {rechtsTitel}
+          <span className="dc-tag">{rechtsTag}</span>
         </div>
         <div className="dc-path mono" title={mirrorPath}>
           {mirrorPath}

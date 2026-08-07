@@ -39,14 +39,14 @@ function parseRootLockVersions(lockText) {
   let currentName = null
   for (const line of lockText.split(/\r?\n/)) {
     if (line === 'packages:') break
-    if (/^    (dependencies|devDependencies):$/.test(line)) {
+    if (/^ {4}(dependencies|devDependencies):$/.test(line)) {
       scope = line.trim().replace(':', '')
       currentName = null
       continue
     }
-    const nameMatch = line.match(/^      ('[^']+'|[^:]+):$/)
+    const nameMatch = line.match(/^ {6}('[^']+'|[^:]+):$/)
     if (scope && nameMatch) currentName = cleanYamlValue(nameMatch[1])
-    const versionMatch = line.match(/^        version: (.+)$/)
+    const versionMatch = line.match(/^ {8}version: (.+)$/)
     if (scope && currentName && versionMatch) {
       versions[scope][currentName] = cleanYamlValue(versionMatch[1])
     }

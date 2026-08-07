@@ -91,7 +91,7 @@ function walk(root, dir, limits, skip, findings) {
 function shouldSkipDir(root, abs, name, skip) {
   if (skip.has(name.toLowerCase())) return true
   const rel = toRel(root, abs).toLowerCase()
-  return rel === '.claude/docs' || rel.startsWith('.claude/docs/')
+  return rel === 'docs' || rel.startsWith('docs/')
 }
 
 function scanFile(root, abs, limits, findings) {

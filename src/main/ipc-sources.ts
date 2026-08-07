@@ -13,8 +13,8 @@ import type { IpcResult } from '@shared/contract'
 import type {
   AddSourceRequest, SetSourceEnabledRequest,
   SourceMutateResult, UserSource, DiscoveryHit,
-  ProviderChoice, SourceListResult, DiscoveryResult,
-  ProviderChoiceResult, PickFolderResult, OnboardingDoneResult,
+  ProviderChoice, SourceListResult,
+  PickFolderResult, OnboardingDoneResult,
   ModelDiscoveryHit, ModelDiscoveryResult
 } from '@shared/contract-sources'
 import {

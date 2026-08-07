@@ -6,7 +6,6 @@ import { registerWrite } from './register-write'
 import { registerUpdatesIpc } from './ipc-updates'
 import { registerDiagnosticsIpc } from './ipc-diagnostics'
 import { registerErrorReportIpc } from './ipc-error-report'
-import { endPool } from './services/mariadb-pool'
 import { registerAppScheme, handleAppProtocol } from './app-protocol'
 import { enableDevtools } from './devtools'
 import { hardenWindowNavigation, installTrustedIpcGuard } from './security/electron-hardening'
@@ -133,7 +132,14 @@ app
     // Teardown: MariaDB-Pool sauber schliessen beim App-Ende.
     app.on('before-quit', () => {
       stopConfigWatcher()
-      void endPool()
+      void import('./services/mariadb-pool.js')
+        .then(({ endPool }) => endPool())
+        .catch((err) => {
+          console.warn(
+            '[main] MariaDB-Teardown fehlgeschlagen:',
+            err instanceof Error ? err.message : 'unbekannt'
+          )
+        })
     })
     createWindow()
     startConfigWatcher(() => mainWindow)

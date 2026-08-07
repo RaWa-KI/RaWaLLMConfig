@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '../../components/Icon'
-import type { ConfigEntry } from '@shared/contract'
+import type { ConfigEntry, CoverageItem } from '@shared/contract'
 import { msg } from '../../lib/messages'
 import type { DisplayMode } from '../../state/types'
 import type { CoverageEntryRow } from './overview-selectors'
@@ -90,7 +90,7 @@ function CoverageRow(props: {
   ackDisabledReason: string
 }) {
   const entry = props.row.entry
-  const sub = coverageSub(entry)
+  const sub = coverageRowSub(props.row, props.displayMode)
   return <article className="ov-coverage-row">
     <button type="button" className="ov-coverage-toggle" aria-expanded={props.expanded} onClick={props.onToggle}>
       <span className={'ov-dot ' + coverageDotTone(entry)} aria-hidden="true" />
@@ -102,7 +102,8 @@ function CoverageRow(props: {
       <span className={props.expanded ? 'ov-coverage-chevron expanded' : 'ov-coverage-chevron'} aria-hidden="true">{Icon.arrow}</span>
     </button>
     {props.expanded && <div className="ov-coverage-details">
-      <p>{entry.conflictReason ?? msg('diagnostics.meaning.problemFound')}</p>
+      <p>{coverageDetailLead(props.row, props.displayMode)}</p>
+      <CoverageItemList items={props.row.items} overflow={coverageItemOverflow(props.row)} displayMode={props.displayMode} />
       {props.displayMode === 'expert' && <span>{entry.path}</span>}
       {entry.status !== 'acknowledged' && <p className="ov-coverage-ack">
         <button type="button" className="btn ghost" disabled={props.ackDisabled} onClick={props.onAck}>
@@ -126,6 +127,39 @@ function coverageDotTone(entry: ConfigEntry): 'ok' | 'open' | 'idle' {
 // beides kann leer sein — dann entfaellt die Zeile (kein Platzhalter).
 function coverageSub(entry: ConfigEntry): string {
   return entry.conflictReason ?? entry.desc
+}
+
+// WP-F3: Sammelzeilen mit Fundstellen-Liste zeigen im einfachen Modus eine
+// erklärende Zeile (was es ist + dass nichts zu tun ist) statt der nackten
+// Zahl; die Zahl bleibt dem Experten-Modus vorbehalten.
+export function coverageRowSub(row: CoverageEntryRow, displayMode: DisplayMode): string {
+  if (row.itemsTotal > 0 && displayMode === 'simple') return msg('coverage.row.simpleExplain')
+  return coverageSub(row.entry)
+}
+
+// Einleitung der Detailansicht: gleiche Modus-Regel wie die Kurzzeile.
+export function coverageDetailLead(row: CoverageEntryRow, displayMode: DisplayMode): string {
+  if (row.itemsTotal > 0 && displayMode === 'simple') return msg('coverage.row.simpleExplain')
+  const entry = row.entry
+  return entry.conflictReason ?? msg('diagnostics.meaning.problemFound')
+}
+
+// Anzahl der an der Quelle weggekappten Fundstellen („+ n weitere").
+export function coverageItemOverflow(row: CoverageEntryRow): number {
+  return Math.max(0, row.itemsTotal - row.items.length)
+}
+
+// WP-F3: Einzelbefund-Liste im Expand — Name immer, Pfad nur im Experten-
+// Modus; die Kappungszeile nennt die restliche Anzahl.
+function CoverageItemList(props: { items: CoverageItem[]; overflow: number; displayMode: DisplayMode }) {
+  if (props.items.length === 0) return null
+  return <ul className="ov-coverage-items">
+    {props.items.map((item) => <li key={`${item.name}|${item.path}`}>
+      <span className="ov-coverage-item-name">{item.name}</span>
+      {props.displayMode === 'expert' && item.path && <span className="ov-coverage-item-path">{item.path}</span>}
+    </li>)}
+    {props.overflow > 0 && <li className="ov-coverage-items-more">{msg('coverage.items.more', { count: String(props.overflow) })}</li>}
+  </ul>
 }
 
 export function filterCoverageRows(rows: CoverageEntryRow[], filter: CoverageFilter): CoverageEntryRow[] {

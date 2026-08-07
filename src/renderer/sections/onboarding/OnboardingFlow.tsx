@@ -87,10 +87,11 @@ function ObActions(props: {
   onPickOwn: () => void
 }): ReactElement {
   const { phase, pickedCount, onTakeOver, onSkip, onPickOwn } = props
-  const busy = phase === 'busy' || phase === 'scan'
+  const busy = phase === 'busy'
+  const scanning = phase === 'scan'
   return (
     <footer className="ob-actions">
-      <button type="button" className="btn ghost" onClick={onPickOwn} disabled={busy}>
+      <button type="button" className="btn ghost" onClick={onPickOwn} disabled={busy || scanning}>
         {Icon.folder}
         Eigenen Ordner wählen
       </button>
@@ -98,7 +99,7 @@ function ObActions(props: {
         <button type="button" className="btn ghost" onClick={onSkip} disabled={busy}>
           Überspringen
         </button>
-        <button type="button" className="btn primary" onClick={onTakeOver} disabled={busy || pickedCount === 0}>
+        <button type="button" className="btn primary" onClick={onTakeOver} disabled={busy || scanning || pickedCount === 0}>
           {Icon.check}
           Quellen übernehmen
         </button>

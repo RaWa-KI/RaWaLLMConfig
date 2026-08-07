@@ -4,10 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { applyWrite } from '../../src/main/services/apply'
-import { reconcileFolder } from '../../src/main/services/reconcile-folder'
-import { moveEntryVersioned, renameEntry } from '../../src/main/services/rename-move'
-import { reconcile } from '../../src/main/services/reconcile'
+import { applyIntegrity, previewIntegrity } from '../../src/main/services/integrity/apply-integrity'
 import { assertNotRealHome, makeSandbox, sandboxPath } from './fixtures'
 import type { Sandbox } from './fixtures'
 
@@ -47,7 +44,7 @@ function readDep(path: string, name: string): DepEntry {
   return parsed.skills[name]
 }
 
-test('moveEntryVersioned zieht governance-dependencies auf den Zielpfad nach', () => {
+test('Integrity move zieht governance-dependencies auf den Zielpfad nach', async () => {
   const sb = makeSandbox()
   const from = sandboxPath(sb, 'skills', 'code-quality', 'SKILL.md')
   const to = sandboxPath(sb, 'userglobal', 'skills', 'code-quality', 'SKILL.md')
@@ -55,16 +52,25 @@ test('moveEntryVersioned zieht governance-dependencies auf den Zielpfad nach', (
   writeText(from, '# Code Quality\n')
   writeDeps(deps, 'code-quality', from)
 
-  const res = moveEntryVersioned({ version: 'shared', fromPath: from, to }, ctx(sb))
+  const preview = await previewIntegrity(
+    { kind: 'move', req: { version: 'shared', fromPath: from, to } },
+    ctx(sb)
+  )
+  expect(preview.error).toBeNull()
+  const res = await applyIntegrity(
+    { plan: preview.data!, planHash: preview.data!.planHash },
+    ctx(sb)
+  )
 
   expect(res.error).toBeNull()
+  expect(res.data?.applied).toBe(true)
   expect(existsSync(from)).toBe(false)
   expect(readText(to)).toBe('# Code Quality\n')
   expect(readDep(deps, 'code-quality').canonical_source).toBe(to)
   expect(readDep(deps, 'code-quality').loader_path).toBe(to)
 })
 
-test('renameEntry schreibt Wikilinks und Pfadstrings auf den neuen Namen um', () => {
+test('Integrity rename schreibt Wikilinks und Pfadstrings auf den neuen Namen um', async () => {
   const sb = makeSandbox()
   const from = sandboxPath(sb, 'rules', 'agent-routing.md')
   const doc = sandboxPath(sb, 'docs', 'reference.md')
@@ -75,14 +81,26 @@ test('renameEntry schreibt Wikilinks und Pfadstrings auf den neuen Namen um', ()
     `Alter Pfad: ${slash(from)}`
   ].join('\n'))
 
-  const res = renameEntry({
-    sides: 'shared',
-    newName: 'agent-routing-new.md',
-    shared: { side: 'shared', path: from }
-  }, ctx(sb))
+  const preview = await previewIntegrity(
+    {
+      kind: 'rename',
+      req: {
+        sides: 'shared',
+        newName: 'agent-routing-new.md',
+        shared: { side: 'shared', path: from }
+      }
+    },
+    ctx(sb)
+  )
+  expect(preview.error).toBeNull()
+  const res = await applyIntegrity(
+    { plan: preview.data!, planHash: preview.data!.planHash },
+    ctx(sb)
+  )
 
   const after = readText(doc)
   expect(res.error).toBeNull()
+  expect(res.data?.applied).toBe(true)
   expect(existsSync(newPath)).toBe(true)
   expect(after).toContain('[[agent-routing-new]]')
   expect(after).toContain(slash(newPath))
@@ -90,7 +108,7 @@ test('renameEntry schreibt Wikilinks und Pfadstrings auf den neuen Namen um', ()
   expect(after).not.toContain(slash(from))
 })
 
-test('applyWrite move darf Referenz-Integritaet nicht umgehen', () => {
+test('Integrity move darf Referenz-Integritaet nicht umgehen', async () => {
   const sb = makeSandbox()
   const from = sandboxPath(sb, 'skills', 'plugin-updater', 'SKILL.md')
   const to = sandboxPath(sb, 'userglobal', 'skills', 'plugin-updater', 'SKILL.md')
@@ -98,16 +116,25 @@ test('applyWrite move darf Referenz-Integritaet nicht umgehen', () => {
   writeText(from, '# Plugin Updater\n')
   writeText(loader, `CLAUDE_SKILL_DIR default: ${slash(from)}\n`)
 
-  const res = applyWrite({ action: 'move', path: from, to, ownerMove: true }, ctx(sb))
+  const preview = await previewIntegrity(
+    { kind: 'move', req: { version: 'shared', fromPath: from, to } },
+    ctx(sb)
+  )
+  expect(preview.error).toBeNull()
+  const res = await applyIntegrity(
+    { plan: preview.data!, planHash: preview.data!.planHash },
+    ctx(sb)
+  )
 
   const after = readText(loader)
   expect(res.error).toBeNull()
+  expect(res.data?.applied).toBe(true)
   expect(existsSync(to)).toBe(true)
   expect(after).toContain(slash(to))
   expect(after).not.toContain(slash(from))
 })
 
-test('reconcile keep-trunk zieht Referenzen vom archivierten Mirror auf den Survivor nach', () => {
+test('Integrity reconcile keep-trunk zieht Referenzen vom Loser auf den Survivor nach', async () => {
   const sb = makeSandbox()
   const trunk = sandboxPath(sb, 'shared', 'rules', 'cross-tool-paritaet.md')
   const mirror = sandboxPath(sb, 'userglobal', 'skills', 'cross-tool-paritaet', 'SKILL.md')
@@ -118,11 +145,20 @@ test('reconcile keep-trunk zieht Referenzen vom archivierten Mirror auf den Surv
   writeDeps(deps, 'cross-tool-paritaet', mirror)
   writeText(doc, `Loader-Pfad: ${slash(mirror)}\n`)
 
-  const res = reconcile({ trunkPath: trunk, mirrorPath: mirror, decision: 'keep-trunk' }, ctx(sb))
+  const preview = await previewIntegrity(
+    { kind: 'reconcile', req: { trunkPath: trunk, mirrorPath: mirror, decision: 'keep-trunk' } },
+    ctx(sb)
+  )
+  expect(preview.error).toBeNull()
+  const res = await applyIntegrity(
+    { plan: preview.data!, planHash: preview.data!.planHash },
+    ctx(sb)
+  )
 
   const afterDoc = readText(doc)
   const afterDep = readDep(deps, 'cross-tool-paritaet')
   expect(res.error).toBeNull()
+  expect(res.data?.applied).toBe(true)
   expect(existsSync(mirror)).toBe(false)
   expect(afterDep.canonical_source).toBe(trunk)
   expect(afterDep.loader_path).toBe(trunk)
@@ -130,7 +166,7 @@ test('reconcile keep-trunk zieht Referenzen vom archivierten Mirror auf den Surv
   expect(afterDoc).not.toContain(slash(mirror))
 })
 
-test('reconcileFolder keep-trunk zieht Referenzen vom Mirror-File auf den Trunk-Survivor nach', () => {
+test('Integrity reconcile-folder keep-trunk zieht Referenzen vom Mirror-File auf den Trunk-Survivor nach', async () => {
   const sb = makeSandbox()
   const trunkDir = sandboxPath(sb, 'shared', 'skills', 'routing')
   const mirrorDir = sandboxPath(sb, 'userglobal', 'skills', 'routing')
@@ -141,15 +177,27 @@ test('reconcileFolder keep-trunk zieht Referenzen vom Mirror-File auf den Trunk-
   writeText(mirrorFile, '# Routing mirror\n')
   writeText(doc, `Loader-Pfad: ${slash(mirrorFile)}\n`)
 
-  const res = reconcileFolder({
-    trunkPath: trunkDir,
-    mirrorPath: mirrorDir,
-    decisions: { 'SKILL.md': 'keep-trunk' }
-  }, ctx(sb))
+  const preview = await previewIntegrity(
+    {
+      kind: 'reconcile-folder',
+      req: {
+        trunkPath: trunkDir,
+        mirrorPath: mirrorDir,
+        decisions: { 'SKILL.md': 'keep-trunk' }
+      }
+    },
+    ctx(sb)
+  )
+  expect(preview.error).toBeNull()
+  const res = await applyIntegrity(
+    { plan: preview.data!, planHash: preview.data!.planHash },
+    ctx(sb)
+  )
 
   const afterDoc = readText(doc)
   expect(res.error).toBeNull()
-  expect(existsSync(mirrorDir)).toBe(false)
+  expect(res.data?.applied).toBe(true)
+  expect(existsSync(mirrorFile)).toBe(false)
   expect(afterDoc).toContain(slash(trunkFile))
   expect(afterDoc).not.toContain(slash(mirrorFile))
 })

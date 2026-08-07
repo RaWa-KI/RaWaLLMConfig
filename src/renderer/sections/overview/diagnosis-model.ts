@@ -6,6 +6,7 @@ import {
   changeText, concreteMeaning, configChangeHint, configTargetLabel, familyLabel,
   isMissingKeyEntry, isProblemEntry, missingKeyCopy, unknownTarget, whereText
 } from './diagnosis-cards-filter'
+import { diagnosisAction, systemFocus, systemRoute } from './diagnosis-focus-resolvers'
 import { isOllamaHint, ollamaDiagnosisCopy, ollamaEvidence } from './diagnosis-ollama'
 import type { OverviewNavigationAction } from './overview-navigation'
 
@@ -132,7 +133,18 @@ function systemCards(system: System | null, config: AppData | null): DiagnosisCa
   const entries = system.areas.flatMap((area) => area.entries.map((entry) => ({ areaId: area.id, entry })))
   if (entries.length === 0) return [card('system-empty', 'notFound', 'warning', 'system', 'system')]
   const cards = entries
-    .filter((item) => item.entry.status !== 'active')
+    // WP2: Registry-/Katalog-Eintraege (fileBacked === false, z.B. ports.json)
+    // sind Zusatzinfo und nie ein eigener Fehlergrund — dieselbe Wahrheit
+    // wie config-seitig (B3/isProblemEntry).
+    // WP-F4F9: 'unknown'/'info'/'notConfigured' sind NEUTRAL (nicht pruefbar /
+    // Beispiel / nicht eingerichtet) — kein Defekt, keine Warnkarte (Falsch-
+    // positiv-Regel: „nicht pruefbar" ist nicht „kaputt").
+    .filter((item) =>
+      item.entry.status !== 'active'
+      && item.entry.status !== 'unknown'
+      && item.entry.status !== 'info'
+      && item.entry.status !== 'notConfigured'
+      && item.entry.fileBacked !== false)
     .map((item) => statusCard(`system-${item.areaId}-${item.entry.name}`, item.entry.status, 'system', systemRoute(item.areaId, item.entry), {
       detail: systemDetail(item.areaId, item.entry),
       targetLabel: item.entry.name,
@@ -200,7 +212,7 @@ function card(
     severity: msg(`diagnostics.severity.${severityTone}`),
     severityTone,
     source,
-    meaning: targetInfo.meaning ?? msg(`diagnostics.meaning.${status}`),
+    meaning: targetInfo.meaning ?? statusMeaning(status, targetInfo, source),
     action: msg(`diagnostics.action.${status}`),
     where: targetInfo.where ?? whereText(source, target),
     how: targetInfo.how ?? `${msg(`diagnostics.action.${status}`)}: ${targetInfo.targetLabel ?? unknownTarget(source)}`,
@@ -212,13 +224,13 @@ function card(
   }
 }
 
-function systemRoute(areaId: string, entry: SystemEntry): Section {
-  return isOllamaHint(areaId, entry) ? 'settings' : 'system'
-}
-
-function systemFocus(areaId: string, entry: SystemEntry): string {
-  if (isOllamaHint(areaId, entry)) return 'settings-tab-sources'
-  return `system-entry-${areaId}-${entry.id ?? entry.name}`
+// WP-F1F8: Das Details-Versprechen von „nicht gefunden" gilt nur, wenn ein
+// Sprungziel (focusId) existiert — sonst steht die konkrete Fundstelle direkt
+// im Kartentext statt eines toten Verweises.
+function statusMeaning(status: DiagnosisStatus, targetInfo: DiagnosisTarget, source: DiagnosisSource): string {
+  if (status !== 'notFound' || targetInfo.focusId) return msg(`diagnostics.meaning.${status}`)
+  const place = targetInfo.detail ?? targetInfo.targetLabel ?? msg(`diagnostics.source.${source}`)
+  return msg('diagnostics.meaning.notFoundAt', { place })
 }
 
 function systemCopy(areaId: string, entry: SystemEntry, config: AppData | null): Pick<DiagnosisTarget, 'title' | 'meaning' | 'where' | 'how' | 'changeHint' | 'causeKey'> {
@@ -251,22 +263,6 @@ function dedupeCauses(cards: DiagnosisCard[]): DiagnosisCard[] {
     unique.set(card.causeKey, { ...existing, details: [...new Set([...existing.details, ...card.details])] })
   }
   return [...unique.values()]
-}
-
-function diagnosisAction(
-  status: DiagnosisStatus,
-  source: DiagnosisSource,
-  route: Section,
-  targetInfo: DiagnosisTarget
-): OverviewNavigationAction {
-  const targetDescription = targetInfo.targetLabel ?? targetInfo.detail ?? unknownTarget(source)
-  return {
-    label: `${msg(`diagnostics.action.${status}`)}: ${targetDescription}`,
-    reason: msg(`diagnostics.meaning.${status}`),
-    route,
-    focusId: targetInfo.focusId,
-    targetDescription: targetInfo.focusId ? undefined : targetDescription
-  }
 }
 
 function sourceStatus(state: string): DiagnosisStatus {

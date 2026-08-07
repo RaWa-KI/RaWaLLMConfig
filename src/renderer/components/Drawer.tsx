@@ -175,7 +175,7 @@ function DrawerInner({ cat, entry, tab, setTab, close, displayMode, openCompare 
 
 // Konflikt-Banner: reiterunabhaengig sichtbar, sobald der Eintrag im Konflikt
 // steht und einen Klartext-Grund traegt (was kollidiert, warum). Analog zum
-// bewaehrten EntryDetailPanel-Banner (.edp-conflict).
+// bewaehrten Konflikt-Banner-Stil (.edp-conflict).
 function ConflictBanner({
   entry,
   displayMode,

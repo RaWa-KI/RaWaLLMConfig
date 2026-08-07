@@ -14,9 +14,17 @@ import { msg } from '../../lib/messages'
 import type { Section } from '../../state/types'
 import type { DiagnosisSource, DiagnosisStatus } from './diagnosis-model'
 
-/** Eintrag erzeugt eine Problemkarte (Warnung) — nur dateibasierte Befunde. */
+/**
+ * Eintrag erzeugt eine Problemkarte (Warnung) — nur dateibasierte Befunde.
+ * Neutral-Stati (nicht pruefbar / Beispiel / nicht eingerichtet) sind kein
+ * Defekt und erzeugen nie eine Warnkarte — Spiegel der System-Seite
+ * (diagnosis-model.ts, Falschpositiv-Regel; Kritiker-Auflage P2-2 2026-08-07).
+ */
 export function isProblemEntry(entry: ConfigEntry, familyId: string): boolean {
   return entry.status !== 'active'
+    && entry.status !== 'unknown'
+    && entry.status !== 'info'
+    && entry.status !== 'notConfigured'
     && entry.fileBacked !== false
     && !isCoverageInfoEntry(entry, familyId)
 }
@@ -27,10 +35,17 @@ export function isProblemEntry(entry: ConfigEntry, familyId: string): boolean {
  * Env-NAMEN in fields (nie den Wert, cloud-scan.ts keyEntry). Dafuer gibt es
  * eine Info-Karte „Key nicht gesetzt" statt der frueheren „Ordner fehlt"-
  * Falschmeldung (B3). Vertragssignal ist das Feld 'Env-Variable'.
+ *
+ * Diagnosekarten-Regel (WP1, 2026-07-28): die Karte darf NUR erscheinen, wenn
+ * der Nutzer den Anbieter aktiviert hat (providerEnabled === true, Toggle in
+ * Einstellungen > Quellen, Default aus). Ein OAuth-/Login-Setup ohne API-Keys
+ * zeigt sonst dauerhaft „Key nicht gesetzt"-Rauschen fuer Anbieter, die der
+ * Nutzer weder nutzt noch beheben will.
  */
 export function isMissingKeyEntry(entry: ConfigEntry): boolean {
   return entry.fileBacked === false
     && entry.status !== 'active'
+    && entry.providerEnabled === true
     && typeof entry.fields?.['Env-Variable'] === 'string'
 }
 

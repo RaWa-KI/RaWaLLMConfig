@@ -1,4 +1,4 @@
-import type { AppData, ConfigEntry, System, Watcher } from '@shared/contract'
+import type { AppData, ConfigEntry, CoverageItem, System, Watcher } from '@shared/contract'
 import { coverageEntryKey } from '@shared/contract-coverage'
 import { isCoverageInfoEntry } from '@shared/entry-attention'
 import type { AppLocale } from '@shared/messages'
@@ -65,6 +65,10 @@ export interface CoverageEntryRow {
   familyId: string
   categoryId: string
   key: string
+  // WP-F3: konkrete Fundstellen einer Sammelzeile (an der Quelle gekappt);
+  // itemsTotal trägt die Gesamtzahl für die „+ n weitere"-Zeile.
+  items: CoverageItem[]
+  itemsTotal: number
 }
 
 function coverageEntriesFor(config: AppData | null): CoverageEntryRow[] {
@@ -75,6 +79,8 @@ function coverageEntriesFor(config: AppData | null): CoverageEntryRow[] {
         entry,
         familyId,
         categoryId: category.id,
-        key: coverageEntryKey(familyId, category.id, entry.id)
+        key: coverageEntryKey(familyId, category.id, entry.id),
+        items: entry.coverageItems ?? [],
+        itemsTotal: entry.coverageItemsTotal ?? 0
       }))))
 }

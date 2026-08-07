@@ -9,7 +9,7 @@ import { EnvMigrateButton } from '../sections/config/EnvMigrateButton'
 import { useExplain } from '../sections/config/use-explain'
 
 // DrawerDetailTab — dritter Drawer-Reiter (WP-D). Kanonische Detail-/Edit-Flaeche
-// (P0: ersetzt den ausgehaengten EntryDetailPanel-Overlay). Komponiert:
+// (P0: ersetzt das ausgehaengte alte Detail-Overlay). Komponiert:
 //  - DrawerEdit (read-only Default, owner-getriggerter Edit-Modus)
 //  - CredentialCard (wertfreier Hinweis + Env-Migrate, kein Reveal-/Maskier-Gate)
 //  - ExplainPanel ("Was macht das?" familien-/kategoriespezifisch via cat.id + ui.llm)

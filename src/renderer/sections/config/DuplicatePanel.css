@@ -67,12 +67,15 @@
 
 /* Kopf-Zeile = Toggle-Button + Eintrags-Aktionen nebeneinander (WP-08). Der
    Aktions-Klick stoppt die Propagation und klappt den Eintrag NICHT auf/zu. */
-.dup-entry-head-row { display: flex; align-items: center; }
+.dup-entry-head-row { display: flex; align-items: center; flex-wrap: wrap; }
 .dup-entry-head-row .dup-entry-head { flex: 1; min-width: 0; }
-.dup-entry-head-row .dfh-actions { padding-right: 14px; }
+.dup-entry-head-row .dfh-actions { padding-right: 14px; flex-shrink: 1; min-width: 0; flex-wrap: wrap; }
 /* Inline-Umbenennen im Kopf: gleiche Polsterung wie der Kopf, RenameInline füllt. */
 .dup-entry-renaming { gap: 14px; }
 .dup-entry-renaming .ri-wrap { flex: 1; min-width: 0; }
+/* Schmale Spalte (Drawer/Detail-Zeile): Rename-Steuerung bricht sauber um,
+   statt den Kartentext zu ueberlagern (Input darf schrumpfen, Chips wrappen). */
+.dup-entry-head-row .ri-input { min-width: 110px; flex: 1 1 130px; max-width: 100%; }
 
 .chev-btn {
   display: inline-flex;

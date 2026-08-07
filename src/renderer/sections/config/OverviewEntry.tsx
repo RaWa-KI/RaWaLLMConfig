@@ -31,7 +31,12 @@ const STATUS_PILL: Record<ConfigEntry['status'], { text: string; cls: string }> 
   conflict: { text: 'Konflikte', cls: 'abw' },
   dup: { text: 'Duplikate', cls: 'abw' },
   archived: { text: 'archiviert', cls: 'abw' },
-  acknowledged: { text: 'bestätigt', cls: 'same' }
+  acknowledged: { text: 'bestätigt', cls: 'same' },
+  // WP-F4F9: neue neutrale Status — gleiche ruhige Optik wie „aktiv", kein
+  // Abweichungs-Look (sie sind kein Befund).
+  unknown: { text: 'nicht prüfbar', cls: 'same' },
+  info: { text: 'Beispiel', cls: 'same' },
+  notConfigured: { text: 'nicht eingerichtet', cls: 'same' }
 }
 
 // Letztes Pfad-Segment als Datei-Anzeige-/Umbenennen-Basisname.

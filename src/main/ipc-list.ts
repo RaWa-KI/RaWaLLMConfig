@@ -1,7 +1,8 @@
 // ipc-list.ts — Self-registering Handler fuer die read-only Innendatei-Liste
 // (config:listDir). Liefert pro Datei NUR Name/Groesse/secret-Flag, NIE Inhalt.
 // Scope-Confinement: dirPath muss innerhalb der bekannten Config-Wurzeln liegen
-// (assertInScope + configRootList) — sonst verstaendliche Ablehnung. Rekursiv mit
+// (assertInScope + readScopeRoots = Write-Allowlist + Kimi-Home) — sonst
+// verstaendliche Ablehnung. Rekursiv mit
 // hartem Datei-Cap (truncated). Keine Symlink-Folge ausserhalb des Roots:
 // lstat ueberspringt Symlinks (keine Aufloesung). Nur ipcMain.handle, kein .on.
 // Muster: ipc-write-rename.ts (self-registering, sanitisierte IpcResult-Antwort).
@@ -13,6 +14,7 @@ import type { IpcResult, ListDirData, ListDirFile, ListDirRequest } from '@share
 import { assertInScope } from './services/path-scope'
 import { configRootList } from './services/config-roots'
 import { isSecretPathForRead } from './services/secret-guard'
+import { kimiHome } from './scan/manifests/kimi-cats'
 
 // Harte Sicherheitsgrenze: nach so vielen Dateien wird abgebrochen (truncated).
 const FILE_CAP = 200
@@ -63,13 +65,24 @@ function walk(dir: string, base: string, out: ListDirFile[]): boolean {
   return false
 }
 
+// Read-Scope der Innendatei-Liste: die Write-Allowlist (configRootList) PLUS
+// das Kimi-Tool-Home (~/.kimi-code). Die Write-Allowlist bleibt unveraendert
+// eng; diese Liste ist REIN read-only (readdir/lstat, NIE Inhalt) und darf
+// daher auch Secret-Ordner wie ~/.kimi-code/credentials auflisten — Owner-
+// Administrationssicht: Name/Groesse/secret-Flag sichtbar, Werte niemals.
+function readScopeRoots(): string[] {
+  const roots = configRootList()
+  const kimi = kimiHome()
+  return kimi && !roots.includes(kimi) ? [...roots, kimi] : roots
+}
+
 // Handler: Innendatei-Liste fuer einen Ordner unter den Config-Wurzeln.
 function handleListDir(req: ListDirRequest): IpcResult<ListDirData> {
   if (!req || typeof req.dirPath !== 'string' || !req.dirPath) {
     return { data: null, error: REASON_INVALID }
   }
   const dirPath = resolve(req.dirPath)
-  if (!assertInScope(dirPath, configRootList()).writable) {
+  if (!assertInScope(dirPath, readScopeRoots()).writable) {
     return { data: null, error: REASON_OUT_OF_SCOPE }
   }
   let st: ReturnType<typeof lstatSync>

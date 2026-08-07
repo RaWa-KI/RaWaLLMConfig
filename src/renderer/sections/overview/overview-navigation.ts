@@ -20,6 +20,31 @@ interface StoredOverviewFocus extends OverviewNavigationAction {
   savedAt: number
 }
 
+// Fokus-Signal (Routen-Sweep 2026-08-07): sessionStorage loest keinen React-
+// Render aus. Zielt eine Diagnose-/Flow-Route auf die BEREITS aktive Sektion,
+// blieb der Klick wirkungslos — kein Mount, kein Effekt, kein Konsument las
+// den frischen Fokus (P1 „Problem pruefen: claude Dubletten"). Jede Fokus-
+// Aenderung erhoeht deshalb eine Version, die Konsumenten per
+// useOverviewFocusVersion() (useSyncExternalStore) beobachten.
+let focusVersion = 0
+const focusListeners = new Set<() => void>()
+
+export function getOverviewFocusVersion(): number {
+  return focusVersion
+}
+
+export function subscribeOverviewFocus(listener: () => void): () => void {
+  focusListeners.add(listener)
+  return () => {
+    focusListeners.delete(listener)
+  }
+}
+
+function notifyOverviewFocusChange(): void {
+  focusVersion += 1
+  for (const listener of focusListeners) listener()
+}
+
 export function navigateToOverviewAction(action: OverviewNavigationAction, onOpen: (section: Section) => void): void {
   rememberOverviewFocus(action)
   onOpen(action.route)
@@ -30,8 +55,24 @@ export function rememberOverviewFocus(action: OverviewNavigationAction, now: num
   try {
     const stored: StoredOverviewFocus = { ...action, savedAt: now }
     window.sessionStorage.setItem(FOCUS_STORAGE_KEY, JSON.stringify(stored))
+    notifyOverviewFocusChange()
   } catch {
     // Der Zielwechsel bleibt auch ohne Komfort-Fokus bedienbar.
+  }
+}
+
+// WP-F2: Ein angewendeter Fokus wird sofort verworfen. Bliebe er liegen,
+// zwang der Fokus-Effekt (z.B. SystemSection) bei jedem Render zurueck auf
+// den Fokus-Bereich und blockierte die gesamte Navigation.
+// WP-F1F8: Auch „Als gelesen" (FocusNotice-Dismiss) nutzt diese Funktion —
+// der Fokus verschwindet sofort statt erst nach der 5-Min-TTL.
+export function clearOverviewFocus(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(FOCUS_STORAGE_KEY)
+    notifyOverviewFocusChange()
+  } catch {
+    // Wie beim Merken: Die Navigation bleibt auch ohne Zugriff bedienbar.
   }
 }
 

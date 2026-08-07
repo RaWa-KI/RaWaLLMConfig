@@ -13,7 +13,7 @@
 import path from 'node:path'
 import type { Category, ConfigEntry } from '@shared/contract'
 import type { CategorySpec, ProviderManifest } from '@shared/contract-provider'
-import { listDir, fileEntry, dirEntry, mtime } from '../codex-scan-helpers'
+import { listDir, fileEntry, mtime } from '../codex-scan-helpers'
 import { scanDirEntry } from '../codex-scan'
 import { drillTeamEntry, drillPluginEntry } from '../scan-helpers'
 import { readFileOnce } from '../file-read-once'

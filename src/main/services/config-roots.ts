@@ -7,7 +7,7 @@
 // LESEN aus Sandbox, Writes sind bereits dorthin confined). Env wird bei
 // JEDEM Aufruf gelesen (reine Funktion der Env) -> Tests setzen/loeschen Env
 // und rufen direkt. KEINE Secret-Werte, KEIN Schreiben.
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 import fs from 'node:fs'
 import type { ProviderRoot } from '@shared/contract-provider'
 import { normalizePathForCompare } from '@shared/path-compare'
@@ -18,7 +18,7 @@ import {
   sandboxRoot,
   sandboxRoots
 } from './config-root-resolution'
-import type { ConfigRoots } from './config-root-resolution'
+import type { ConfigRoots, RootExists, RootPrefs } from './config-root-resolution'
 export {
   discoverConfigRoots,
   setRootPrefsProvider,
@@ -36,11 +36,17 @@ export type {
  * sharedClaude/projectRoot aus Prefs/Legacy-Migration (optional, null moeglich);
  * mit RAWALLM_SANDBOX_ROOT = alle unter <sandbox>. Reine Funktion der Env.
  */
-export function configRoots(): ConfigRoots {
+/** Optionale explizite Injection fuer Tests (Seam ohne Modul-Global, debugging.md 2026-07-28). */
+export interface ConfigRootDeps {
+  prefs?: RootPrefs
+  exists?: RootExists
+}
+
+export function configRoots(deps: ConfigRootDeps = {}): ConfigRoots {
   const sb = sandboxRoot()
   if (sb) return sandboxRoots(sb)
   const homes = realRoots()
-  const discovered = discoverConfigRoots()
+  const discovered = discoverConfigRoots(deps.prefs, deps.exists)
   return {
     claudeHome: homes.claudeHome,
     codexHome: homes.codexHome,
@@ -99,8 +105,8 @@ export function userSourceRootsForProvider(providerId: string): string[] {
  * Quelle die schon Basis ist faellt weg). Ohne gesetzten Provider -> exakt die
  * vier Basis-Wurzeln (Invarianz).
  */
-export function configRootList(): string[] {
-  const base = configWatchRootList()
+export function configRootList(deps: ConfigRootDeps = {}): string[] {
+  const base = configWatchRootList(deps)
   const seen = new Set(base.map(pathKey))
   const out = [...base]
   for (const extra of userSourceRoots()) {
@@ -138,8 +144,8 @@ function appendUserRoots(baseRoots: string[], providerId?: string): string[] {
  * sein (z.B. ein kompletter Projekte-Parent oder Modellordner) und duerfen den
  * App-Start nicht durch rekursives Beobachten blockieren.
  */
-export function configWatchRootList(): string[] {
-  const r = configRoots()
+export function configWatchRootList(deps: ConfigRootDeps = {}): string[] {
+  const r = configRoots(deps)
   return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot].filter((root): root is string => root !== null)
 }
 

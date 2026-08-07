@@ -20,8 +20,8 @@ import type {
 } from '@shared/contract'
 import { vcmp } from '@shared/version-compare'
 import { isSecretPathForRead } from '../services/secret-guard'
-import { getVersionsCached } from '../services/cli-version-cache'
-import type { ToolSpec } from '../services/cli-version-live'
+import { getVersionResultsCached, type VersionResultExecFn } from '../services/cli-version-cache'
+import { liveErrorText, type ToolSpec } from '../services/cli-version-live'
 import { sharedDataRoots } from './shared-data-roots'
 import { changelogFeed, newestChangelogDate } from './changelog-feed'
 
@@ -47,7 +47,7 @@ function safeReadJson<T>(p: string): T | null {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')) as T } catch { return null }
 }
 
-interface DaemonRow { local_version?: string; remote_latest?: string }
+interface DaemonRow { local_version?: string; remote_latest?: string; detected_at?: string }
 type DaemonState = Record<string, DaemonRow | unknown>
 
 // Numerischer Versionsvergleich (QUAL-HOCH-03/WP9): live erfasste installierte
@@ -65,24 +65,44 @@ const CLI_SPECS: ToolSpec[] = [
 ]
 
 // CLI-Quellen aus dem Daemon-State (nur Scope-B/tracking). `current` wird LIVE
-// per `<bin> --version` erfasst (Fallback: Cache-`local_version`); `latest`
-// bleibt aus dem Cache (`remote_latest`). So wird "update" automatisch "current",
-// sobald der Owner geupdatet hat. statePath = readFull-Quelldatei (kein Secret).
-// state===null ODER keine claude-cli/codex-cli-Zeile -> sofort [], KEINE Spawns
-// (siehe Modulkopf: ohne remote_latest greift scanWatcherStatic ohnehin).
-async function liveSources(state: DaemonState | null, statePath: string): Promise<WatcherSource[]> {
+// per `<bin> --version` erfasst. WP-F4F9: Spawn-Fehler und „alte Version" sind
+// getrennt — schlaegt der Spawn fehl, faellt `current` auf die Daemon-Datei
+// zurueck, traegt aber liveError (Grund) + detectedAt (Datei-Stand) und eine
+// note, die den Datei-Fallback sichtbar datiert. So wird "update" automatisch
+// "current", sobald der Owner geupdatet hat. statePath = readFull-Quelldatei
+// (kein Secret). state===null ODER keine claude-cli/codex-cli-Zeile -> sofort
+// [], KEINE Spawns (siehe Modulkopf). execFn injizierbar (Tests ohne Spawns).
+async function liveSources(
+  state: DaemonState | null, statePath: string, execFn?: VersionResultExecFn
+): Promise<WatcherSource[]> {
   if (state === null || (!state['claude-cli'] && !state['codex-cli'])) return []
   const out: WatcherSource[] = []
   const src = isSecretPathForRead(statePath) ? undefined : statePath
   // Live-Versionen EINMAL pro Aufruf erfassen (Prozess-Cache dedupliziert Spawns).
-  const live = await getVersionsCached(CLI_SPECS)
+  const live = await getVersionResultsCached(CLI_SPECS, execFn)
   const cli = (id: string, name: string): void => {
     const s = state?.[id] as DaemonRow | undefined
     if (!s) return
-    const current = live[id] ?? s.local_version
+    const res = live[id]
+    if (res?.version) {
+      out.push({
+        name, kind: 'CLI', channel: 'cli', current: res.version,
+        latest: s.remote_latest ?? '—', tier: 1,
+        state: sourceState(res.version, s.remote_latest), path: src,
+        detectedAt: s.detected_at
+      })
+      return
+    }
+    // Spawn-Fehler: Datei-Fallback, klar als solcher ausgewiesen und datiert.
+    const reason = liveErrorText(res?.error ?? null)
+    const stamp = s.detected_at?.slice(0, 10)
     out.push({
-      name, kind: 'CLI', current: current ?? '—', latest: s.remote_latest ?? '—',
-      tier: 1, state: sourceState(current, s.remote_latest), path: src
+      name, kind: 'CLI', channel: 'cli', current: s.local_version ?? '—',
+      latest: s.remote_latest ?? '—', tier: 1,
+      state: sourceState(s.local_version, s.remote_latest), path: src,
+      liveError: res?.error ?? 'cli-no-version-output',
+      detectedAt: s.detected_at,
+      note: `Live-Pruefung nicht moeglich (${reason}) — Stand aus Daemon-Datei${stamp ? ` vom ${stamp}` : ''}.`
     })
   }
   cli('claude-cli', 'Claude Code CLI')
@@ -135,13 +155,16 @@ function notConfiguredWatcher(): Watcher {
  * Live-Watcher aus Scope-B lesen. Liefert immer ein gueltiges `Watcher`-Objekt;
  * fehlende Quellen ergeben leere Listen + "Unknown"-Daemon (graceful, kein Crash).
  */
-export async function scanWatcherLive(roots: WatcherRoots | null = defaultRoots()): Promise<Watcher> {
+export async function scanWatcherLive(
+  roots: WatcherRoots | null = defaultRoots(),
+  execFn?: VersionResultExecFn
+): Promise<Watcher> {
   if (!roots) return notConfiguredWatcher()
   try {
     // Nur tracking lesen — bewusst KEIN coordination/{security,signals,briefings}.
     const statePath = path.join(roots.trackingDir, 'toolchain-daemon-state.json')
     const state = safeReadJson<DaemonState>(statePath)
-    const sources = await liveSources(state, statePath)
+    const sources = await liveSources(state, statePath, execFn)
     const changelogs = liveChangelogs(roots.referencesDir)
     const daemon: Watcher['daemon'] = {
       status: state ? 'Ready' : 'Unknown',
@@ -160,4 +183,47 @@ export async function scanWatcherLive(roots: WatcherRoots | null = defaultRoots(
       tiers: [], sources: [], changelogs: []
     }
   }
+}
+
+// ── Statischer Fallback (aus sys-scan.ts, HR27-Split WP-F4F9) ───────────────
+// Quellen NUR aus dem realen Daemon-State. Kein Versions-Hardcode: bei fehlendem
+// State leere Liste -> ehrlicher Empty-State im UI. WP-F4F9: der Datei-Stand
+// wird mit detected_at datiert und als Datei-Fallback ausgewiesen — er wirkt
+// nicht wie eine frische Live-Pruefung. Read-only, kein Secret.
+export function scanWatcherStatic(roots: WatcherRoots | null = defaultRoots()): Watcher {
+  if (!roots) return notConfiguredWatcher()
+  const statePath = path.join(roots.trackingDir, 'toolchain-daemon-state.json')
+  const state = safeReadJson<DaemonState>(statePath)
+  const sources = staticSources(state, statePath)
+  const daemon: Watcher['daemon'] = {
+    status: state ? 'Ready' : 'Unknown',
+    lastResult: state ? '0' : '—',
+    schedule: 'Task-Scheduler (run-hidden)',
+    tokens: '0 Daemon-LLM-Token', sources: sources.length,
+    updated: liveUpdated(state, statePath, roots.referencesDir),
+    note: 'Datei-Stand aus coordination/tracking/toolchain-daemon-state (nicht live geprueft). Deterministische Erkennung von Tool-/Modell-Updates; legt Changelog-Volltexte lokal ab.'
+  }
+  return { daemon, tiers: staticTiers(), sources, changelogs: changelogFeed(roots.referencesDir) }
+}
+
+// Datei-Quellen ohne Live-Spawn: channel 'cli', detected_at als detectedAt,
+// note datiert den Datei-Stand explizit.
+function staticSources(state: DaemonState | null, statePath: string): WatcherSource[] {
+  const out: WatcherSource[] = []
+  const src = isSecretPathForRead(statePath) ? undefined : statePath
+  const cli = (id: string, name: string): void => {
+    const s = state?.[id] as DaemonRow | undefined
+    if (!s) return
+    const stamp = s.detected_at?.slice(0, 10)
+    out.push({
+      name, kind: 'CLI', channel: 'cli', current: s.local_version ?? '—',
+      latest: s.remote_latest ?? '—', tier: 1,
+      state: sourceState(s.local_version, s.remote_latest), path: src,
+      detectedAt: s.detected_at,
+      note: `Stand aus Daemon-Datei${stamp ? ` vom ${stamp}` : ''} — nicht live geprueft.`
+    })
+  }
+  cli('claude-cli', 'Claude Code CLI')
+  cli('codex-cli', 'Codex CLI')
+  return out
 }

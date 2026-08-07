@@ -77,4 +77,6 @@ export const enUpdateMessages = {
   "update.watcher.static": "static",
   "update.watcher.lastResult": "LastResult {lastResult}",
   "update.watcher.daemonSchedule": "Daemon schedule",
+  "update.watcher.refresh": "Refresh versions",
+  "update.watcher.refreshing": "Refreshing…",
 } as const satisfies Pick<MessageCatalog, UpdateMessageKey>

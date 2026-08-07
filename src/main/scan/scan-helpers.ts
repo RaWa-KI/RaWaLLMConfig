@@ -20,15 +20,6 @@ export function mtimeSafe(p: string): string {
   }
 }
 
-// Liefert Dateigroesse in KB (1 Dezimalstelle); '' bei Fehler.
-export function sizeKbSafe(p: string): string {
-  try {
-    return (fs.statSync(p).size / 1024).toFixed(1)
-  } catch {
-    return ''
-  }
-}
-
 // Liest Textdatei read-only; undefined bei Fehler, Secret-Pfad oder > Size-Cap.
 // Size-Cap (MAX_SCAN_BYTES): gilt NUR fuer Scan-Preview/Index — der
 // readFull-Drilldown liest weiterhin ungecappt; das Owner-Grundprinzip
@@ -105,29 +96,6 @@ export function parseFrontmatterKeys(text: string): string[] {
   return keys
 }
 
-// Inhaltsvorschau: max Zeilen/Zeichen; '' bei Fehler/Secret.
-// isSecretFn: caller-seitige Secret-Pruefung (unterschiedlich je Scanner).
-export function readPreviewSafe(
-  absPath: string,
-  isSecretFn: (p: string) => boolean,
-  readFn: (p: string) => string,
-  maxLines = 45,
-  maxChars = 1800,
-): string {
-  try {
-    if (isSecretFn(absPath)) return ''
-    const txt = readFn(absPath)
-    const lines = txt.split('\n')
-    let cut = lines.length > maxLines
-    let out = lines.slice(0, maxLines).join('\n')
-    if (out.length > maxChars) { out = out.slice(0, maxChars); cut = true }
-    if (!cut && lines.length > maxLines) cut = true
-    return cut ? `${out}\n… (gekuerzt)` : out
-  } catch {
-    return ''
-  }
-}
-
 // Desc aus Inhalt: Frontmatter-description > erste Ueberschrift > fallback.
 export function descFromPreview(preview: string, fallback: string): string {
   if (!preview) return fallback
@@ -179,7 +147,7 @@ export function drillTeamEntry(
 ): ConfigEntry | null {
   const configJson = path.join(teamDir, teamName, 'config.json')
   // WP16: GENAU 1 readFileOnce (1 stat + max. 1 Read) statt existsSync +
-  // readTextSafe + sizeKbSafe + mtimeSafe (4 Syscall-Runden).
+  // readTextSafe + mtimeSafe (mehrere Syscall-Runden).
   const snap = readFileOnce(configJson)
   if (!snap) return null
   const text = snap.text
@@ -264,7 +232,7 @@ export function drillPluginEntry(
   if (!found) found = findFirstJsonFallback(base)
   if (!found) return null
   // WP16: GENAU 1 readFileOnce fuer die Definitionsdatei (statt readTextSafe +
-  // sizeKbSafe + mtimeSafe); fields kommen aus dem Snapshot.
+  // mtimeSafe); fields kommen aus dem Snapshot.
   const snap = readFileOnce(found)
   if (!snap) return null
   const text = snap.text

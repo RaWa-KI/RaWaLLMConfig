@@ -1,0 +1,28 @@
+/* FocusNotice — dezente Link-Zeile der Fokus-Erklärbox (WP-F1F8).
+   Basis-Layout der Box liegt in styles/workbench-cards.css (.focus-notice);
+   hier nur die komponenteneigenen Links: unterstrichen, kein Button-Look. */
+
+.focus-notice-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.focus-notice .focus-notice-details,
+.focus-notice .focus-notice-dismiss {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--text-lt);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Der Dismiss ist semantisch ein Button, sieht aber bewusst wie der
+   Details-Link aus — keine Button-Optik in der Erklärbox. */
+.focus-notice .focus-notice-dismiss {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  line-height: inherit;
+}

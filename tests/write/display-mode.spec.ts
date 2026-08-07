@@ -13,7 +13,10 @@ test('task DOM keeps safe copy for simple mode and adds technical detail for exp
   expect(taskCard).toContain('<span className="ov-task-body">{task.body}</span>')
   expect(taskCard).toContain('<span className="ov-task-state">')
   expect(taskCard).toContain("{displayMode === 'expert' && <ExpertDetails task={task} />}")
-  expect(taskCard).toContain("msg('expertDetails.meaning', { meaning: task.meaning })")
+  // F16 (Owner 2026-08-07): Details zugeklappt (<details>), nur Begriff + Ziel;
+  // die Laien-Benennung (expertDetails.meaning) entfaellt im Experten-Modus.
+  expect(taskCard).toContain('<details')
+  expect(taskCard).not.toContain("msg('expertDetails.meaning'")
   expect(taskCard).toContain("msg('expertDetails.technicalName', { term: task.expertTarget })")
   expect(taskCard).toContain("msg('expertDetails.rawTarget', { target: task.target })")
 })
@@ -22,8 +25,8 @@ test('overview keeps status, action, findings, register and area-path zones in o
   const overview = between('function OverviewModeContent', 'function OverviewHead')
 
   expect(overview.indexOf('<OverviewStatus')).toBeLessThan(overview.indexOf('<NextAction'))
-  expect(overview.indexOf('<NextAction')).toBeLessThan(overview.indexOf('<DiagnosisCards'))
-  expect(overview.indexOf('<DiagnosisCards')).toBeLessThan(overview.indexOf('<CoverageRegister'))
+  expect(overview.indexOf('<NextAction')).toBeLessThan(overview.indexOf('<DiagnosisSummary'))
+  expect(overview.indexOf('<DiagnosisSummary')).toBeLessThan(overview.indexOf('<CoverageRegister'))
   expect(overview.indexOf('<CoverageRegister')).toBeLessThan(overview.indexOf('<GuidedFlows'))
   expect(overview.indexOf('<GuidedFlows')).toBeLessThan(overview.indexOf('<TaskGrid'))
   expect(overview).toContain('displayMode={props.displayMode}')

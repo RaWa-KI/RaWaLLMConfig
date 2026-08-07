@@ -1,7 +1,7 @@
 import type { DiffLabels, DuplicateSet } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import { SECRET_PAAR } from '@shared/dup-labels'
+import { SECRET_PAAR, intraIntroSatz, istIntraLabels } from '@shared/dup-labels'
 import { DirDiffView } from './DirDiffView'
 import { FALLBACK_LABELS, isOversizeFallback } from './diff-shared'
 import { MergeEditor } from './MergeEditor'
@@ -24,10 +24,15 @@ export function DiffView({ dups, labels }: { dups: DuplicateSet[]; labels?: Diff
       </div>
     )
   }
+  // Intra-Familien-Paar (neutrale Fundstellen-Labels): ehrlicher Intro-Satz —
+  // zwei Fundstellen derselben Familie, keine „zentrale Version"/„deine Kopie".
+  const intra = istIntraLabels(l)
   return (
     <div>
       <div className="diff-intro">
-        Seite-an-Seite-Abgleich {l.trunk} und {l.mirror}. Änderungen werden vor dem Speichern automatisch gesichert.
+        {intra
+          ? intraIntroSatz(l)
+          : `Seite-an-Seite-Abgleich ${l.trunk} und ${l.mirror}. Änderungen werden vor dem Speichern automatisch gesichert.`}
       </div>
       {dups.map((d) =>
         d.dir ? <DirDiffView key={d.name} d={d} labels={l} /> : <DiffSet key={d.name} d={d} labels={l} />
@@ -70,6 +75,7 @@ function DiffSet({ d, labels }: { d: DuplicateSet; labels: DiffLabels }) {
             mirrorPath={d.mirror.path}
             initialTrunk={c.trunk}
             initialMirror={c.mirror}
+            labels={istIntraLabels(labels) ? labels : undefined}
           />
         ) : (
           expert && <DiffReadOnly d={d} labels={labels} lines={lines} masked={c.masked} maskedCount={c.maskedCount} />

@@ -92,6 +92,12 @@
   font-weight: 800;
 }
 
+/* WP-F6: App-Version als dezente Fusszeile der Darstellungs-Karte */
+.settings-action-card p.settings-app-version {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
 .settings-expert-list {
   margin: 8px 0 0;
   padding-left: 18px;

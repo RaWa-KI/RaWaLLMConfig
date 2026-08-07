@@ -12,22 +12,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type {
-  System, SystemArea, Watcher, WatcherSource,
-  EntryStatus, SourceState
+  System, SystemArea, Watcher,
+  EntryStatus, UpdateChannel
 } from '@shared/contract'
-import { scanWatcherLive } from './watcher-live'
+import { scanWatcherLive, scanWatcherStatic } from './watcher-live'
 import { scanMcp, mcpNames } from './mcp-scan'
-import { getVersionsCached } from '../services/cli-version-cache'
-import type { ToolSpec } from '../services/cli-version-live'
+import { getVersionResultsCached, type VersionResultExecFn } from '../services/cli-version-cache'
+import type { ToolSpec, ToolVersionResult } from '../services/cli-version-live'
+import { liveErrorText } from '../services/cli-version-live'
 import { scanHardwareArea } from './hardware-scan'
 import { applyWatcherPlatformCopy, sysScanPlatformCopy } from './sys-scan-platform-copy'
 import { sharedDataRoots } from './shared-data-roots'
-import { changelogFeed, newestChangelogDate } from './changelog-feed'
+import { newestChangelogDate } from './changelog-feed'
 
 const dataRoots = sharedDataRoots()
 const configuredSharedDir = dataRoots?.sharedDir ?? null
 const refDir = dataRoots?.referencesDir ?? ''
-const trackDir = dataRoots?.trackingDir ?? ''
 const portsFile = path.join(dataRoots?.registryDir ?? '', 'localhost-ports.json')
 
 // ── Helfer ──────────────────────────────────────────────────────────────
@@ -48,42 +48,15 @@ function refUpdated(): string {
     const txt = readText(path.join(refDir, 'SYSTEM-ENVIRONMENT.md'))
     const m = txt.match(/updated:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/)
     if (m) return m[1]
-  } catch {
+  } catch (e) {
     console.error('[scan:sys]', 'refUpdated failed')
   }
   return newestChangelogDate(refDir) ?? '—'
 }
 
-// Ports nach Status klassifizieren — active/reserved -> active, stale -> stale, conflict-risk -> conflict.
-function portStatus(s: string | undefined): EntryStatus {
-  if (s === 'active') return 'active'
-  if (s === 'conflict-risk' || s === 'conflict') return 'conflict'
-  if (s === 'stale') return 'stale'
-  return 'active'
-}
-
-// ── Areas aus localhost-ports.json (real, kein Secret) ──────────────────
-interface PortRow { port?: number; protocol?: string; service?: string; host?: string; status?: string; ws?: string }
-interface PortsDoc { ports?: Record<string, PortRow> }
-
-function pickPorts(doc: PortsDoc | null, match: RegExp): SystemArea['entries'] {
-  if (!doc?.ports) return []
-  return Object.entries(doc.ports)
-    .filter(([id, r]) => match.test(id) || match.test(r.service ?? ''))
-    .map(([id, r]) => ({
-      id,
-      name: r.service ?? id,
-      status: portStatus(r.status),
-      v: r.port != null ? `:${r.port}` : '—',
-      desc: `${r.protocol ?? 'http'} · ${r.host ?? '127.0.0.1'} · ${r.status ?? 'reserved'}`,
-      fields: { Port: String(r.port ?? '—'), Host: r.host ?? '127.0.0.1', Status: r.status ?? 'reserved' }
-    }))
-}
-
-function localLlmArea(doc: PortsDoc | null): SystemArea {
-  const entries = pickPorts(doc, /llama|ollama|brain|searxng|local/i)
-  return { id: 'localllm', label: 'Lokale LLM', icon: 'sparkle', blurb: 'llama-server, Brain-Adapter, GGUF.', entries }
-}
+// Ports-/Registry-Areas und die lokale LLM-Reconciliation liegen in
+// sys-scan-ports.ts (HR27-Split, WP2 2026-07-28).
+import { localLlmArea, dbArea, type PortsDoc } from './sys-scan-ports'
 
 // MCP-Area aus echten mcp-scan-Daten (Namen + Transport, keine Secret-Werte). KEIN
 // Prototyp-Hardcode mehr: leeres mcp-scan-Ergebnis -> leere Area (graceful), nie Platzhalter.
@@ -98,11 +71,6 @@ function mcpArea(mcp: ReturnType<typeof scanMcp>): SystemArea {
     desc: 'MCP-Server — Detail siehe MCP-Sektion.'
   }))
   return { id: 'mcp', label: 'MCP-Integrationen', icon: 'plug', blurb: 'Cloud + lokale MCP-Server.', entries }
-}
-
-function dbArea(doc: PortsDoc | null): SystemArea {
-  const entries = pickPorts(doc, /mariadb|mysql|neo4j/i)
-  return { id: 'databases', label: 'Datenbanken', icon: 'db', blurb: 'MariaDB, MySQL, Neo4j.', entries }
 }
 
 // OLLAMA_* live pruefen (nur Namen, D008): gesetzte Variablen heissen
@@ -148,29 +116,50 @@ const VERSION_SPECS: ToolSpec[] = [
   { id: 'codex', bin: 'codex', args: ['--version'] }
 ]
 
-// Live-Versions-Areas (Laufzeiten + CLI-Tools): `v` wird LIVE erfasst, Fallback auf
-// den bisherigen Snapshot-Wert wenn live null. Diese Areas werden NICHT per
-// stampStatic datiert — sonst wuerde das UI live erfasste Werte als statischen
-// Snapshot etikettieren (= Luege). Async via Prozess-Cache (PERF-HOCH-01):
-// Spawns laufen non-blocking und nur einmal pro App-Lauf.
-async function liveVersionAreas(platform: NodeJS.Platform = process.platform): Promise<SystemArea[]> {
-  const live = await getVersionsCached(VERSION_SPECS)
-  // Kein Versions-Hardcode als Fallback mehr: nicht erfasst -> '—' und Status
-  // 'stale'. Eine gecachte Wunschversion anzuzeigen waere erfundene Realitaet.
-  const v = (id: string): string => live[id] ?? '—'
-  const st = (id: string): EntryStatus => (live[id] ? 'active' : 'stale')
+// Baut einen Laufzeit-/CLI-Eintrag aus dem Live-Ergebnis. Erfolg -> 'active'
+// mit Version; Fehler -> 'unknown' („nicht pruefbar") mit Grund in desc/fields.
+// 'stale' („veraltet") wird hier NIE gesetzt — dafuer gaebe es keinen Beleg.
+// Exportiert fuer Unit-Tests (status-unknown-semantics.spec.ts).
+export function versionEntry(
+  id: string, name: string, baseDesc: string,
+  res: ToolVersionResult | undefined, channel: UpdateChannel
+): SystemArea['entries'][number] {
+  if (res?.version) {
+    return { id, name, status: 'active', v: res.version, desc: baseDesc, channel }
+  }
+  const reason = liveErrorText(res?.error ?? null)
+  return {
+    id, name, status: 'unknown' as EntryStatus, v: '—', channel,
+    desc: `${baseDesc} · nicht pruefbar: ${reason}`,
+    fields: { 'Pruefung': `nicht pruefbar — ${reason}` }
+  }
+}
+
+// Live-Versions-Areas (Laufzeiten + CLI-Tools): `v` wird LIVE erfasst; bei
+// Spawn-Fehler Status 'unknown' statt des frueheren Falsch-„veraltet" (WP-F4F9).
+// Diese Areas werden NICHT per stampStatic datiert — sonst wuerde das UI live
+// erfasste Werte als statischen Snapshot etikettieren (= Luege). Async via
+// Prozess-Cache (PERF-HOCH-01): Spawns laufen non-blocking und nur einmal pro
+// App-Lauf. execFn injizierbar (Tests ohne echte Spawns).
+async function liveVersionAreas(
+  platform: NodeJS.Platform = process.platform,
+  execFn?: VersionResultExecFn
+): Promise<SystemArea[]> {
+  const live = await getVersionResultsCached(VERSION_SPECS, execFn)
   const copy = sysScanPlatformCopy(platform)
+  const e = (id: string, name: string, desc: string): SystemArea['entries'][number] =>
+    versionEntry(id, name, desc, live[id], 'cli')
   return [
     { id: 'runtimes', label: 'Laufzeiten', icon: 'box', blurb: 'Node, Python, PHP, Git (live).', entries: [
-      { id: 'node', name: 'Node.js', status: st('node'), v: v('node'), desc: 'engines: >=22 in Projekten' },
-      { id: 'pnpm', name: 'pnpm', status: st('pnpm'), v: v('pnpm'), desc: 'Bevorzugter Manager — NIEMALS npm/yarn' },
-      { id: 'python', name: 'Python', status: st('python'), v: v('python'), desc: 'Haupt · separate Version fuer Open WebUI moeglich' },
-      { id: 'php', name: 'PHP', status: st('php'), v: v('php'), desc: 'CLI' },
-      { id: 'git', name: 'Git', status: st('git'), v: v('git'), desc: 'LFS + Longpaths aktiviert' }
+      e('node', 'Node.js', 'engines: >=22 in Projekten'),
+      e('pnpm', 'pnpm', 'Bevorzugter Manager — NIEMALS npm/yarn'),
+      e('python', 'Python', 'Haupt · separate Version fuer Open WebUI moeglich'),
+      e('php', 'PHP', 'CLI'),
+      e('git', 'Git', 'LFS + Longpaths aktiviert')
     ] },
     { id: 'cli', label: 'CLI-Tools', icon: 'term', blurb: 'Standalone-Installationen, Version live.', entries: [
-      { id: 'claude', name: 'Claude Code', status: st('claude'), v: v('claude'), desc: copy.claudeDescription },
-      { id: 'codex', name: 'Codex CLI', status: st('codex'), v: v('codex'), desc: 'Native Installer · OpenAI/Codex · Auto-Update' }
+      e('claude', 'Claude Code', copy.claudeDescription),
+      e('codex', 'Codex CLI', 'Native Installer · OpenAI/Codex · Auto-Update')
     ] }
   ]
 }
@@ -183,16 +172,19 @@ async function liveVersionAreas(platform: NodeJS.Platform = process.platform): P
 function staticAreas(): SystemArea[] {
   return stampStatic([
     { id: 'editors', label: 'Editor-Extensions', icon: 'edit', blurb: 'VS Code AI/Coding-Extensions.', entries: [
-      { id: 'cc-ext', name: 'anthropic.claude-code', status: 'active', desc: 'Claude Code Extension' },
-      { id: 'gpt-ext', name: 'openai.chatgpt', status: 'active', desc: 'ChatGPT Extension · Computer-Use GA' },
-      { id: 'cline', name: 'saoudrizwan.claude-dev', status: 'active', desc: 'Claude Dev (Cline)' }
+      { id: 'cc-ext', name: 'anthropic.claude-code', status: 'active', desc: 'Claude Code Extension', channel: 'extension' as UpdateChannel },
+      { id: 'gpt-ext', name: 'openai.chatgpt', status: 'active', desc: 'ChatGPT Extension · Computer-Use GA', channel: 'extension' as UpdateChannel },
+      { id: 'cline', name: 'saoudrizwan.claude-dev', status: 'active', desc: 'Claude Dev (Cline)', channel: 'extension' as UpdateChannel }
     ] },
     { id: 'hosting', label: 'Hosting & Domains', icon: 'globe', blurb: 'Hosting & Domains (umgebungsspezifisch).', entries: [] },
     { id: 'workspaces', label: 'Workspaces', icon: 'layers', blurb: 'WSs mit Kuerzeln & Stacks (umgebungsspezifisch).', entries: [] }
   ])
 }
 
-export async function scanSystem(platform: NodeJS.Platform = process.platform): Promise<System> {
+export async function scanSystem(
+  platform: NodeJS.Platform = process.platform,
+  execFn?: VersionResultExecFn
+): Promise<System> {
   if (!configuredSharedDir) return {
     updated: '—',
     areas: [{ id: 'configuration', label: 'Konfiguration', icon: 'warning', blurb: 'Ein Ordner muss eingerichtet werden.', entries: [{ id: 'shared-root-not-configured', name: 'Shared-Ordner nicht eingerichtet', status: 'stale', desc: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.' }] }]
@@ -203,7 +195,7 @@ export async function scanSystem(platform: NodeJS.Platform = process.platform): 
     // UI-Reihenfolge erhalten: hardware, [runtimes, cli (live)], editors, hosting, workspaces.
     const hardware = await scanHardwareArea()
     const stat = staticAreas()
-    const live = await liveVersionAreas(platform)
+    const live = await liveVersionAreas(platform, execFn)
     const areas = [hardware, ...live, ...stat, localLlmArea(doc), mcpArea(mcp), dbArea(doc), envArea()]
     return { updated: refUpdated(), areas }
   } catch (e) {
@@ -213,54 +205,9 @@ export async function scanSystem(platform: NodeJS.Platform = process.platform): 
 }
 
 // ── Watcher ─────────────────────────────────────────────────────────────
-interface DaemonState { [k: string]: { remote_latest?: string; local_version?: string } | unknown }
-
-function sourceState(local?: string, latest?: string): SourceState {
-  if (local && latest && local === latest) return 'current'
-  if (local && latest && local !== latest) return 'update'
-  return 'recent'
-}
-
-// Quellen NUR aus dem realen Daemon-State. Der frueher hier stehende Hardcode
-// (Claude 2.1.165 / Codex 0.137.0 „current") hat bei fehlendem State einen
-// Versionsgleichstand behauptet, den niemand geprueft hatte — ersatzlos raus:
-// keine Quelle -> leere Liste -> ehrlicher Empty-State im UI.
-function watcherSources(state: DaemonState | null): WatcherSource[] {
-  const out: WatcherSource[] = []
-  const cli = (id: string, name: string): void => {
-    const s = state?.[id] as { remote_latest?: string; local_version?: string } | undefined
-    if (!s) return
-    out.push({ name, kind: 'CLI', current: s.local_version ?? '—', latest: s.remote_latest ?? '—', tier: 1, state: sourceState(s.local_version, s.remote_latest) })
-  }
-  cli('claude-cli', 'Claude Code CLI')
-  cli('codex-cli', 'Codex CLI')
-  return out
-}
-
-// Statischer Fallback (Welle-3-INT): die fruehere inline scanWatcher-Logik. Wird
-// nur genutzt, wenn watcher-live keine Quellen liefert (Scope-B fehlt/leer).
-// Liefert ausschliesslich real Gelesenes — bei leerer Quelle bleibt die Sektion
-// bewusst leer statt einen erfundenen Stand zu zeigen. Read-only, kein Secret.
-function scanWatcherStatic(): Watcher {
-  const state = readJson<DaemonState>(path.join(trackDir, 'toolchain-daemon-state.json'))
-  const sources = watcherSources(state)
-  const tiers: Watcher['tiers'] = [
-    { id: 1, label: 'Stufe 1', mode: 'auto-erfassen', cls: 'active', desc: 'Automatisch erfasst & signalisiert (read-only).' },
-    { id: 2, label: 'Stufe 2', mode: 'gated', cls: 'stale', desc: 'Owner-Freigabe noetig · Flag mit tool+version+timestamp.' },
-    { id: 3, label: 'Stufe 3', mode: 'flag-only', cls: 'dup', desc: 'Nur markiert, keine automatische Aktion.' }
-  ]
-  const daemon: Watcher['daemon'] = {
-    status: state ? 'Ready' : 'Unknown',
-    lastResult: state ? '0' : '—',
-    schedule: 'Task-Scheduler (run-hidden)',
-    tokens: '0 Daemon-LLM-Token', sources: sources.length, updated: refUpdated(),
-    note: 'Deterministische Erkennung von Tool-/Modell-Updates; legt Changelog-Volltexte lokal ab.'
-  }
-  // Changelog-Feed aus dem realen Bestand: dynamisches Scannen aller
-  // `*-changelog`-Ordner, beide Namensschemata, ordneruebergreifend die
-  // juengsten Eintraege. Kein Platzhalter mehr bei leerer Quelle.
-  return { daemon, tiers, sources, changelogs: changelogFeed(refDir) }
-}
+// Der statische Fallback (Datei-Stand aus toolchain-daemon-state.json, mit
+// detected_at datiert) liegt seit WP-F4F9 in watcher-live.ts (HR27-Split) —
+// scanWatcherStatic wird von dort re-importiert (siehe Import oben).
 
 export interface WatcherScanSources {
   live: () => Promise<Watcher>

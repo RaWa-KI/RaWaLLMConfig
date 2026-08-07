@@ -72,4 +72,6 @@ export type UpdateMessageParamsMap = {
   "update.watcher.static": undefined
   "update.watcher.lastResult": { lastResult: string }
   "update.watcher.daemonSchedule": undefined
+  "update.watcher.refresh": undefined
+  "update.watcher.refreshing": undefined
 }

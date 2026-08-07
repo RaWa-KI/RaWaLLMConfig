@@ -51,9 +51,22 @@ function extractField(lineContent: string): string | undefined {
   return undefined
 }
 
-/** 1-basierte Zeilennummer des ersten Vorkommens von needle. */
+/** Pfade nur an echten Segmentgrenzen erkennen, nicht als Präfix. */
+function findReferenceIndex(content: string, needle: string): number {
+  const pathNeedle = needle.includes('/') || needle.includes('\\')
+  let from = 0
+  while (true) {
+    const idx = content.indexOf(needle, from)
+    if (idx === -1) return -1
+    const next = content[idx + needle.length]
+    if (!pathNeedle || next === undefined || !/[A-Za-z0-9_.-]/.test(next)) return idx
+    from = idx + needle.length
+  }
+}
+
+/** 1-basierte Zeilennummer des ersten echten Vorkommens von needle. */
 function firstLineOf(content: string, needle: string): number {
-  const idx = content.indexOf(needle)
+  const idx = findReferenceIndex(content, needle)
   if (idx === -1) return 1
   return content.slice(0, idx).split('\n').length
 }
@@ -104,7 +117,7 @@ function collectOpsForContent(
 
   for (const pair of pairs) {
     if (suppressWikilinks && pair.needle.startsWith('[[')) continue
-    if (!content.includes(pair.needle)) continue
+    if (findReferenceIndex(content, pair.needle) === -1) continue
     const lineNum = firstLineOf(content, pair.needle)
     const lineContent = lines[lineNum - 1] ?? ''
     const kind = classifyOp(pair.needle, lineContent)
@@ -171,7 +184,7 @@ function processFile(
     } catch {
       // Parse-Fehler: prüfen ob irgendeine Pfadform der Operation enthalten ist
       const needles = buildPairs(oldPath, newPath).map((p) => p.needle)
-      const containsAnyNeedle = needles.some((n) => content.includes(n))
+      const containsAnyNeedle = needles.some((n) => findReferenceIndex(content, n) !== -1)
       if (containsAnyNeedle) {
         return {
           ops: [],

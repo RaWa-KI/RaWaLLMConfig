@@ -2,7 +2,14 @@ import { useMemo, useState } from 'react'
 import type { Category, DiffLabels, DuplicateSet } from '@shared/contract'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import { PILL, diffLabels, seiteForFamily } from '@shared/dup-labels'
+import {
+  PILL,
+  diffLabels,
+  intraFamilyLabels,
+  isIntraFamilyDup,
+  seiteForFamily,
+  unterscheidendeAbschnitte
+} from '@shared/dup-labels'
 import { buildKnownPaths } from './known-paths'
 import { folderPathOf } from './manifest-path'
 import { categoryLabel } from './category-label'
@@ -58,6 +65,11 @@ function DupEntry({ d, labels, cat, startOpen }: { d: DuplicateSet; labels?: Dif
   // FALLBACK aus der ECHTEN Seite (Familie → Seite), falls der Aufrufer keine
   // diffLabels durchreicht: Shared gegen die jeweilige lokale Kopie statt fest Claude.
   const seite = seiteForFamily(ui.llm)
+  // Intra-Familien-Duplikat (content-hash, beide Fundstellen in derselben
+  // Familie): ehrliche neutrale Labels statt „Shared … / deine Kopie" —
+  // Shared ist an diesem Paar nicht beteiligt. Cross-Root behaelt Bestand.
+  const intra = isIntraFamilyDup(d, ui.llm)
+  const effLabels = intra ? intraFamilyLabels(ui.llm, d.trunk.path, d.mirror.path) : labels
   return (
     <div className={'dup-entry' + (open ? ' open' : '')}>
       <DupEntryHead
@@ -71,7 +83,7 @@ function DupEntry({ d, labels, cat, startOpen }: { d: DuplicateSet; labels?: Dif
       />
       {open && (
         <div className="dup-entry-body">
-          {d.dir ? <DirDiffView d={d} labels={labels ?? diffLabels(seite)} /> : <FilePairEntry d={d} labels={labels} />}
+          {d.dir ? <DirDiffView d={d} labels={effLabels ?? diffLabels(seite)} /> : <FilePairEntry d={d} labels={effLabels} />}
         </div>
       )}
     </div>
@@ -102,6 +114,9 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
   // Seite lokal aus der Familie ableiten (keine cross-component Prop): bestimmt
   // die echte Gegenseite der Familien-Chips (Shared ↔ Claude/Codex/Workspace).
   const seite = seiteForFamily(ui.llm)
+  // Intra-Familien-Paar: Chips + Verdikt-Badge ohne Shared-Bezug (ehrlich) —
+  // die zwei Fundstellen werden ueber ihren unterscheidenden Pfadabschnitt benannt.
+  const intra = isIntraFamilyDup(d, ui.llm)
   // Bug A: Bei ORDNER-Eintraegen (Skill/Agent) muessen die Eintrags-Kopf-Aktionen
   // den ORDNER treffen, nicht die Manifestdatei (SKILL.md/AGENT.md), auf die der
   // Set-Pfad zeigt. Manifest-Pfad -> enthaltender Ordner; Datei-Eintraege bleiben
@@ -120,12 +135,12 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
           <span className="deh-name">
             <span className="deh-fname mono">{d.name}</span>
             <LoadHintBadge path={d.trunk.path} />
-            <FamilyChips seite={seite} />
+            <FamilyChips seite={seite} fassungen={intra ? unterscheidendeAbschnitte(d.trunk.path, d.mirror.path) : null} />
           </span>
           <span className="deh-desc">{entryType(d, fileCount, catLabel)}</span>
         </span>
         <span className="deh-meta">
-          <VerdictBadge d={d} fileCount={fileCount} />
+          <VerdictBadge d={d} fileCount={fileCount} intra={intra} />
         </span>
       </button>
       <DupRowActions
@@ -172,7 +187,23 @@ function DupEntryHeadRename({
   )
 }
 
-function FamilyChips({ seite }: { seite: 'claude' | 'codex' | 'workspace' }) {
+function FamilyChips({
+  seite,
+  fassungen
+}: {
+  seite: 'claude' | 'codex' | 'workspace'
+  fassungen: [string, string] | null
+}) {
+  // Intra-Familien-Paar: beide Fundstellen liegen in derselben Familie —
+  // Chips nennen die unterscheidenden Pfadabschnitte statt „Gemeinsame Version".
+  if (fassungen) {
+    return (
+      <span className="deh-fams">
+        <span className="deh-fam shared">{`Fassung „${fassungen[0]}"`}</span>
+        <span className={'deh-fam ' + seite}>{`Fassung „${fassungen[1]}"`}</span>
+      </span>
+    )
+  }
   return (
     <span className="deh-fams">
       <span className="deh-fam shared">Gemeinsame Version</span>
@@ -197,17 +228,20 @@ function entryType(d: DuplicateSet, fileCount: number, catLabel: string): string
 
 // Verdikt-Badge im Kopf (v4 .deh-meta .pill). Owner: keine Null-Werte. Texte
 // aus dup-labels.ts; bei Ordnern wird die Zahl der abweichenden Dateien gezeigt.
-function VerdictBadge({ d, fileCount }: { d: DuplicateSet; fileCount: number }) {
+function VerdictBadge({ d, fileCount, intra }: { d: DuplicateSet; fileCount: number; intra: boolean }) {
+  // Intra-Familien-Paar: Shared ist nicht beteiligt — der Zusatz „zu Shared"
+  // entfaellt (ehrliche Beschriftung, gleiche Mechanik).
+  const zuShared = intra ? '' : ' zu Shared'
   if (d.dir) {
     const diff = d.dir.diffCount
-    if (diff > 0) return <span className="pill abw"><span className="pd" />{`${diff} ${PILL.diff} zu Shared`}</span>
+    if (diff > 0) return <span className="pill abw"><span className="pd" />{`${diff} ${PILL.diff}${zuShared}`}</span>
     return <span className="pill same"><span className="pd" />{`${fileCount === 1 ? '1 Datei ' : ''}${PILL.same}`}</span>
   }
   const same = d.verdict === 'same'
   return (
     <span className={'pill ' + (same ? 'same' : 'abw')}>
       <span className="pd" />
-      {same ? PILL.same : `${PILL.diff} zu Shared`}
+      {same ? PILL.same : `${PILL.diff}${zuShared}`}
     </span>
   )
 }

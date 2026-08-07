@@ -17,7 +17,7 @@ import type {
   UpdateSourcePort,
   UpdateStageRequest,
 } from './update-source-port'
-import { checkExactSize, checkMagicHeader, checkMzHeader, moveToFailed, sha256Hex } from './update-gates'
+import { checkExactSize, checkMagicHeader, moveToFailed, sha256Hex } from './update-gates'
 import {
   assetSpecFor,
   currentUpdatePlatform,

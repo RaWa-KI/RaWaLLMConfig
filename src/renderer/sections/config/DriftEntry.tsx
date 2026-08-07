@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import type { DriftMember, DriftRelation } from '@shared/contract-drift'
 import { driftRelationKey } from '@shared/contract-drift'
 import { Icon } from '../../components/Icon'
@@ -66,6 +67,32 @@ export function DriftEntry({ rel, startOpen, dimmed }: { rel: DriftRelation; sta
   )
 }
 
+// „Zeigen"-Link (WP-F14): lokale Labels, weil die Drift-Ansicht ihre Texte aus
+// shared/drift-labels bezieht (kein Message-Katalog); Katalog-Dateien werden
+// parallel bearbeitet und bleiben unberuehrt. Read-only: Main zeigt den Pfad
+// nur im Datei-Manager (showItemInFolder), oeffnet nie eine Datei.
+const ZEIGEN_LABEL = 'Zeigen'
+const ZEIGEN_TITLE = 'Im Datei-Manager zeigen (öffnet die Datei nicht)'
+
+// Dezenter Link statt Button: unterstrichen, erbt die deh-desc-Typo.
+const zeigenStyle: CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  font: 'inherit',
+  color: 'inherit',
+  textDecoration: 'underline',
+  cursor: 'pointer'
+}
+
+// Klick zeigt den Pfad im Datei-Manager; preventDefault/stopPropagation, damit
+// das umgebende <label> nicht die Paar-Checkbox toggelt.
+function showPath(e: MouseEvent, path: string): void {
+  e.preventDefault()
+  e.stopPropagation()
+  void window.electronAPI?.openPath?.({ path })
+}
+
 // Mitglieder-Liste: Pfad (fuer autorisierte lokale Nutzer sichtbar, kein
 // Masking), Root-Art, Aenderungsdatum. Zwei Member waehlen das Vergleichspaar.
 function MemberList({
@@ -92,6 +119,16 @@ function MemberList({
           />
           <span className="deh-fam">{DRIFT_ROOTKIND[m.rootKind]}</span>
           <span className="dir-rel mono">{m.path}</span>
+          <button
+            type="button"
+            className="deh-desc"
+            style={zeigenStyle}
+            title={ZEIGEN_TITLE}
+            aria-label={`${ZEIGEN_TITLE}: ${m.path}`}
+            onClick={(e) => showPath(e, m.path)}
+          >
+            {ZEIGEN_LABEL}
+          </button>
           {m.updated && (
             <span className="deh-desc">
               {DRIFT_VERGLEICH.aktualisiert}: {m.updated}

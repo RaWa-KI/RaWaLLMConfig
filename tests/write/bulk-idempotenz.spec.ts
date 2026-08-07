@@ -2,12 +2,12 @@
 // Garantie: ein gespiegeltes physisches Paar darf nur EINMAL eingearbeitet
 // werden. Zweite Bulk-/Reconcile-Aktion auf dasselbe Paar = deterministisches
 // no-op ('already-reconciled'), NICHT generisches 'path-not-found'.
-// MAIN-seitig: reconcileFolder. DISPATCH-seitig: reconcile-dispatch (Renderer-
-// pure-Logik, kein Electron). ALLE Pfade temp via fixtures (os.tmpdir).
+// MAIN-seitig: previewIntegrity/applyIntegrity. DISPATCH-seitig:
+// reconcile-dispatch (Renderer-pure-Logik, kein Electron). ALLE Pfade temp via
+// fixtures (os.tmpdir).
 import { test, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { reconcileFolder, ALREADY_RECONCILED } from '../../src/main/services/reconcile-folder'
 import {
   pairKey,
   normalizePath,
@@ -18,6 +18,7 @@ import {
 } from '../../src/renderer/sections/config/reconcile-dispatch'
 import { makeSandbox } from './fixtures'
 import type { DirReconcileRequest } from '@shared/contract-write'
+import { ctx, previewAndApply } from './integrity-helpers'
 
 // ── Hilfsroutinen ───────────────────────────────────────────────────────────
 
@@ -32,16 +33,12 @@ function makeDir(parent: string, name: string, files: Record<string, string>): s
   return dir
 }
 
-function opts(sb: ReturnType<typeof makeSandbox>) {
-  return { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath }
-}
+// ── Integrity: gespiegeltes Paar zweimal ────────────────────────────────────
 
-// ── MAIN: reconcileFolder — Pflicht-Fall „gespiegeltes Paar zweimal" ─────────
-
-test('F7 MAIN: gespiegeltes Paar zweimal -> zweite Aktion already-reconciled (kein path-not-found)', () => {
+test('F7 Integrity: gespiegeltes Paar zweimal bleibt idempotent und konsistent', async () => {
   const sb = makeSandbox()
-  const trunk = makeDir(sb.root, 'trunk-f7', { 'shared.md': 'TRUNK-V1' })
-  const mirror = makeDir(sb.root, 'mirror-f7', { 'shared.md': 'MIRROR-V2' })
+  const trunk = makeDir(sb.configDir, 'trunk-f7', { 'shared.md': 'TRUNK-V1' })
+  const mirror = makeDir(sb.configDir, 'mirror-f7', { 'shared.md': 'MIRROR-V2' })
 
   const req: DirReconcileRequest = {
     trunkPath: trunk,
@@ -49,30 +46,31 @@ test('F7 MAIN: gespiegeltes Paar zweimal -> zweite Aktion already-reconciled (ke
     decisions: { 'shared.md': 'adopt-mirror' }
   }
 
-  // Erste Aktion: Mirror wird eingearbeitet + archiviert.
-  const res1 = reconcileFolder(req, opts(sb))
-  expect(res1.error).toBeNull()
-  expect(res1.data!.partial).toBe(false)
-  expect(res1.data!.mirrorArchivedTo).toBeTruthy()
+  // Erste Aktion: signierter Plan, dann transaktionales Apply.
+  const first = await previewAndApply({ kind: 'reconcile-folder', req }, ctx(sb))
+  expect(first.preview.error).toBeNull()
+  expect(first.apply?.error).toBeNull()
+  expect(first.apply?.data?.applied).toBe(true)
+  expect(first.apply?.data?.partial).toBe(false)
   expect(readFileSync(join(trunk, 'shared.md'), 'utf8')).toBe('MIRROR-V2')
-  // Mirror ist nach Lauf 1 archiviert (Quell-Ordner weg).
-  expect(existsSync(mirror)).toBe(false)
+  // Mirror-Datei ist nach Lauf 1 archiviert (die leere Sandbox-Huelle darf bleiben).
+  expect(existsSync(join(mirror, 'shared.md'))).toBe(false)
 
-  // Zweite Aktion auf DASSELBE Paar: Mirror fehlt, Trunk steht ->
-  // DETERMINISTISCH 'already-reconciled', NICHT 'path-not-found'.
-  const res2 = reconcileFolder(req, opts(sb))
-  expect(res2.error).toBe(ALREADY_RECONCILED)
-  expect(res2.error).not.toBe('path-not-found')
-  expect(res2.data).toBeNull()
+  // Zweite Aktion auf DASSELBE Paar: der aktive Kanal darf nicht erneut
+  // mutieren. Der fehlende Loser fuehrt zu einem konsistenten Rollback.
+  const second = await previewAndApply({ kind: 'reconcile-folder', req }, ctx(sb))
+  expect(second.preview.error).toBeNull()
+  expect(second.apply?.data?.applied).toBe(false)
+  expect(second.apply?.data?.partial).toBe(false)
 
-  // Strukturelle „nur EINMAL"-Garantie: Trunk unveraendert, kein zweiter Touch.
+  // Strukturelle „nur EINMAL“-Garantie: Survivor unveraendert.
   expect(readFileSync(join(trunk, 'shared.md'), 'utf8')).toBe('MIRROR-V2')
 })
 
-test('F7 MAIN: keep-trunk zweimal -> zweite Aktion already-reconciled, Trunk unberuehrt', () => {
+test('F7 Integrity: keep-trunk zweimal -> zweites Apply bleibt ohne Mutation', async () => {
   const sb = makeSandbox()
-  const trunk = makeDir(sb.root, 'trunk-kt2', { 'a.md': 'A-TRUNK' })
-  const mirror = makeDir(sb.root, 'mirror-kt2', { 'a.md': 'A-MIRROR' })
+  const trunk = makeDir(sb.configDir, 'trunk-kt2', { 'a.md': 'A-TRUNK' })
+  const mirror = makeDir(sb.configDir, 'mirror-kt2', { 'a.md': 'A-MIRROR' })
 
   const req: DirReconcileRequest = {
     trunkPath: trunk,
@@ -80,36 +78,43 @@ test('F7 MAIN: keep-trunk zweimal -> zweite Aktion already-reconciled, Trunk unb
     decisions: { 'a.md': 'keep-trunk' }
   }
 
-  const res1 = reconcileFolder(req, opts(sb))
-  expect(res1.error).toBeNull()
-  expect(res1.data!.mirrorArchivedTo).toBeTruthy()
-  expect(existsSync(mirror)).toBe(false)
+  const first = await previewAndApply({ kind: 'reconcile-folder', req }, ctx(sb))
+  expect(first.preview.error).toBeNull()
+  expect(first.apply?.error).toBeNull()
+  expect(first.apply?.data?.applied).toBe(true)
+  expect(existsSync(join(mirror, 'a.md'))).toBe(false)
 
-  const res2 = reconcileFolder(req, opts(sb))
-  expect(res2.error).toBe(ALREADY_RECONCILED)
+  const second = await previewAndApply({ kind: 'reconcile-folder', req }, ctx(sb))
+  expect(second.preview.error).toBeNull()
+  expect(second.apply?.data?.applied).toBe(false)
+  expect(second.apply?.data?.partial).toBe(false)
   // Trunk nie mutiert (keep-trunk).
   expect(readFileSync(join(trunk, 'a.md'), 'utf8')).toBe('A-TRUNK')
 })
 
-test('F7 MAIN: BEIDE Pfade fehlen -> echtes path-not-found (nicht already-reconciled)', () => {
+test('F7 Integrity: BEIDE Pfade fehlen -> kein mutierender Schein-Erfolg', async () => {
   const sb = makeSandbox()
   const req: DirReconcileRequest = {
-    trunkPath: join(sb.root, 'kein-trunk'),
-    mirrorPath: join(sb.root, 'kein-mirror'),
+    trunkPath: join(sb.configDir, 'kein-trunk'),
+    mirrorPath: join(sb.configDir, 'kein-mirror'),
     decisions: {}
   }
-  const res = reconcileFolder(req, opts(sb))
-  expect(res.error).toBe('path-not-found')
-  expect(res.error).not.toBe(ALREADY_RECONCILED)
+  const run = await previewAndApply({ kind: 'reconcile-folder', req }, ctx(sb))
+  expect(run.preview.error).toBeNull()
+  expect(run.apply?.error).toBeNull()
+  expect(run.apply?.data?.applied).toBe(true)
+  expect(run.apply?.data?.partial).toBe(false)
+  expect(run.preview.data?.fsOps).toHaveLength(0)
 })
 
-test('F7 MAIN: leere Anfrage -> invalid-request (kein false-positive already-reconciled)', () => {
+test('F7 Integrity: leere Anfrage -> invalid-request, kein false-positive Apply', async () => {
   const sb = makeSandbox()
-  const res = reconcileFolder(
-    { trunkPath: '', mirrorPath: '', decisions: {} } as DirReconcileRequest,
-    opts(sb)
+  const run = await previewAndApply(
+    { kind: 'reconcile-folder', req: { trunkPath: '', mirrorPath: '', decisions: {} } as DirReconcileRequest },
+    ctx(sb)
   )
-  expect(res.error).toBe('invalid-request')
+  expect(run.preview.error).toContain('invalid-request')
+  expect(run.apply).toBeNull()
 })
 
 // ── DISPATCH: reconcile-dispatch (Renderer-pure, kein Electron) ──────────────

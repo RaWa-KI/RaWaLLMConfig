@@ -14,8 +14,8 @@ import { isSecretPathForRead } from '../services/secret-guard'
 export const MAX_SCAN_BYTES = 256 * 1024
 
 // Snapshot einer Datei: Text (nur wenn lesbar/erlaubt/<= Cap) + Metadaten.
-// Formate EXAKT wie die bestehenden Helfer (UI-fields haengen daran):
-// mtimeIso wie mtimeSafe (toISOString().slice(0,10)), sizeKb wie sizeKbSafe.
+// Formate EXAKT wie die bestehenden Scan-Metadaten (UI-fields haengen daran):
+// mtimeIso als ISO-Tag, sizeKb mit einer Dezimalstelle.
 export interface FileSnapshot {
   text?: string
   size: number
@@ -42,7 +42,7 @@ export function readFileOnce(absPath: string): FileSnapshot | null {
     return null
   }
   const size = st.size
-  // Format-Paritaet zu mtimeSafe/sizeKbSafe (scan-helpers.ts) — NICHT aendern.
+  // Format-Paritaet zu den bisherigen Scan-Metadaten — NICHT aendern.
   const mtimeIso = st.mtime.toISOString().slice(0, 10)
   const sizeKb = (size / 1024).toFixed(1)
   let text: string | undefined

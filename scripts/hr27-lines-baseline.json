@@ -32,60 +32,8 @@
     "migrations",
     "seeds",
     "memory",
-    "agent-memory"
+    "agent-memory",
+    "audit-runtime"
   ],
-  "knownViolations": {
-    "scripts/qa-matrix-teil-f.mjs": {
-      "lines": 321,
-      "limit": 300
-    },
-    "tests/audit-runtime/erweiterung/handoff-rawasuite/claude-config/app.jsx": {
-      "lines": 1255,
-      "limit": 300
-    },
-    "tests/audit-runtime/erweiterung/handoff-rawasuite/claude-config/refdata.js": {
-      "lines": 419,
-      "limit": 300
-    },
-    "tests/audit-runtime/erweiterung/handoff-rawasuite/claude-config/reference.jsx": {
-      "lines": 332,
-      "limit": 300
-    },
-    "tests/audit-runtime/erweiterung/handoff-rawasuite/claude-config/styles.css": {
-      "lines": 903,
-      "limit": 300
-    },
-    "tests/audit-runtime/erweiterung/handoff-rawasuite/claude-config/tweaks-panel.jsx": {
-      "lines": 541,
-      "limit": 300
-    },
-    "tests/audit-runtime/owner-flow-diag.mjs": {
-      "lines": 574,
-      "limit": 300
-    },
-    "tests/audit-runtime/verify-flows.mjs": {
-      "lines": 323,
-      "limit": 300
-    },
-    "tests/audit-runtime/verify-v4-flows.mjs": {
-      "lines": 1016,
-      "limit": 300
-    },
-    "tests/seed-sandbox.mjs": {
-      "lines": 487,
-      "limit": 300
-    },
-    "tests/write/folder-ops-merge.spec.ts": {
-      "lines": 497,
-      "limit": 300
-    },
-    "tests/write/folder-ops.spec.ts": {
-      "lines": 336,
-      "limit": 300
-    },
-    "tests/write/secret-guard.spec.ts": {
-      "lines": 404,
-      "limit": 300
-    }
-  }
+  "knownViolations": {}
 }

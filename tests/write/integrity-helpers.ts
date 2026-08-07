@@ -4,7 +4,16 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { assertNotRealHome } from './fixtures'
 import type { Sandbox } from './fixtures'
-import type { IntegrityApplyOptions } from '../../src/main/services/integrity/apply-integrity'
+import {
+  applyIntegrity,
+  previewIntegrity,
+  type IntegrityApplyOptions
+} from '../../src/main/services/integrity/apply-integrity'
+import type {
+  IntegrityApplyResult,
+  IntegrityPreviewRequest,
+  IntegrityPreviewResult
+} from '@shared/contract-integrity'
 
 // Kontext-Objekt für alle integrity-Service-Aufrufe.
 export function ctx(sb: Sandbox, extra?: Partial<IntegrityApplyOptions>): IntegrityApplyOptions {
@@ -14,6 +23,20 @@ export function ctx(sb: Sandbox, extra?: Partial<IntegrityApplyOptions>): Integr
     allowedRoots: [sb.configDir],
     ...extra
   }
+}
+
+// Aktiver Testkanal: erst signierten Plan erzeugen, dann genau diesen Plan anwenden.
+export async function previewAndApply(
+  request: IntegrityPreviewRequest,
+  options: IntegrityApplyOptions
+): Promise<{ preview: IntegrityPreviewResult; apply: IntegrityApplyResult | null }> {
+  const preview = await previewIntegrity(request, options)
+  if (preview.error !== null || preview.data === null) return { preview, apply: null }
+  const apply = await applyIntegrity(
+    { plan: preview.data, planHash: preview.data.planHash },
+    options
+  )
+  return { preview, apply }
 }
 
 // Pfad-Separatoren auf Slash normieren (für plattformübergreifende Assertions).

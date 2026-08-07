@@ -98,8 +98,15 @@ function configState(config: AppData | null): AreaState {
     family.categories.flatMap((cat) => cat.entries.map((entry) => ({ familyId, entry }))))
   const scanErrors = config.llms.filter((llm) => llm.scanError).length
   const duplicateCount = familyPairs.reduce((sum, [, family]) => sum + family.duplicates.length, 0)
+  // Warn-Zaehler nutzt DIESELBE Wahrheit wie die Diagnosekarten (B3/WP1):
+  // Katalog-/Endpoint-/Key-Eintraege (fileBacked === false = „Katalog/nicht
+  // geprueft") sind per Design keine Fehler und duerfen den Stempel nicht
+  // aufblahen — ein Laie las sonst beim ersten Start Dutzende Phantom-
+  // Warnungen (Baseline 2026-07-28: „17 Dinge ansehen" bei gesundem System).
   const entryWarnings = entries.filter((item) => (
-    item.entry.status !== 'active' && !isCoverageInfoEntry(item.entry, item.familyId)
+    item.entry.status !== 'active'
+    && item.entry.fileBacked !== false
+    && !isCoverageInfoEntry(item.entry, item.familyId)
   )).length
   const warnings = scanErrors + duplicateCount + entryWarnings
   if (entries.length === 0) return { tone: 'incomplete', warnings, topic }
@@ -110,7 +117,9 @@ function systemState(system: System | null): AreaState {
   const topic = msg('overview.topic.system')
   if (!system) return { tone: 'incomplete', warnings: 0, topic }
   const entries = system.areas.flatMap((area) => area.entries)
-  const warnings = entries.filter((entry) => entry.status !== 'active').length
+  // WP2: Registry-/Katalog-Eintraege (fileBacked === false) sind Zusatzinfo
+  // und zaehlen nicht als Warnung — dieselbe Wahrheit wie die Karten.
+  const warnings = entries.filter((entry) => entry.status !== 'active' && entry.fileBacked !== false).length
   if (entries.length === 0) return { tone: 'incomplete', warnings, topic }
   return { tone: warnings > 0 ? 'warning' : 'ready', warnings, topic }
 }
@@ -178,11 +187,6 @@ function makeReadiness(states: readonly AreaState[]): OverviewReadiness[] {
     name: state.topic,
     state: readinessState(state)
   }))
-}
-
-export function warningSummary(topicCount: number): string {
-  if (topicCount <= 1) return msg('overview.warningSummary.one')
-  return msg('overview.warningSummary.many', { topicCount: String(topicCount) })
 }
 
 function makeTasks(

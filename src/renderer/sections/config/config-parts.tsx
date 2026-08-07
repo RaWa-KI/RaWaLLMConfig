@@ -232,7 +232,11 @@ const STATUS_LABEL: Record<EntryStatus, string> = {
   conflict: 'Konflikte',
   dup: 'Duplikate',
   archived: 'archiviert',
-  acknowledged: 'bestätigt'
+  acknowledged: 'bestätigt',
+  // WP-F4F9: neue neutrale Status (kein „veraltet"-Beleg nötig/möglich).
+  unknown: 'nicht prüfbar',
+  info: 'Beispiel',
+  notConfigured: 'nicht eingerichtet'
 }
 
 // Baut den Treffer-Untertitel: zeigt aktiven Status-Filter und/oder Suchbegriff.

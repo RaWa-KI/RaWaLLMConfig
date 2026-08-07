@@ -2,7 +2,7 @@
 // Read-only: mappt Scanner-Findings auf normale Config-Kategorien.
 import path from 'node:path'
 import fs from 'node:fs'
-import type { Category, ConfigEntry, LlmConfig, Scope } from '@shared/contract'
+import type { Category, ConfigEntry, CoverageItem, LlmConfig, Scope } from '@shared/contract'
 import { normalizePathForCompare } from '@shared/path-compare'
 import { configRoots, workspaceRoots } from '../services/config-roots'
 import type { ConfigRoots } from '../services/config-roots'
@@ -39,31 +39,43 @@ function cat(id: string, label: string, icon: string, p: string, rows: AuditEntr
   if (rows.length === 0) return null
   return {
     id, label, icon, path: p,
-    blurb: `${rows.length} Findings aus read-only Audit-Scannern`,
+    blurb: `${rows.length} Fundstellen aus read-only Audit-Scannern`,
     entries: [summaryEntry(id, label, rows, p)],
   }
 }
+
+// WP-F3: Fundstellen-Kappung an der Datenquelle — die Summary trägt die
+// ersten Einträge als explorierbare Liste, der Renderer zeigt „+ n weitere".
+const COVERAGE_ITEM_CAP = 20
 
 // B10-Buendelung: max. EINE Karte je Audit-Kategorie mit Zaehler (Kartenflut-
 // Fix). Verifiziert: data.audit-Findings laufen NICHT ueber die Diagnose-
 // Karten (isCoverageInfoEntry mit familyId 'audit' filtert sie dort heraus —
 // Register-only seit Masterplan Teil E); die Register-Zeilen entstehen direkt
 // aus diesen Eintraegen, daher sitzt die Buendelung hier an der Datenquelle.
-// Die Summary traegt Zaehler + die ersten Beispiele als Laien-Kontext (HR28).
+// WP-F3: Der Name traegt keine nackte Zahl mehr (F3, Laien-Schreck); der
+// Zaehler steht in desc/fields, die konkreten Fundstellen in coverageItems.
 function summaryEntry(catId: string, label: string, rows: AuditEntry[], p: string): ConfigEntry {
   const examples = rows.slice(0, 3).map((row) => row.name).join(', ')
-  const reason = rows.length <= 3 ? `Befunde: ${examples}` : `${rows.length} Befunde, z. B.: ${examples}`
+  const reason = rows.length <= 3 ? `Fundstellen: ${examples}` : `${rows.length} Fundstellen, z. B.: ${examples}`
   return {
     id: `${catId}-summary`,
-    name: `${rows.length} Befunde`,
+    name: `Prüfergebnisse: ${label}`,
     status: 'conflict',
     scope: 'project',
     path: p,
     desc: reason,
     updated: mtimeSafe(p),
-    fields: { Befunde: String(rows.length), Kategorie: label },
+    fields: { Fundstellen: String(rows.length), Kategorie: label },
     conflictReason: reason,
+    coverageItems: coverageItemsOf(rows),
+    coverageItemsTotal: rows.length,
   }
+}
+
+// Fundstellen-Liste (Name + Pfad), gekappt auf die ersten COVERAGE_ITEM_CAP.
+function coverageItemsOf(rows: AuditEntry[]): CoverageItem[] {
+  return rows.slice(0, COVERAGE_ITEM_CAP).map((row) => ({ name: row.name, path: row.path }))
 }
 
 interface WikilinkScanSpec {

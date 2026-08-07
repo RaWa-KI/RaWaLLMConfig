@@ -20,13 +20,57 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { test, expect } from '@playwright/test'
-import { scanAll } from '../../src/main/scan/scan-index'
-import { scanSystem } from '../../src/main/scan/sys-scan'
-import { GGUF_ROOT } from '../../src/main/scan/llm-scan'
-import { configRoots } from '../../src/main/services/config-roots'
 import type { Category, SystemArea } from '../../shared/contract'
 
-type App = ReturnType<typeof scanAll>
+type DefaultScanApi = {
+  scanAll: typeof import('../../src/main/scan/scan-index').scanAll
+  scanSystem: typeof import('../../src/main/scan/sys-scan').scanSystem
+  configRoots: typeof import('../../src/main/services/config-roots').configRoots
+  GGUF_ROOT: string
+}
+
+type App = ReturnType<DefaultScanApi['scanAll']>
+
+// Vorherige Sandbox-Specs laden bewusst frische Scan-Module und entfernen sie
+// danach aus dem CommonJS-Cache. Ein statischer Import in dieser Live-Root-
+// Spec behielte dann trotzdem die alte Sandbox-Funktionsreferenz. Pro Test
+// wird deshalb ein frischer Default-Modulgraph geladen.
+function bustDefaultScanCache(): void {
+  for (const key of Object.keys(require.cache)) {
+    const normalized = key.replace(/\\/g, '/')
+    if (
+      normalized.includes('/src/main/scan/') ||
+      normalized.includes('/src/main/services/config-roots') ||
+      normalized.includes('/src/main/services/scan-invalidation') ||
+      normalized.includes('/shared/contract')
+    ) {
+      delete require.cache[key]
+    }
+  }
+}
+
+function loadDefaultScanApi(): DefaultScanApi {
+  bustDefaultScanCache()
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  const { scanAll } = require('../../src/main/scan/scan-index') as Pick<DefaultScanApi, 'scanAll'>
+  const { scanSystem } = require('../../src/main/scan/sys-scan') as Pick<DefaultScanApi, 'scanSystem'>
+  const { configRoots } = require('../../src/main/services/config-roots') as Pick<DefaultScanApi, 'configRoots'>
+  const { GGUF_ROOT } = require('../../src/main/scan/llm-scan') as Pick<DefaultScanApi, 'GGUF_ROOT'>
+  /* eslint-enable @typescript-eslint/no-var-requires */
+  return { scanAll, scanSystem, configRoots, GGUF_ROOT }
+}
+
+function defaultPreconditions(api: DefaultScanApi) {
+  const roots = api.configRoots()
+  const kimiRoot = join(dirname(roots.claudeHome), '.kimi-code')
+  return {
+    hasGguf: existsSync(api.GGUF_ROOT),
+    kimiRoot,
+    hasKimi: existsSync(kimiRoot),
+    hasProviderDefaults: existsSync(join(roots.claudeHome, 'CLAUDE.md'))
+      && existsSync(join(roots.codexHome, 'AGENTS.md'))
+  }
+}
 
 // Erwartete Familien (Sidebar/Datenmodell). Optionale Familien duerfen core-first
 // leer bleiben; aktive Core-Familien muessen real befuellt sein.
@@ -56,15 +100,6 @@ const CORE_CATEGORIES: Record<string, string[]> = {
 
 // Precondition: GGUF-Modellverzeichnis (Wechsellaufwerk E:) gemountet?
 // Ohne E: ist comingSoon (Familie 'local' leer) der legitime Scanner-Zustand.
-const hasGguf = existsSync(GGUF_ROOT)
-const defaultRoots = configRoots()
-// Precondition Kimi: das Tool-Home existiert nur, wenn der Kimi-Loader lokal
-// installiert ist. Ohne Home ist die leere Familie der legitime Zustand.
-const kimiRoot = join(dirname(defaultRoots.claudeHome), '.kimi-code')
-const hasKimi = existsSync(kimiRoot)
-const hasProviderDefaults = existsSync(join(defaultRoots.claudeHome, 'CLAUDE.md'))
-  && existsSync(join(defaultRoots.codexHome, 'AGENTS.md'))
-
 function famCount(app: App, fam: string): number {
   return (app.data[fam]?.categories ?? []).reduce((n: number, c: Category) => n + c.entries.length, 0)
 }
@@ -80,18 +115,21 @@ test.beforeEach(() => {
 
 // (a) Determinismus: derselbe Default-Lauf darf nicht zwischen Aufrufen driften.
 test('Determinismus: zwei Default-Scans liefern identische Zahlen', async () => {
-  const a = scanAll()
-  const b = scanAll()
+  const api = loadDefaultScanApi()
+  const a = api.scanAll()
+  const b = api.scanAll()
   for (const fam of FAMILIES) {
     expect(famCount(b, fam)).toBe(famCount(a, fam))
   }
-  expect((await scanSystem()).areas.length).toBe((await scanSystem()).areas.length)
+  expect((await api.scanSystem()).areas.length).toBe((await api.scanSystem()).areas.length)
 })
 
 // (b) Vollstaendigkeit: jede aktive Core-Familie hat >0 Kategorien und >0 Eintraege.
 test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintraege)', async () => {
+  const api = loadDefaultScanApi()
+  const { hasGguf, hasProviderDefaults } = defaultPreconditions(api)
   test.skip(!hasProviderDefaults, 'reale CLAUDE.md-/AGENTS.md-Defaults fehlen')
-  const app = scanAll()
+  const app = api.scanAll()
   for (const fam of REQUIRED_FAMILIES) {
     // 'local' braucht Wechsellaufwerk E: — ohne Mount ist comingSoon
     // (0 Kategorien) legitim; Abdeckung dann via eigenem Skip-Test unten.
@@ -101,7 +139,7 @@ test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintra
     expect(famCount(app, fam), `Familie ${fam} hat keine Eintraege`).toBeGreaterThan(0)
   }
   // System-Areas (Hardware/Runtimes/Ports/MCP/...) sind ebenfalls real befuellt.
-  const system = await scanSystem()
+  const system = await api.scanSystem()
   const hardware = system.areas.find((area: SystemArea) => area.id === 'hardware')
   expect(system.areas.length).toBeGreaterThan(0)
   expect(hardware?.entries.length, 'Hardware-Area darf nicht leer sein').toBeGreaterThan(1)
@@ -109,8 +147,10 @@ test('Vollstaendigkeit: aktive Core-Familien real befuellt (>0 Kategorien/Eintra
 
 // (c) Kern-Kategorien je Familie sind nicht leer (faengt selektive Read-Regression).
 test('Kern-Kategorien je Familie nicht leer (Read-Regression-Fang)', () => {
+  const api = loadDefaultScanApi()
+  const { hasGguf, hasProviderDefaults } = defaultPreconditions(api)
   test.skip(!hasProviderDefaults, 'reale CLAUDE.md-/AGENTS.md-Defaults fehlen')
-  const app = scanAll()
+  const app = api.scanAll()
   for (const [fam, ids] of Object.entries(CORE_CATEGORIES)) {
     if (fam === 'shared' && famCount(app, fam) === 0) continue
     // 'local' nur mit gemountetem E: pruefen (sonst eigener Skip-Test unten).
@@ -126,8 +166,10 @@ test('Kern-Kategorien je Familie nicht leer (Read-Regression-Fang)', () => {
 // geprueft — inklusive der Leitplanke, dass aus credentials/ nur die
 // Ordner-Klassifikation kommt (kein Dateiname, keine Werte).
 test('Familie kimi: ~/.kimi-code real gescannt, credentials nur klassifiziert', () => {
+  const api = loadDefaultScanApi()
+  const { hasKimi, kimiRoot } = defaultPreconditions(api)
   test.skip(!hasKimi, `Kimi-Loader nicht installiert (${kimiRoot} fehlt) — leere Familie ist legitim`)
-  const app = scanAll()
+  const app = api.scanAll()
   const cats = app.data.kimi?.categories ?? []
   expect(cats.map((c: Category) => c.id)).toEqual([
     'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-hooks', 'kimi-workspaces',
@@ -145,8 +187,10 @@ test('Familie kimi: ~/.kimi-code real gescannt, credentials nur klassifiziert', 
 // Report sichtbar bleibt statt still wegzufallen. Mit gemountetem E: werden
 // die local-Invarianten hier REAL geprueft.
 test('Familie local: GGUF-Modelle + Endpoints befuellt (braucht Laufwerk E:)', () => {
-  test.skip(!hasGguf, `Wechsellaufwerk E: nicht gemountet (${GGUF_ROOT} fehlt) — comingSoon ist legitim`)
-  const app = scanAll()
+  const api = loadDefaultScanApi()
+  const { hasGguf } = defaultPreconditions(api)
+  test.skip(!hasGguf, `Wechsellaufwerk E: nicht gemountet (${api.GGUF_ROOT} fehlt) — comingSoon ist legitim`)
+  const app = api.scanAll()
   const cats = app.data.local?.categories ?? []
   expect(cats.length, 'Familie local hat keine Kategorien').toBeGreaterThan(0)
   expect(famCount(app, 'local'), 'Familie local hat keine Eintraege').toBeGreaterThan(0)
@@ -160,8 +204,10 @@ test('Familie local: GGUF-Modelle + Endpoints befuellt (braucht Laufwerk E:)', (
 // kein generisches Secret-Pattern (sk-/ghp_/lange base64) darf roh auftauchen;
 // wo code existiert UND maskiert wurde, muss die ••• -Maske erscheinen.
 test('Secret-Hygiene: keine rohen Secret-Werte in code-Vorschauen', () => {
+  const api = loadDefaultScanApi()
+  const { hasProviderDefaults } = defaultPreconditions(api)
   test.skip(!hasProviderDefaults, 'reale CLAUDE.md-/AGENTS.md-Defaults fehlen')
-  const app = scanAll()
+  const app = api.scanAll()
   // Generische Roh-Secret-Pattern (KEINE echten Werte — nur Form-Heuristik).
   const RAW_SECRET_RX = /(sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{16,})/
   let codeFieldsSeen = 0

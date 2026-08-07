@@ -108,3 +108,8 @@
   padding-top: 4px;
   border-top: 1px solid var(--border);
 }
+
+/* F5 (2026-08-07): Global-Reset entfernt UL-Einzug — Bullets sonst halb ausserhalb der Karte */
+.prefs-expert-details ul {
+  padding-left: 18px;
+}

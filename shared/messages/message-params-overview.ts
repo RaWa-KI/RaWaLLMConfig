@@ -62,7 +62,6 @@ export type OverviewMessageParamsMap = {
   "simpleMode.riskHint": undefined
   "simpleMode.switchGroup": undefined
   "expertDetails.label": undefined
-  "expertDetails.primaryTerm": { term: string }
   "expertDetails.meaning": { meaning: string }
   "expertDetails.technicalName": { term: string }
   "expertDetails.rawTarget": { target: string }
@@ -91,6 +90,11 @@ export type OverviewMessageParamsMap = {
   "diagnostics.panel.title": undefined
   "diagnostics.panel.intro": undefined
   "diagnostics.panel.more": { hiddenCount: string }
+  "diagnostics.nav.label": undefined
+  "diagnostics.summary.link": { count: string }
+  "diagnostics.summary.link.one": undefined
+  "diagnostics.view.blurb": undefined
+  "diagnostics.view.allClear": undefined
   "coverage.panel.title": undefined
   "coverage.panel.intro": undefined
   "coverage.filter.onDemand": undefined
@@ -100,6 +104,8 @@ export type OverviewMessageParamsMap = {
   "coverage.badge.confirmed": undefined
   "coverage.more": undefined
   "coverage.confirmed.simpleLine": { count: string }
+  "coverage.row.simpleExplain": undefined
+  "coverage.items.more": { count: string }
   "coverage.action.ack": undefined
   "coverage.action.ackError": undefined
   "coverage.action.ackDisabled": undefined
@@ -120,6 +126,7 @@ export type OverviewMessageParamsMap = {
   "diagnostics.title.notUsable": undefined
   "diagnostics.meaning.notConfigured": undefined
   "diagnostics.meaning.notFound": undefined
+  "diagnostics.meaning.notFoundAt": { place: string }
   "diagnostics.meaning.unavailable": undefined
   "diagnostics.meaning.paused": undefined
   "diagnostics.meaning.problemFound": undefined
@@ -138,6 +145,8 @@ export type OverviewMessageParamsMap = {
   "diagnostics.target.unknown": { source: string }
   "diagnostics.focus.title": undefined
   "diagnostics.focus.target": { target: string }
+  "diagnostics.focus.details": undefined
+  "diagnostics.focus.dismiss": undefined
   "guidedFlows.firstStart.title": undefined
   "guidedFlows.firstStart.body": undefined
   "guidedFlows.firstStart.target": undefined

@@ -3,14 +3,15 @@
 // (2) Fremd-Home ohne bisherige Ordnerstruktur -> source 'none', kein Crash,
 // (3) Legacy-Migration (Seed + Marker) haelt Bestandsinstallationen unveraendert,
 // (4) Prefs-UI zeigt ungesetzte optionale Wurzeln als "nicht konfiguriert".
-// Env/Provider-Seams wie config-roots.spec.ts; nach jedem Test zuruecksetzen.
+// Explizite Injection (prefs/exists als Argument) statt Modul-Global-Seams —
+// das Global kann zwischen Spec- und src-Instanz divergieren
+// (.claude/debugging.md 2026-07-28).
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import {
-  configRoots, configRootList, discoverConfigRoots,
-  setRootPrefsProvider, setRootExistsProvider
+  configRoots, configRootList, discoverConfigRoots
 } from '../../src/main/services/config-roots'
 import {
   realRoots, legacyRootDefaults, legacyRootPrefsSeed,
@@ -23,8 +24,6 @@ test.beforeEach(() => {
 })
 
 test.afterEach(() => {
-  setRootPrefsProvider(() => ({}))
-  setRootExistsProvider(existsSync)
   delete process.env.RAWALLM_SANDBOX_ROOT
 })
 
@@ -42,16 +41,31 @@ test('realRoots liefert nur noch die Tool-Homes (kein Rechner-Pfad mehr)', () =>
 // Regression-Guard (war auch vor dem Fix gruen): ohne existierende Legacy-Pfade
 // duerfen die optionalen Wurzeln nicht erfunden werden.
 test('Fremd-Home ohne bisherige Ordner: optionale Wurzeln none, kein Crash', () => {
-  setRootPrefsProvider(() => ({}))
-  setRootExistsProvider(() => false)
-  const discovered = discoverConfigRoots()
+  const deps = { prefs: {}, exists: () => false }
+  const discovered = discoverConfigRoots(deps.prefs, deps.exists)
   expect(discovered.sharedClaude).toEqual({ value: null, source: 'none' })
   expect(discovered.workspaceParent).toEqual({ value: null, source: 'none' })
   expect(discovered.projectRoot).toEqual({ value: null, source: 'none' })
-  const roots = configRoots()
+  const roots = configRoots(deps)
   expect(roots.sharedClaude).toBeNull()
   expect(roots.projectRoot).toBeNull()
-  expect(configRootList()).toEqual([roots.claudeHome, roots.codexHome])
+  expect(configRootList(deps)).toEqual([roots.claudeHome, roots.codexHome])
+})
+
+// Owner-Befund 2026-08-07: die Einstellungs-UI speichert den Shared-ORDNER
+// (…\.shared); der Code erwartet die .claude-Ebene darunter. Beide Formen
+// muessen aufloesen — sonst kippen sharedDataRoots/Watcher eine Ebene zu hoch.
+test('sharedClaude-Pref auf <shared> normalisiert auf <shared>/.claude', () => {
+  const shared = join('C:', 'irgendwo', '.shared')
+  const child = join(shared, '.claude')
+  const withChild = discoverConfigRoots({ 'roots.sharedClaude': shared }, (p) => p === child)
+  expect(withChild.sharedClaude).toEqual({ value: child, source: 'prefs' })
+  // Bereits korrekte .claude-Ebene bleibt unveraendert.
+  const direct = discoverConfigRoots({ 'roots.sharedClaude': child }, () => true)
+  expect(direct.sharedClaude).toEqual({ value: child, source: 'prefs' })
+  // Ohne existierendes .claude-Kind wird nichts erfunden.
+  const noChild = discoverConfigRoots({ 'roots.sharedClaude': shared }, () => false)
+  expect(noChild.sharedClaude).toEqual({ value: shared, source: 'prefs' })
 })
 
 test('Migration-Seed: Bestandsinstallation loest unveraendert auf', () => {
@@ -59,44 +73,38 @@ test('Migration-Seed: Bestandsinstallation loest unveraendert auf', () => {
   const hasLegacy = existsSync(legacy.sharedClaude)
     && existsSync(legacy.workspaceParent) && existsSync(legacy.projectRoot)
   test.skip(!hasLegacy, 'keine Bestandsinstallation mit Legacy-Pfaden')
-  setRootExistsProvider(existsSync)
   // (1) Reiner Seed fuellt genau die existierenden, ungesetzten Wurzeln.
-  const seed = legacyRootPrefsSeed({})
+  const seed = legacyRootPrefsSeed({}, existsSync)
   expect(seed).toEqual({
     'roots.sharedClaude': legacy.sharedClaude,
     'roots.workspaceParent': legacy.workspaceParent,
     'roots.projectRoot': legacy.projectRoot
   })
   // (2) Migrierte Prefs (Seed + Marker) = bisherige Aufloesung (Werte identisch).
-  setRootPrefsProvider(() => ({ ...seed, [ROOTS_LEGACY_MIGRATION_KEY]: 'done' }))
-  const migrated = discoverConfigRoots()
+  const migrated = discoverConfigRoots({ ...seed, [ROOTS_LEGACY_MIGRATION_KEY]: 'done' })
   expect(migrated.sharedClaude).toEqual({ value: legacy.sharedClaude, source: 'prefs' })
   expect(migrated.workspaceParent).toEqual({ value: legacy.workspaceParent, source: 'prefs' })
   expect(migrated.projectRoot).toEqual({ value: legacy.projectRoot, source: 'prefs' })
   // (3) Lazy Migration ohne gesetzte Prefs (laeuft beim Start) = Vor-Fix-Aufloesung.
-  setRootPrefsProvider(() => ({}))
-  const lazy = discoverConfigRoots()
+  const lazyDeps = { prefs: {}, exists: existsSync }
+  const lazy = discoverConfigRoots(lazyDeps.prefs, lazyDeps.exists)
   expect(lazy.sharedClaude).toEqual({ value: legacy.sharedClaude, source: 'default' })
   expect(lazy.workspaceParent).toEqual({ value: legacy.workspaceParent, source: 'default' })
   expect(lazy.projectRoot).toEqual({ value: legacy.projectRoot, source: 'default' })
-  expect(configRoots().sharedClaude).toBe(legacy.sharedClaude)
-  expect(configRoots().projectRoot).toBe(legacy.projectRoot)
+  expect(configRoots(lazyDeps).sharedClaude).toBe(legacy.sharedClaude)
+  expect(configRoots(lazyDeps).projectRoot).toBe(legacy.projectRoot)
 })
 
 test('Seed ueberschreibt keine gesetzten Prefs und respektiert den Marker', () => {
-  setRootExistsProvider(() => true)
-  const seed = legacyRootPrefsSeed({ 'roots.projectRoot': 'D:\\Eigen' })
+  const seed = legacyRootPrefsSeed({ 'roots.projectRoot': 'D:\\Eigen' }, () => true)
   expect(seed['roots.projectRoot']).toBeUndefined()
   expect(seed['roots.sharedClaude']).toBeDefined()
-  expect(legacyRootPrefsSeed({ [ROOTS_LEGACY_MIGRATION_KEY]: 'done' })).toEqual({})
-  setRootExistsProvider(() => false)
-  expect(legacyRootPrefsSeed({})).toEqual({})
+  expect(legacyRootPrefsSeed({ [ROOTS_LEGACY_MIGRATION_KEY]: 'done' }, () => true)).toEqual({})
+  expect(legacyRootPrefsSeed({}, () => false)).toEqual({})
 })
 
 test('Marker ohne eigene Prefs: optionale Wurzeln bleiben none', () => {
-  setRootPrefsProvider(() => ({ [ROOTS_LEGACY_MIGRATION_KEY]: 'done' }))
-  setRootExistsProvider(() => true)
-  const discovered = discoverConfigRoots()
+  const discovered = discoverConfigRoots({ [ROOTS_LEGACY_MIGRATION_KEY]: 'done' }, () => true)
   expect(discovered.sharedClaude).toEqual({ value: null, source: 'none' })
   expect(discovered.projectRoot).toEqual({ value: null, source: 'none' })
 })

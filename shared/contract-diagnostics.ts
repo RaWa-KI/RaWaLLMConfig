@@ -41,30 +41,6 @@ export function sanitizeErrorReportRequest(req: unknown): Required<ErrorReportRe
   }
 }
 
-export function sanitizeDiagnosticReport(report: ErrorDiagnosticReport): ErrorDiagnosticReport {
-  const cleanError = sanitizeErrorReportRequest(report.error)
-  return {
-    kind: 'renderer-error',
-    app: {
-      name: cleanText(report.app?.name, 80, 'RaWaLLMConfig'),
-      version: cleanText(report.app?.version, 40, 'unbekannt')
-    },
-    runtime: {
-      platform: cleanText(report.runtime?.platform, 40, 'unbekannt'),
-      electron: cleanText(report.runtime?.electron, 40, ''),
-      chrome: cleanText(report.runtime?.chrome, 40, ''),
-      node: cleanText(report.runtime?.node, 40, '')
-    },
-    timestamp: cleanText(report.timestamp, 40, new Date().toISOString()),
-    error: {
-      message: String(cleanError.message),
-      source: String(cleanError.source),
-      componentStack: cleanError.componentStack ? String(cleanError.componentStack) : null
-    },
-    screenshotDataUrl: cleanScreenshot(report.screenshotDataUrl)
-  }
-}
-
 function cleanOptionalText(value: unknown, max: number): string {
   return typeof value === 'string' && value.trim() ? cleanText(value, max, '') : ''
 }
@@ -85,10 +61,4 @@ function redactLocalPaths(value: string): string {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {}
-}
-
-function cleanScreenshot(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  if (!value.startsWith('data:image/png;base64,')) return null
-  return value.length <= 2_000_000 ? value : null
 }

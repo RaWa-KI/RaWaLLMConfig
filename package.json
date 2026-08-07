@@ -1,6 +1,6 @@
 {
   "name": "rawallmconfig",
-  "version": "0.1.4",
+  "version": "0.1.8",
   "description": "Local desktop app for inspecting and safely managing Claude, Codex, MCP, hooks, local models, and AI workspace configuration.",
   "author": "RaWaLLMConfig contributors",
   "packageManager": "pnpm@11.15.0",
@@ -20,6 +20,8 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:md": "markdownlint-cli2 --config .markdownlint.json README.md CLAUDE.md AGENTS.md ZIELE.md docs/02-planung/INDEX.md docs/02-planung/PLAN-rawallmconfig-modernisierung-nach-rebuild_2026-07-18.md docs/04-berichte/INDEX.md docs/04-berichte/BERICHT-dead-code-cleanup_2026-08-05.md .claude/session-handoff.md",
     "lint:lines": "node scripts/hr27-lines-check.mjs",
     "test": "pnpm test:service",
     "test:service": "pnpm exec playwright test --config tests/write/playwright.config.ts",
@@ -28,6 +30,7 @@
     "smoke:usability": "node scripts/usability-smoke.mjs",
     "smoke:package:linux": "node scripts/linux-package-smoke.mjs",
     "perf:ui": "node scripts/perf-smoke.mjs",
+    "audit:runtime": "node scripts/audit-probe.mjs",
     "verify": "pnpm typecheck && pnpm lint:lines && pnpm test:service && pnpm build && pnpm smoke:ui && pnpm perf:ui",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "dist": "pnpm dist:win",
@@ -44,13 +47,13 @@
     "@codemirror/lang-markdown": "6.5.0",
     "@codemirror/merge": "6.12.1",
     "@codemirror/state": "6.6.0",
-    "@codemirror/view": "6.43.0",
     "chokidar": "^5.0.0",
     "codemirror": "6.0.2",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
@@ -59,6 +62,10 @@
     "electron": "43.1.1",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
+    "eslint": "10.8.0",
+    "globals": "17.9.0",
+    "markdownlint-cli2": "0.23.1",
+    "typescript-eslint": "8.66.0",
     "typescript": "^5.7.0",
     "vite": "8.0.16"
   }

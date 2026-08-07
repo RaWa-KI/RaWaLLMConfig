@@ -24,6 +24,9 @@ import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
 import { setRootPrefsProvider } from './services/config-roots'
 import {
+  refreshCloudProviderPrefs, setCloudProviderEnabledFromPref
+} from './services/cloud-provider-state'
+import {
   legacyRootPrefsSeed, ROOTS_LEGACY_MIGRATION_KEY, type RootPrefs, type RootExists
 } from './services/config-root-resolution'
 
@@ -85,6 +88,9 @@ export async function initPrefsStore(): Promise<void> {
     }
   }
   setRootPrefsProvider(() => _rootPrefs)
+  // WP1: Cloud-Anbieter-Toggles in den synchronen Scan-Cache spiegeln, damit
+  // cloud-scan die Nutzungsabsicht ohne async Prefs-Zugriff kennt.
+  refreshCloudProviderPrefs(_rootPrefs)
 }
 
 function getActiveStore(): PersistencePort {
@@ -132,6 +138,12 @@ export async function handlePrefsSet(req: PrefsSetRequest): Promise<PrefsSetResu
   if (req.key.startsWith('roots.')) {
     refreshRootPrefs(await getActiveStore().getAll())
     markScanCachesStale('write:prefs-roots')
+  }
+  // WP1: Cloud-Anbieter-Toggle -> synchronen Scan-Cache nachziehen und den
+  // Config-Scan invalidieren, damit die Key-Karte ohne App-Neustart erscheint
+  // bzw. verschwindet (reload() des Renderers liest danach frisch).
+  if (setCloudProviderEnabledFromPref(req.key, value)) {
+    markScanCachesStale('write:prefs-cloud-provider')
   }
   return { data: { key: req.key, value }, error: null }
 }

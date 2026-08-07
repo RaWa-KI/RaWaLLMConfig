@@ -113,6 +113,24 @@
   font-weight: 700;
 }
 
+/* WP-F11: Eintrags-Verweis im technischen Detail — dezenter unterstrichener
+   Link statt Button-Optik; öffnet den Drawer des Eintrags. */
+.cfg-diag-ref {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.cfg-diag-ref:hover,
+.cfg-diag-ref:focus-visible {
+  color: var(--text);
+}
+
 .cfg-diag-details em {
   color: var(--warm-gray);
   font-style: normal;

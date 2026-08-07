@@ -69,27 +69,6 @@ function walk(a: string[], b: string[], dp: number[][]): DiffLine[] {
   return out
 }
 
-// Kompakter Fallback bei sehr grossen Dateien (keine Voll-LCS).
-function oversizeDiff(a: string[], b: string[]): DiffLine[] {
-  return [
-    ctxLine(`${DIFF_OVERSIZE_PREFIX} Trunk ${a.length} Zeilen, Mirror ${b.length} Zeilen (zu gross fuer Voll-Diff)`)
-  ]
-}
-
-/**
- * Zeilen-Diff zweier Inhalte (trunk vs. mirror) als DiffLine[].
- * ctx = gleich (both), del = nur Trunk (trunkOnly), add = nur Mirror (mirrorOnly).
- * Gibt keine Secret-Werte aus — Inhalte kommen bereits guard-geprueft herein.
- */
-export function diffLines(trunkContent: string, mirrorContent: string): DiffLine[] {
-  const a = splitLines(trunkContent)
-  const b = splitLines(mirrorContent)
-  if (a.length > MAX_LINES || b.length > MAX_LINES) return oversizeDiff(a, b)
-  if (a.length === 0 && b.length === 0) return []
-  const dp = lcsMatrix(a, b)
-  return walk(a, b, dp)
-}
-
 // Header-Zeile fuer einen gekappten Diff (wird vorangestellt, nie ein Secret-Wert).
 function capNote(a: string[], b: string[]): DiffLine {
   return ctxLine(

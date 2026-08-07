@@ -7,6 +7,7 @@ import { refreshVersions } from './services/cli-version-cache'
 import { getConfigSnapshot } from './services/config-scan-cache'
 import { readFullCore } from './services/read-full'
 import { applySystemOverrides } from './services/system-store'
+import { registerOpenIpc } from './ipc-open'
 import { guarded } from './lib/guarded'
 
 // PHASE-1: Read-only IPC-Registrierung. AUSSCHLIESSLICH ipcMain.handle
@@ -68,6 +69,9 @@ export function registerIpc(): void {
     (_e, req: ReadFullRequest): ReadFullResult =>
       guarded('watcherReadFull', () => readFullCore(req, { credential: false }))
   )
+  // read-only „Zeigen"-Route (WP-F14): system:openPath -> shell.showItemInFolder
+  // mit Secret-Guard; Handler + Kern liegen in ipc-open.ts.
+  registerOpenIpc()
   // Hinweis (Phase 2 / Welle 3): Die neuen Read-Kanaele `config:readFull` (Voll-
   // inhalt via Secret-Guard, in `registerWriteBase()`) und `config:explain`
   // (regelbasiert, in `registerPrefsWrite()`) werden ueber den Write-Registrar-

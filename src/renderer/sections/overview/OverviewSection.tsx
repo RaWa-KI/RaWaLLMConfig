@@ -7,12 +7,12 @@ import { useLocale } from '../../state/store-locale'
 import { useStore } from '../../state/store'
 import { useWriteConfig } from '../../state/store-write-config'
 import type { Section } from '../../state/types'
+import { DIAGNOSIS_CAT_ID } from '../config/diagnosis-cat'
 import { CoverageAckLine, CoverageRegister } from './CoverageRegister'
-import { DiagnosisCards } from './DiagnosisCards'
 import { GuidedFlows } from './GuidedFlows'
 import { StatusStamp } from './StatusStamp'
 import { TaskCard } from './TaskCard'
-import { pickNextDiagnosisCard, type DiagnosisCard } from './diagnosis-model'
+import { pickNextDiagnosisCard } from './diagnosis-model'
 import type { GuidedFlow } from './guided-flows-model'
 import type { OverviewModel, OverviewReadiness, OverviewTask, OverviewTone } from './overview-model'
 import { navigateToOverviewAction, type OverviewNavigationAction } from './overview-navigation'
@@ -39,27 +39,31 @@ export function OverviewSection({ onReopenOnboarding }: { onReopenOnboarding?: (
   const flows = selectGuidedFlows(diagnosisCards, locale)
   // Modus-sicher: erste Diagnose-Karte, deren Route im aktiven Modus sichtbar
   // UND erreichbar ist (Experten-Tabs in den Einstellungen zaehlen im Simple-
-  // Modus als totes Ziel). Diese Karte wird zusaetzlich aus der Diagnose-Liste
-  // herausgefiltert, damit derselbe Befund nicht doppelt (Aktions-Zeile oben
-  // + eigene Karte) erscheint (Befund 2026-07-19).
+  // Modus als totes Ziel). WP3: Die KARTEN selbst leben in der eigenen
+  // Sidebar-Kategorie „Diagnose“ (Config-Sektion); hier bleibt nur die
+  // NextAction plus eine einzeilige Zusammenfassung mit Link dorthin.
   const nextCard = pickNextDiagnosisCard(diagnosisCards, ui.displayMode)
   const nextAction = nextCard?.diagnosisAction ?? model.nextAction
-  const listedDiagnosisCards = nextCard
-    ? diagnosisCards.filter((card) => card.id !== nextCard.id)
-    : diagnosisCards
   const coverageRows = selectCoverageEntries(config.data)
   const ack = useCoverageAck()
+  const onOpenDiagnosis = useCallback(() => {
+    actions.setSearch('')
+    actions.setCatId(DIAGNOSIS_CAT_ID)
+    actions.setMode('overview')
+    actions.setSection('config')
+  }, [actions])
   return (
     <main className="main ov-main">
       <OverviewHead />
       <OverviewModeContent
         displayMode={ui.displayMode}
         model={model}
-        diagnosisCards={listedDiagnosisCards}
+        diagnosisCount={diagnosisCards.length}
         coverageRows={coverageRows}
         flows={flows}
         nextAction={nextAction}
         onOpen={actions.setSection}
+        onOpenDiagnosis={onOpenDiagnosis}
         onAck={ack.onAck}
         ackDisabled={ack.ackDisabled}
         onReopenOnboarding={onReopenOnboarding}
@@ -90,22 +94,24 @@ function useCoverageAck() {
 }
 
 // Verbindliche Zonen-Reihenfolge (Teilplan E, Owner-Entscheid D1-D3 vom
-// 2026-07-18): Stand -> eine sichere Aktion -> echte offene Befunde ->
-// Coverage-Register (nur Experten; Simple bekommt die Bestaetigt-Zeile) ->
-// Bereichswege (GuidedFlows + TaskGrid als eine Zone, in beiden Modi).
+// 2026-07-18): Stand -> eine sichere Aktion -> Diagnose-Einstieg (WP3: nur
+// noch einzeilige Zusammenfassung mit Link in die eigene Sidebar-Kategorie,
+// die Karten selbst sind umgezogen) -> Coverage-Register (nur Experten;
+// Simple bekommt die Bestaetigt-Zeile) -> Bereichswege (GuidedFlows +
+// TaskGrid als eine Zone, in beiden Modi).
 function OverviewModeContent(props: {
   displayMode: 'simple' | 'expert'
   model: OverviewModel
-  diagnosisCards: DiagnosisCard[]
+  diagnosisCount: number
   coverageRows: CoverageEntryRow[]
   flows: GuidedFlow[]
   nextAction: OverviewNavigationAction
   onOpen(section: Section): void
+  onOpenDiagnosis(): void
   onAck(row: CoverageEntryRow): void
   ackDisabled: boolean
   onReopenOnboarding?: () => void
 }) {
-  const { actions } = useStore()
   const acknowledgedCount = props.coverageRows.filter((row) => row.entry.status === 'acknowledged').length
   return (
     <>
@@ -118,12 +124,7 @@ function OverviewModeContent(props: {
         />
       </section>
       <NextAction action={props.nextAction} onOpen={props.onOpen} />
-      <DiagnosisCards
-        cards={props.diagnosisCards}
-        displayMode={props.displayMode}
-        onOpen={props.onOpen}
-        onOpenExpert={(action) => { actions.setDisplayMode('expert'); navigateToOverviewAction(action, actions.setSection) }}
-      />
+      <DiagnosisSummary count={props.diagnosisCount} onOpen={props.onOpenDiagnosis} />
       {props.displayMode === 'simple' && <CoverageAckLine count={acknowledgedCount} />}
       {props.displayMode === 'expert' && <CoverageRegister
         rows={props.coverageRows}
@@ -137,6 +138,24 @@ function OverviewModeContent(props: {
         <TaskGrid tasks={props.model.tasks} displayMode={props.displayMode} onOpen={props.onOpen} />
       </section>
     </>
+  )
+}
+
+// WP3: Einzeiliger Einstieg statt Kartenblock — die dauerhaften Karten
+// liegen in der Sidebar-Kategorie „Diagnose“. Bei null offenen Hinweisen
+// zeigt der Stempel den ruhigen Zustand bereits, die Zeile entfaellt.
+function DiagnosisSummary({ count, onOpen }: { count: number; onOpen(): void }) {
+  if (count <= 0) return null
+  const label = count === 1
+    ? msg('diagnostics.summary.link.one')
+    : msg('diagnostics.summary.link', { count: String(count) })
+  return (
+    <section className="ov-diagsummary" aria-label={msg('diagnostics.nav.label')}>
+      <button type="button" className="btn ghost ov-diagsummary-link" onClick={onOpen}>
+        {Icon.arrow}
+        {label}
+      </button>
+    </section>
   )
 }
 

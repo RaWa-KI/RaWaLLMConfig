@@ -92,6 +92,8 @@ export function kimiSettings(base: string): Category {
  * (secret-class.SECRET_SEGMENTS). Dieser Scanner oeffnet daher KEINE Datei:
  * er liest nur Ordner-Existenz, Ordner-mtime und die ANZAHL der Kinder
  * (readdir-Namen), traegt weder Dateinamen noch Vorschau noch searchKeys.
+ * Die Owner-Sicht auf die vorhandenen Dateien (Name/Groesse/secret-Flag, NIE
+ * Inhalt) laeuft separat ueber den read-only config:listDir-IPC (ipc-list.ts).
  */
 export function kimiCredentials(base: string): Category {
   const dir = path.join(base, 'credentials')
@@ -103,15 +105,15 @@ export function kimiCredentials(base: string): Category {
       status: 'active',
       scope: 'global',
       path: dir,
-      desc: 'Secret-Klasse — Inhalt wird nie gelesen',
+      desc: 'Secret-Klasse — Werte werden nie in Berichte/Logs uebernommen; du siehst hier, welche Dateien vorhanden sind',
       updated: mtime(dir),
       fields: {
         Klasse: 'Secret (credentials-Segment)',
         Dateien: String(listDir(dir).length),
-        Hinweis: 'nur klassifiziert — kein Inhalt, keine Werte',
+        Hinweis: 'Werte nie in Berichten/Logs — Dateinamen und Groesse darfst du sehen',
         Typ: 'dir',
       },
     })
   }
-  return cat('kimi-credentials', 'Secrets', 'gear', dir, 'Secret-Ablage — klassifiziert, nie gelesen', entries)
+  return cat('kimi-credentials', 'Secrets', 'gear', dir, 'Secret-Ablage — Werte nie in Berichte/Logs, vorhandene Dateien sichtbar', entries)
 }

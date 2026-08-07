@@ -7,28 +7,17 @@
 // Zwei SEPARATE Tools (z.B. Claude <-> Codex) werden NIE als Dublette gewertet —
 // Codex ist ein eigenstaendiges Tool, keine Claude-Kopie.
 // verdict = SHA-256-Vergleich der realen ROH-Dateiinhalte (Wahrheit = Hash).
-// WP-D1: Einzeldatei-Paare liefern fuer JEDE Klasse vergleichbare `lines`
-// (Service-API `compareSingleFile` in dedupe-content.ts): same -> alle ctx,
-// diff -> LCS, Secret-Klasse -> MASKIERTE Zeilen (Anzeige maskiert, Verdict aus
-// ROH-SHA), oversize -> gekappter Vergleich + linesTruncated. Ordner-Paare via
-// compareDirs (Inhalt je Datei on-demand). Secret-Werte nie roh ausgegeben.
-// Alle fs-Zugriffe in try/catch.
+// WP-D1: Einzeldatei-Paare liefern fuer JEDE Klasse vergleichbare `lines`.
+// HR27-Split (Plan C): die Paar→Set-Konstruktion (Ordner-/Einzeldatei-Vergleich)
+// liegt in dedupe-set-builder.ts und wird auch von der inhaltsbasierten Stufe
+// (dedupe-content-scan.ts) genutzt. Secret-Werte nie roh ausgegeben.
 
-import type {
-  ConfigEntry,
-  DiffLine,
-  DirCompare,
-  DuplicateSet,
-  LlmConfig,
-  Verdict
-} from '@shared/contract'
-import { isManifestPath, manifestParent } from '@shared/manifest-map'
-import { compareDirs } from './dir-compare'
-import { compareSingleFile } from './dedupe-content'
-import type { SingleFileCompare } from './dedupe-content'
-import { hashFile, isDirSafe, isFileSafe, resolvePath } from './dedupe-fs'
+import type { ConfigEntry, DuplicateSet, LlmConfig } from '@shared/contract'
 import { sameFamilyDifferentRoot } from './dedupe-heuristics'
 import { normalizeCat, normalizeKey } from './dedupe-key'
+import { buildDuplicateSet, hiddenDecisionKeys, isHiddenByDecision, pushUniqueSet } from './dedupe-set-builder'
+import type { DriftDecisionSource } from './drift-relation'
+import { createDriftRelationStore } from './drift-relation-store'
 
 // Pfad-Heuristik fuer denselben-Tool-Mirror (kein echtes zweites Tool).
 const MIRROR_RX = /mirror|studio|spiegel|pre-junction|backup/i
@@ -41,8 +30,19 @@ interface Occurrence {
 }
 
 /** Fuellt je LlmConfig.duplicates (DuplicateSet[]) in-place. Mutiert data. */
-export function findDuplicates(data: Record<string, LlmConfig>): void {
+export function findDuplicates(
+  data: Record<string, LlmConfig>,
+  store: DriftDecisionSource = createDriftRelationStore()
+): void {
   try {
+    // parity/ignored-Decisions verwerfen ihre Sets (WP-F12F13): gewollte
+    // Cross-Root-Paritaets-Kopien zaehlen nicht als Dublette.
+    let hidden = new Set<string>()
+    try {
+      hidden = hiddenDecisionKeys(store.readDecisions())
+    } catch {
+      hidden = new Set<string>()
+    }
     const byName = collectByName(data)
     const out: Record<string, DuplicateSet[]> = {}
     for (const family of Object.keys(data)) out[family] = []
@@ -53,7 +53,7 @@ export function findDuplicates(data: Record<string, LlmConfig>): void {
     }
 
     for (const family of Object.keys(data)) {
-      data[family].duplicates = out[family] ?? []
+      data[family].duplicates = (out[family] ?? []).filter((set) => !isHiddenByDecision(set, hidden))
     }
   } catch (err) {
     fail('findDuplicates', err)
@@ -120,107 +120,11 @@ function buildSetsForName(occ: Occurrence[], out: Record<string, DuplicateSet[]>
       // Trunk = kanonische Seite (Shared); sonst a als Trunk.
       const trunk = b.family === 'shared' ? b : a
       const mirror = trunk === a ? b : a
-      const cmp = compare(trunk, mirror)
       // Set je beteiligter Familie mit deren EIGENER (gueltiger) Kategorie-id.
-      storeSet(out, a.family, a.cat, trunk, mirror, cmp, confidence)
-      if (b.family !== a.family) storeSet(out, b.family, b.cat, trunk, mirror, cmp, confidence)
+      storeSet(out, a.family, a.cat, trunk, mirror, confidence)
+      if (b.family !== a.family) storeSet(out, b.family, b.cat, trunk, mirror, confidence)
     }
   }
-}
-
-// Ergebnis eines Paar-Vergleichs (Einzeldatei ODER Ordner).
-interface CompareResult {
-  verdict: Verdict
-  note: string
-  lines: DiffLine[]
-  dir?: DirCompare
-  masked: boolean // true = lines maskiert (Secret-Klasse) — Anzeige nicht entmaskieren
-  linesTruncated: boolean // true = lines gekappt (Datei zu gross)
-}
-
-/**
- * SHA-256-Vergleich + sprechende Notiz; Verzeichnis-Paare via compareDirs.
- * WP-D1: Einzeldatei-Paare liefern jetzt fuer JEDE Klasse vergleichbare `lines`
- * (same -> alle ctx; diff -> LCS; secret -> maskiert; oversize -> gekappt). Der
- * Verdict bleibt strikt aus dem ROH-SHA (Wahrheit = Hash, Anzeige ggf. maskiert).
- */
-function compare(trunk: Occurrence, mirror: Occurrence): CompareResult {
-  const dirResult = compareAsDirs(trunk, mirror)
-  if (dirResult) return dirResult
-  const ht = hashFile(trunk.entry.path)
-  const hm = hashFile(mirror.entry.path)
-  let verdict: Verdict = 'diff'
-  let detail = 'Inhalt nicht vergleichbar'
-  let comparable = false
-  if (ht !== null && hm !== null) {
-    verdict = ht === hm ? 'same' : 'diff'
-    detail = verdict === 'same' ? 'Inhalt identisch (SHA-256)' : 'Inhalt unterscheidet sich'
-    comparable = true
-  }
-  // Inhalt fuer JEDE Klasse liefern (auch same/secret/oversize) — wiederverwendbare
-  // Service-API (Baum konsumiert dieselben Daten). Verdict bleibt aus ROH-SHA.
-  const content = comparable ? loadSingleContent(trunk, mirror, verdict) : EMPTY_CONTENT
-  return {
-    verdict,
-    note: `${trunk.family} ↔ ${mirror.family}: ${detail}`,
-    lines: content.lines,
-    masked: content.masked,
-    linesTruncated: content.truncated
-  }
-}
-
-// Leeres Inhalts-Ergebnis (wenn ein Hash nicht ermittelbar war).
-const EMPTY_CONTENT: SingleFileCompare = { lines: [], masked: false, truncated: false }
-
-/** Loest beide Pfade auf und liefert die Einzeldatei-Inhalts-Lieferung (Service-API). */
-function loadSingleContent(trunk: Occurrence, mirror: Occurrence, verdict: Verdict): SingleFileCompare {
-  const at = resolvePath(trunk.entry.path)
-  const am = resolvePath(mirror.entry.path)
-  if (!at || !am) return EMPTY_CONTENT
-  return compareSingleFile(at, am, verdict)
-}
-
-/**
- * Verzeichnis-Pfad? Dann rekursiver Ordner-Vergleich (Skills/Agents sind Ordner).
- * Liefert null, wenn nicht beidseitig ein absolutes Verzeichnis ist (-> Einzeldatei).
- * Ordner-Inhalt wird je Datei on-demand im Renderer geladen (dir.files-Pfade),
- * daher set-level lines=[] und masked=false; truncated steckt in dir.truncated.
- */
-function compareAsDirs(trunk: Occurrence, mirror: Occurrence): CompareResult | null {
-  const at = toCompareDir(trunk.entry.path)
-  const am = toCompareDir(mirror.entry.path)
-  if (!at || !am) return null
-  const dir = compareDirs(at, am)
-  if (!dir) return null
-  const clean = dir.diffCount === 0 && dir.trunkOnlyCount === 0 && dir.mirrorOnlyCount === 0
-  const verdict: Verdict = clean ? 'same' : 'diff'
-  const note =
-    `${trunk.family} ↔ ${mirror.family}: Ordner — ${dir.sameCount} gleich, ` +
-    `${dir.diffCount} abweichend, ${dir.trunkOnlyCount} nur Trunk, ${dir.mirrorOnlyCount} nur Mirror`
-  return { verdict, note, lines: [], dir, masked: false, linesTruncated: false }
-}
-
-/**
- * Liefert den zu vergleichenden ORDNER fuer einen Eintragspfad oder null.
- * Scanner-Asymmetrie: Eine Seite zeigt auf den Item-Ordner selbst, die andere
- * auf seine Manifestdatei (SKILL.md/AGENT.md bzw. teams/config.json,
- * plugins/plugin.json). BEIDE Seiten muessen auf denselben Item-Ordner
- * abgebildet werden, damit der rekursive Ordner-Vergleich ALLE innenliegenden
- * Dateien erfasst (nicht nur das Manifest).
- * Echte Einzeldateien (rules/hooks/settings) liefern null -> Einzeldatei-Diff.
- * Manifest-Erkennung + dirname-String kommen ZENTRAL aus @shared/manifest-map
- * (kontext-bewusst); die fs-Checks (isDirSafe/isFileSafe) bleiben hier.
- */
-function toCompareDir(rawPath: string): string | null {
-  const abs = resolvePath(rawPath)
-  if (!abs) return null
-  if (isDirSafe(abs)) return abs
-  // Manifestdatei eines Item-Ordners -> der enthaltende Ordner (String aus Map).
-  if (isFileSafe(abs) && isManifestPath(abs)) {
-    const parent = manifestParent(abs)
-    return isDirSafe(parent) ? parent : null
-  }
-  return null
 }
 
 /** Legt ein DuplicateSet fuer eine Familie mit deren Kategorie-id ab. */
@@ -230,35 +134,22 @@ function storeSet(
   cat: string,
   trunk: Occurrence,
   mirror: Occurrence,
-  cmp: CompareResult,
-  confidence: NonNullable<DuplicateSet['confidence']>
+  confidence: NonNullable<DuplicateSet['confidence']>,
 ): void {
   // Gegenseiten-Familie: ist diese Familie der Trunk, ist die Gegenseite der Mirror,
   // sonst der Trunk. Fuer die shared-Familie ergibt das 'claude' bzw. 'codex' und
   // erlaubt dem Renderer den [Claude|Codex]-Umschalter (nur eine Spiegel-Seite).
-  const mirrorFamily = trunk.family === family ? mirror.family : trunk.family
-  const set: DuplicateSet = {
+  const mirrorFamily = (trunk.family === family ? mirror.family : trunk.family) as NonNullable<DuplicateSet['mirrorFamily']>
+  const set = buildDuplicateSet(
+    family,
     cat,
-    name: trunk.entry.name,
-    verdict: cmp.verdict,
-    trunk: { path: trunk.entry.path, updated: trunk.entry.updated ?? '' },
-    mirror: { path: mirror.entry.path, updated: mirror.entry.updated ?? '' },
-    note: cmp.note,
-    lines: cmp.lines,
-    mirrorFamily: mirrorFamily as DuplicateSet['mirrorFamily'],
-    confidence
-  }
-  if (cmp.dir) set.dir = cmp.dir // nur bei Verzeichnis-Dubletten; Einzeldatei bleibt undefined
-  if (cmp.masked) set.masked = true // Secret-Klasse: Anzeige nicht entmaskieren
-  if (cmp.linesTruncated) set.linesTruncated = true // gekappter Vergleich
-  pushUnique(out, family, set)
-}
-
-/** Set genau einmal pro Familie ablegen (cat + Pfad-Paar als Dedupe-Key). */
-function pushUnique(out: Record<string, DuplicateSet[]>, family: string, set: DuplicateSet): void {
-  const list = out[family] ?? (out[family] = [])
-  const key = `${set.cat}|${set.trunk.path}|${set.mirror.path}`
-  if (!list.some((s) => `${s.cat}|${s.trunk.path}|${s.mirror.path}` === key)) list.push(set)
+    trunk.entry.name,
+    { path: trunk.entry.path, updated: trunk.entry.updated ?? '' },
+    { path: mirror.entry.path, updated: mirror.entry.updated ?? '' },
+    mirrorFamily,
+    confidence,
+  )
+  pushUniqueSet(out[family] ?? (out[family] = []), set)
 }
 
 /** Einheitliches stderr-Logging ohne Secret-/Wert-Ausgabe. */

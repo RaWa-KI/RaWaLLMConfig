@@ -87,7 +87,7 @@ test('Buendelung: 50 Findings einer Audit-Kategorie liefern 1 Karte mit Zaehler'
     const refs = audit.categories.find((cat) => cat.id === 'audit-references')
     expect(refs).toBeDefined()
     expect(refs!.entries).toHaveLength(1)
-    expect(refs!.entries[0].fields?.Befunde).toBe('50')
+    expect(refs!.entries[0].fields?.Fundstellen).toBe('50')
     expect(refs!.blurb).toContain('50')
   } finally {
     rmSync(sb, { recursive: true, force: true })

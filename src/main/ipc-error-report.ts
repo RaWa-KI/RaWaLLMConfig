@@ -1,10 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import type { IpcResult } from '@shared/contract'
-import type {
-  ErrorReportCollectInput,
-  ErrorReportCollectResult,
-  ErrorReportSubmitResult
-} from '@shared/contract-error-report'
+import type { ErrorReportCollectInput } from '@shared/contract-error-report'
 import { IPC_ERROR_REPORT } from '@shared/contract-error-report'
 import { handleErrorReportCollect, handleErrorReportSubmit } from './services/error-report'
 

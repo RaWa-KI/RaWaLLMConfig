@@ -24,6 +24,7 @@ const workbenchShell = read('src/renderer/styles/workbench-shell.css')
 const overviewCss = read('src/renderer/sections/overview/OverviewSection.css')
 const overviewSection = read('src/renderer/sections/overview/OverviewSection.tsx')
 const diagnosisCards = read('src/renderer/sections/overview/DiagnosisCards.tsx')
+const diagnosisView = read('src/renderer/sections/config/DiagnosisView.tsx')
 const settingsActions = read('src/renderer/sections/settings/SettingsActionsPanel.tsx')
 const sectionVisibility = read('src/renderer/state/section-visibility.ts')
 const navVisibility = read('src/renderer/chrome/nav-visibility.ts')
@@ -104,13 +105,21 @@ test('simple mode falls back to overview when ui.section is an expert-only area'
   expect(app).not.toContain('actions.setSection(')
 })
 
-test('settings section shows only the prefs tab in simple mode and all tabs in expert mode', () => {
+test('settings section shows tweaks+updates in simple mode and all tabs in expert mode', () => {
+  // WP-F6: Modus-Flag je Tab — Grundeinstellungen (tweaks) und Updates gehoeren
+  // beiden Modi, sources/modules bleiben Experten-Bereiche.
   expect(settingsSection).toContain("const expert = ui.displayMode === 'expert'")
-  expect(settingsSection).toContain("const activeTab: SettingsTab = expert ? tab : 'tweaks'")
-  expect(settingsSection).toContain('{expert && <SettingsTabs tab={activeTab} onTab={setTab} />}')
-  // Die vier Tabs bleiben im Expert-Modus unveraendert verdrahtet.
-  for (const tab of ['tweaks', 'updates', 'sources', 'modules']) {
-    expect(settingsSection).toContain(`{ id: '${tab}',`)
+  expect(settingsSection).toContain('const visibleTabs = expert ? TABS : TABS.filter((t) => t.simple)')
+  expect(settingsSection).toContain("const activeTab: SettingsTab = visibleTabs.some((t) => t.id === tab) ? tab : 'tweaks'")
+  expect(settingsSection).toContain('<SettingsTabs tabs={visibleTabs} tab={activeTab} onTab={setTab} />')
+  // Die Tab-Leiste rendert in beiden Modi (kein expert-Gate mehr davor).
+  expect(settingsSection).not.toContain('{expert && <SettingsTabs')
+  // Modus-Flags: tweaks/updates simple-faehig, sources/modules Experte.
+  for (const tab of ['tweaks', 'updates']) {
+    expect(settingsSection).toContain(`{ id: '${tab}', labelKey: 'settings.tab.${tab}', icon: '${tab === 'tweaks' ? 'edit' : 'up'}', simple: true }`)
+  }
+  for (const tab of ['sources', 'modules']) {
+    expect(settingsSection).toContain(`{ id: '${tab}', labelKey: 'settings.tab.${tab}', icon: '${tab === 'sources' ? 'folder' : 'plug'}', simple: false }`)
   }
 })
 
@@ -137,8 +146,10 @@ test('review fixes e-wp1: switch visibility, safe routing, settings gating', () 
   // Fix 2: Diagnose-/NextAction-Buttons routen modus-sicher (kein toter Guard-Button).
   // Seit 2026-07-19 ueber actionVisibleForMode (deckt zusaetzlich die Experten-
   // Tabs der Einstellungen ab) statt reiner Sektions-Sichtbarkeit.
+  // WP3: der onOpenExpert-Handler lebt in der DiagnosisView (Sidebar-Kategorie
+  // „Diagnose“); das modus-sichere NextCard-Picking bleibt im Overview.
   expect(overviewSection).toContain('pickNextDiagnosisCard(diagnosisCards')
-  expect(overviewSection).toContain('onOpenExpert')
+  expect(diagnosisView).toContain('onOpenExpert')
   expect(diagnosisCards).toContain('actionVisibleForMode(props.card.diagnosisAction')
   expect(diagnosisCards).toContain('diagnostics.card.openInExpert')
   // Fix 3: Backup/Export/Import-Karte nur im Expert-Modus (Teilplan F: selber

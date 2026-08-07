@@ -27,15 +27,6 @@ const OPENAI_SCOPED_RX = /^sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{16,}$/
 // Anthropic Console-/OAuth-Keys: sk-ant-api03-… / sk-ant-oat01-… (lang).
 const ANTHROPIC_RX = /^sk-ant-(?:api\d{2}|oat\d{2})-[A-Za-z0-9_-]{16,}$/
 
-/**
- * True, wenn der (getrimmte) String ein reales Cloud-API-Key-Format hat
- * (OpenAI scoped / Anthropic / Google AIza). Anker-gebunden -> nur ganze Keys,
- * keine Praefix-Woerter in Prosa. Liefert NIE einen Wert; reine Format-Pruefung.
- */
-export function isCloudKey(v: string): boolean {
-  return CLOUD_KEY_RX.test(v)
-}
-
 // Vereinigtes, anker-gebundenes Set (Einzel-RX als Lesbarkeits-/Test-Quelle).
 export const CLOUD_KEY_RX = new RegExp(
   `(?:${GOOGLE_AIZA_RX.source}|${OPENAI_SCOPED_RX.source}|${ANTHROPIC_RX.source})`

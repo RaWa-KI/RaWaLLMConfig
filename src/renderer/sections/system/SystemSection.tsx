@@ -5,7 +5,8 @@ import { Icon } from '../../components/Icon'
 import { FocusNotice } from '../../components/FocusNotice'
 import { Pill } from '../../components/Pill'
 import { WriteModeBanner } from '../../components/WriteModeBanner'
-import { readOverviewFocus } from '../overview/overview-navigation'
+import { readOverviewFocus, clearOverviewFocus } from '../overview/overview-navigation'
+import { useOverviewFocusVersion } from '../overview/use-overview-focus'
 import { SystemEntryDetail } from './SystemEntryDetail'
 import './SystemSection.css'
 
@@ -15,16 +16,28 @@ import './SystemSection.css'
 export function SystemSection() {
   const { system, ui, actions } = useStore()
   const data = system.data
+  // WP-F2: Der Effekt steht VOR dem Early-Return (Hook-Ordnung — sonst
+  // „Rendered more hooks" beim Nachladen der Daten) und wendet einen
+  // anstehenden Fokus genau einmal an; danach wird er verworfen, weil er
+  // sonst bei jedem Render zurueck auf den Fokus-Bereich zwang und die
+  // gesamte Navigation blockierte. Routen-Sweep 2026-08-07: Die Fokus-Version
+  // haengt in den Abhaengigkeiten, damit ein Diagnose-Klick auch wirkt, wenn
+  // System bereits die aktive Sektion ist (Same-Section-Navigation).
+  const focusVersion = useOverviewFocusVersion()
+  useEffect(() => {
+    if (!data) return
+    const focus = readOverviewFocus('system')
+    if (!focus) return
+    clearOverviewFocus()
+    const focusArea = focus.focusId?.match(/^system-entry-([^-]+)-/)?.[1]
+    if (focusArea && focusArea !== ui.sysArea && data.areas.some((a) => a.id === focusArea)) {
+      actions.setSysArea(focusArea)
+    }
+  }, [actions, data, focusVersion, ui.sysArea])
   if (!data) return <SystemEmpty error={system.error} loading={system.loading} />
 
   const areas = data.areas
   const area = areas.find((a) => a.id === ui.sysArea) ?? areas[0]
-  useEffect(() => {
-    const focusArea = readOverviewFocus('system')?.focusId?.match(/^system-entry-([^-]+)-/)?.[1]
-    if (focusArea && focusArea !== ui.sysArea && areas.some((a) => a.id === focusArea)) {
-      actions.setSysArea(focusArea)
-    }
-  }, [actions, areas, ui.sysArea])
 
   if (!area) return <SystemEmpty error={null} loading={false} />
 

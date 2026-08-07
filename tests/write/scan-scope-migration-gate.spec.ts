@@ -23,9 +23,7 @@ import { scanAll } from '../../src/main/scan/scan-index'
 import {
   configRoots, configWatchRootList, workspaceRoots
 } from '../../src/main/services/config-roots'
-import {
-  discoverConfigRoots, setRootPrefsProvider, setRootExistsProvider
-} from '../../src/main/services/config-root-resolution'
+import { discoverConfigRoots } from '../../src/main/services/config-root-resolution'
 import type { Category } from '../../shared/contract'
 
 // Historische Vor-Fix-Wurzeln, exakt der Algorithmus aus Commit 2df5fb4
@@ -47,35 +45,35 @@ const hatLegacyPfade = existsSync(vorher.sharedClaude) && existsSync(vorher.proj
 
 test.beforeEach(() => {
   delete process.env.RAWALLM_SANDBOX_ROOT
-  // Leere Prefs = Bestandsinstallation VOR dem ersten Start der neuen Version
-  // (lazy Migration-Seed greift, genau wie nach der persistenten Migration).
-  setRootPrefsProvider(() => ({}))
 })
 
-test.afterEach(() => {
-  setRootPrefsProvider(() => ({}))
-  setRootExistsProvider(existsSync)
-})
+// Explizite Injection statt Modul-Global-Seams (debugging.md 2026-07-28):
+// leere Prefs = Bestandsinstallation VOR dem ersten Start der neuen Version
+// (lazy Migration-Seed greift, genau wie nach der persistenten Migration);
+// existsSync = Produktions-Existenzpruefung auf dieser Maschine.
+const gateDeps = { prefs: {}, exists: existsSync }
 
 test('WP-7-Gate: Wurzel-Mengen vorher/nachher byte-identisch (Migration)', () => {
   test.skip(!hatLegacyPfade, 'keine Bestandsinstallation mit Legacy-Pfaden (Fremd-Setup)')
-  const discovered = discoverConfigRoots()
+  const discovered = discoverConfigRoots(gateDeps.prefs, gateDeps.exists)
   expect(discovered.sharedClaude.value).toBe(vorher.sharedClaude)
   expect(discovered.projectRoot.value).toBe(vorher.projectRoot)
   expect(discovered.workspaceParent.value).toBe(join(homedir(), 'Desktop', 'Projekte'))
-  const roots = configRoots()
+  const roots = configRoots(gateDeps)
   expect(roots.claudeHome).toBe(vorher.claudeHome)
   expect(roots.codexHome).toBe(vorher.codexHome)
   expect(roots.sharedClaude).toBe(vorher.sharedClaude)
   expect(roots.projectRoot).toBe(vorher.projectRoot)
   // Watcher-/Scan-Basis: dieselben vier Wurzeln wie vor dem Paket.
-  expect(configWatchRootList()).toEqual([
+  expect(configWatchRootList(gateDeps)).toEqual([
     vorher.claudeHome, vorher.codexHome, vorher.sharedClaude, vorher.projectRoot
   ])
 })
 
 test('WP-7-Gate: workspaceRoots unveraendert (Parent + Registry, nur Label neu)', () => {
   test.skip(!hatLegacyPfade, 'keine Bestandsinstallation mit Legacy-Pfaden (Fremd-Setup)')
+  // workspaceRoots laeuft bewusst ueber den Produktionspfad (Default-Provider
+  // = leere Prefs + echter fs-Check) — das Gate misst die reale Aufloesung.
   const ws = workspaceRoots()
   expect(ws.length).toBeGreaterThan(0)
   expect(ws[0]!.root).toBe(join(homedir(), 'Desktop', 'Projekte'))
@@ -110,7 +108,7 @@ test('WP-7-Gate: Vollscan nachher vollstaendig + deterministisch + Evidenz-Dump'
     join(dir, 'scan-nachher.json'),
     JSON.stringify({
       stand: '2026-07-27', gate: 'WP-7 Scan-Umfang unveraendert (WP-11+WP-12)',
-      wurzeln: configWatchRootList(), familien: dump
+      wurzeln: configWatchRootList(gateDeps), familien: dump
     }, null, 2),
     'utf8'
   )

@@ -50,7 +50,7 @@ async function onboardingVisible(win) {
 }
 
 async function assertNotBlank(win, result) {
-  await win.locator('body').waitFor({ state: 'visible', timeout: 10_000 })
+  await win.locator('body').waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
   const textLength = await win.evaluate(() => document.body?.innerText?.trim().length ?? 0)
   const overlay = await win.locator('text=/vite|webpack|error overlay/i').count().catch(() => 0)
   result.steps.push({ id: 'not-blank', textLength, overlay })

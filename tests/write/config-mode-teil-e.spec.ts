@@ -13,6 +13,8 @@ import { normalizeCat } from '../../shared/cat-key'
 // (tests/write hat bewusst kein Browser-Setup — Muster: nav-visibility-teil-e.spec.ts).
 
 const configSection = read('src/renderer/sections/config/ConfigSection.tsx')
+// WP3 (HR27-Split): die Sidebar lebt in ihrer eigenen Datei.
+const categorySidebar = read('src/renderer/sections/config/CategorySidebar.tsx')
 const modeTabs = read('src/renderer/sections/config/CategoryModeTabs.tsx')
 const diffView = read('src/renderer/sections/config/DiffView.tsx')
 const dirDiffView = read('src/renderer/sections/config/DirDiffView.tsx')
@@ -104,7 +106,7 @@ test('categoryLabel projects simple everyday names and expert technical labels',
 })
 
 test('category name projection is wired into sidebar, head, search rows and dup rows', () => {
-  expect(configSection).toContain('categoryLabel(ui.displayMode, c)')
+  expect(categorySidebar).toContain('categoryLabel(ui.displayMode, c)')
   expect(configSection).toContain('categoryLabel(ui.displayMode, cat)')
   expect(configParts).toContain('categoryLabel(ui.displayMode, cat)')
   expect(duplicatePanel).toContain('categoryLabel(ui.displayMode, cat)')
@@ -131,9 +133,10 @@ test('WP-9: userglobal labels keep their source prefix in both modes', () => {
 })
 
 test('WP-9: sidebar groups categories by source and keeps the axis filter', () => {
-  // Gruppierung + Zwischenueberschrift statt flacher Liste.
-  expect(configSection).toContain('groupCategoriesBySource(ad.categories)')
-  expect(configSection).toContain('{g.title && <div className="side-label">{g.title}</div>}')
+  // Gruppierung + Zwischenueberschrift statt flacher Liste (seit WP3 in
+  // CategorySidebar.tsx, HR27-Split).
+  expect(categorySidebar).toContain('groupCategoriesBySource(ad.categories)')
+  expect(categorySidebar).toContain('{g.title && <div className="side-label">{g.title}</div>}')
   // Filter/Dedupe der Kategorie laufen weiter ueber die normalisierte Achse.
   expect(configSection).toContain('const catAxis = normalizeCat(cat.id)')
   expect(configSection).toContain('normalizeCat(d.cat) === catAxis')

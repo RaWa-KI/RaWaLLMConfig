@@ -3,7 +3,8 @@
 //  (1) Env gesetzt -> OpenAI-Key-Status 'gesetzt' (fields.Status), status 'active'.
 //  (2) LEAK-NEGATIVTEST: der gesetzte Dummy-Wert taucht in JSON.stringify(result)
 //      NIRGENDS auf (kein Wert-Leak in id/name/desc/fields).
-//  (3) Env nicht gesetzt -> Status 'nicht gesetzt', status 'stale'.
+//  (3) Env nicht gesetzt -> Status 'nicht gesetzt', status 'notConfigured'
+//      (WP-F4F9: „nicht eingerichtet", NIEMALS 'stale' ohne Versionsbeleg).
 // Lauf via scanProvider(cloudManifest) (Engine, roots: [] -> synthetische Basis).
 // Der Dummy-Wert ist ein offensichtlicher Test-Marker, KEIN echter Key.
 import { test, expect } from '@playwright/test'
@@ -35,13 +36,26 @@ test('D3 LEAK-NEGATIVTEST: der gesetzte Dummy-Wert kommt im Ergebnis NICHT vor',
   expect(serialized.includes(DUMMY), 'Key-Wert darf nirgends im Output stehen').toBe(false)
 })
 
-test('D3: ohne gesetzte Env -> OpenAI-Key-Status "nicht gesetzt", status stale', () => {
+test('D3: ohne gesetzte Env -> OpenAI-Key-Status "nicht gesetzt", status notConfigured', () => {
   delete process.env.OPENAI_API_KEY
   const result = scanProvider(cloudManifest)
   const openai = result.categories.find((c) => c.id === 'cloud-openai')!
   const key = openai.entries.find((e) => e.id === 'cloud-openai-key')!
   expect(key.fields?.['Status']).toBe('nicht gesetzt')
-  expect(key.status).toBe('stale')
+  expect(key.status).toBe('notConfigured')
+})
+
+test('F4F9: Cloud-Manifest enthaelt KEINEN stale-Eintrag (Modelle info, Keys active/notConfigured)', () => {
+  delete process.env.OPENAI_API_KEY
+  const result = scanProvider(cloudManifest)
+  const entries = result.categories.flatMap((c) => c.entries)
+  expect(entries.length).toBeGreaterThan(0)
+  expect(entries.filter((e) => e.status === 'stale'), 'kein stale ohne Versionsbeleg').toEqual([])
+  // Modell-Beispiele sind neutral 'info'.
+  const model = result.categories
+    .find((c) => c.id === 'cloud-openai')!
+    .entries.find((e) => e.id === 'cloud-openai-gpt-4o')!
+  expect(model.status).toBe('info')
 })
 
 test('D3: alle drei Provider als Kategorie, Reihenfolge OpenAI/Anthropic/Gemini', () => {

@@ -25,11 +25,16 @@ import './MergeEditor.css'
 // Save-Quelle ist IMMER der vollstaendige Editor-Inhalt (readFull-Stand des Aufrufers),
 // nie maskierter/gekappter Text — secret/masked Paare rendern gar keinen MergeEditor.
 
+import type { DiffLabels } from '@shared/contract'
+
 interface MergeEditorProps {
   trunkPath: string
   mirrorPath: string
   initialTrunk: string
   initialMirror: string
+  // Optional: ehrliche Intra-Familien-Labels (Fundstelle A/B) fuer die
+  // Spaltenkoepfe; ohne labels bleibt der Bestand (Shared/Kopie) unveraendert.
+  labels?: DiffLabels
 }
 
 // Sprach-Extension nach Dateiendung (Default: keine).
@@ -73,7 +78,7 @@ function sideConfig(doc: string, path: string, writeEnabled: boolean, onChange: 
 }
 
 export function MergeEditor(props: MergeEditorProps) {
-  const { trunkPath, mirrorPath, initialTrunk, initialMirror } = props
+  const { trunkPath, mirrorPath, initialTrunk, initialMirror, labels } = props
   const { writeEnabled, writeReason, editEntry } = useWriteConfig()
   const { ui } = useStore()
   const seite = seiteForFamily(ui.llm)
@@ -89,7 +94,7 @@ export function MergeEditor(props: MergeEditorProps) {
 
   return (
     <div className="merge-editor">
-      <MergeColHead trunkPath={trunkPath} mirrorPath={mirrorPath} seite={seite} />
+      <MergeColHead trunkPath={trunkPath} mirrorPath={mirrorPath} seite={seite} labels={labels} />
       <div className="merge-host-wrap">
         <div ref={hostRef} className="merge-host" />
         <MergeArrows rows={rows} disabled={!writeEnabled} onAdopt={onAdopt} />

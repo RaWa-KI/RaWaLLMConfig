@@ -1,11 +1,11 @@
-// cloud-key-lifecycle.spec.ts — D5: duenne Schicht ueber env-migrate. Migriert
-// einen Cloud-API-Key auf eine Env-Variable: backup-first, atomar, Wert NIEMALS
+// cloud-key-lifecycle.spec.ts — D5: direkte Abdeckung des aktiven env-migrate-
+// Pfads fuer einen Cloud-API-Key: backup-first, atomar, Wert NIEMALS
 // im Ergebnis/Log. ALLE Laeufe in der temp-Sandbox (fixtures.ts); setEnv ist
 // IMMER ein Fake-Recorder — KEIN Spec mutiert die reale User-Env oder spawnt
 // powershell.exe. Fixture-Werte sind offensichtliche Fake-Cloud-Keys.
 import { test, expect } from '@playwright/test'
 import { readFileSync, existsSync } from 'node:fs'
-import { migrateCloudKeyToEnv } from '../../src/main/services/cloud-key-lifecycle'
+import { envMigrate } from '../../src/main/services/env-migrate'
 import { setWriteEnabledRuntime } from '../../src/main/services/write-mode'
 import { makeSandbox, seedFile } from './fixtures'
 
@@ -23,6 +23,22 @@ function makeRecorder(result = true) {
   return { calls, setEnv }
 }
 
+function runEnvMigrate(
+  input: { configPath: string; varName: string },
+  deps: {
+    archiveRoot?: string
+    auditPath?: string
+    setEnv?: (varName: string, value: string) => boolean
+  }
+) {
+  return envMigrate(
+    { path: input.configPath, varName: input.varName },
+    deps.archiveRoot,
+    deps.auditPath,
+    deps.setEnv
+  )
+}
+
 // Format-treuer FAKE-Cloud-Key (eindeutig Dummy, kein echter Key). Das Provider-
 // Muster wird nicht als zusammenhaengendes Literal abgelegt, damit Public-Repo-
 // Secret-Scanner den Test-Fixture nicht als echten Leak melden.
@@ -33,13 +49,14 @@ test('migriert Cloud-Key auf ${VAR}: backup-first, atomar, wertfrei', () => {
   const sb = makeSandbox()
   const file = seedFile(sb, 'config.toml', `model = gpt-x\napi_key = ${FAKE_KEY}\n`)
   const rec = makeRecorder()
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'ANTHROPIC_API_KEY' },
     { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
-  expect(res.ok).toBe(true)
-  expect(res.varName).toBe('ANTHROPIC_API_KEY')
-  expect(res.action).toBe('migrated')
+  expect(res.error).toBeNull()
+  expect(res.data?.varName).toBe('ANTHROPIC_API_KEY')
+  expect(res.data?.varSet).toBe(true)
+  expect(res.data?.rewritten).toBe(true)
   // Recorder bekam exakt den Cloud-Key der Credential-Zeile (nicht 'gpt-x').
   expect(rec.calls).toHaveLength(1)
   expect(rec.calls[0].value).toBe(FAKE_KEY)
@@ -56,13 +73,13 @@ test('backup-first: Pre-Snapshot unter archiveRoot mit altem Inhalt', () => {
   const sb = makeSandbox()
   const file = seedFile(sb, 'config.toml', `api_key = ${FAKE_KEY}\n`)
   const rec = makeRecorder()
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'CLOUD_KEY' },
     { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
-  expect(res.ok).toBe(true)
-  expect(res.backupPath).toBeTruthy()
-  const bp = String(res.backupPath)
+  expect(res.error).toBeNull()
+  expect(res.data?.backupPath).toBeTruthy()
+  const bp = String(res.data?.backupPath)
   expect(existsSync(bp)).toBe(true)
   const norm = bp.replace(/\\/g, '/')
   expect(norm.startsWith(sb.archiveRoot.replace(/\\/g, '/'))).toBe(true)
@@ -76,7 +93,7 @@ test('Leak-Negativtest: Key-Wert nie im Ergebnis (JSON.stringify)', () => {
   const sb = makeSandbox()
   const file = seedFile(sb, 'config.toml', `api_key = ${FAKE_KEY}\n`)
   const rec = makeRecorder()
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'CLOUD_KEY' },
     { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
@@ -93,12 +110,12 @@ test('setEnv-Fehler: ok=false, action=env-set-failed, Datei unveraendert', () =>
   const body = `api_key = ${FAKE_KEY}\n`
   const file = seedFile(sb, 'config.toml', body)
   const rec = makeRecorder(false)
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'CLOUD_KEY' },
     { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
-  expect(res.ok).toBe(false)
-  expect(res.action).toBe('env-set-failed')
+  expect(res.data?.varSet).toBe(false)
+  expect(res.error).toBe('env-set-failed')
   expect(readFileSync(file, 'utf8')).toBe(body)
 })
 
@@ -110,12 +127,12 @@ test('No-Data-Loss: ohne herstellbares Backup -> Fehler, kein Schreiben', () => 
   const file = seedFile(sb, 'config.toml', body)
   const rec = makeRecorder()
   // Ungueltiger Archiv-Root (leer) -> exportSnapshot scheitert -> Abbruch.
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'CLOUD_KEY' },
     { archiveRoot: '', auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
-  expect(res.ok).toBe(false)
-  expect(res.action).toBe('backup-failed')
+  expect(res.data).toBeNull()
+  expect(res.error).toMatch(/^backup-failed:/)
   expect(rec.calls).toHaveLength(0) // Env NIE gesetzt
   expect(readFileSync(file, 'utf8')).toBe(body) // kein Rewrite
 })
@@ -127,12 +144,12 @@ test('Schreibmodus AUS: ok=false, action=write-disabled, keine Mutation', () => 
   const body = `api_key = ${FAKE_KEY}\n`
   const file = seedFile(sb, 'config.toml', body)
   const rec = makeRecorder()
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'CLOUD_KEY' },
     { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
-  expect(res.ok).toBe(false)
-  expect(res.action).toBe('write-disabled')
+  expect(res.data).toBeNull()
+  expect(res.error).toContain('Bearbeiten ist ausgeschaltet')
   expect(rec.calls).toHaveLength(0)
   expect(readFileSync(file, 'utf8')).toBe(body)
 })
@@ -143,12 +160,12 @@ test('ungueltiger varName: ok=false, action=invalid-var, keine Mutation', () => 
   const body = `api_key = ${FAKE_KEY}\n`
   const file = seedFile(sb, 'config.toml', body)
   const rec = makeRecorder()
-  const res = migrateCloudKeyToEnv(
+  const res = runEnvMigrate(
     { configPath: file, varName: 'bad-name!' },
     { archiveRoot: sb.archiveRoot, auditPath: sb.auditPath, setEnv: rec.setEnv }
   )
-  expect(res.ok).toBe(false)
-  expect(res.action).toBe('invalid-var')
+  expect(res.data).toBeNull()
+  expect(res.error).toBe('invalid-request: varName ungueltig')
   expect(rec.calls).toHaveLength(0)
   expect(readFileSync(file, 'utf8')).toBe(body)
 })

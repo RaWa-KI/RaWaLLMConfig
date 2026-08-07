@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import type { ElectronApi, ListDirRequest, ListDirData, IpcResult } from '@shared/contract'
+import type { OpenPathRequest, OpenPathData } from '@shared/channels'
 import type { WriteApi } from '@shared/contract-write'
 import type { UpdatesApi } from '@shared/contract-updates'
 import type {
@@ -34,6 +35,12 @@ interface RefreshApi {
   refreshVersions(): Promise<IpcResult<boolean>>
 }
 
+// Read-only „Zeigen" (WP-F14): Pfad im Datei-Manager anzeigen (system:openPath;
+// Main: shell.showItemInFolder + Secret-Guard). Signatur exakt wie Preload.
+interface OpenPathApi {
+  openPath(req: OpenPathRequest): Promise<IpcResult<OpenPathData>>
+}
+
 // Read-only graphify-Ingest (Graph-Sektion). Eigene Bridge-Methode analog
 // ListDirApi, weil contract-write/WriteApi sie nicht fuehrt. Signatur exakt wie
 // Preload-`GraphApi` (graphIngest -> IpcResult<GraphIngestAll>). Nur Metadaten.
@@ -54,7 +61,7 @@ interface CompareApi {
 // Optional, weil die Bridge im Browser-/Test-Kontext fehlen kann.
 declare global {
   interface Window {
-    electronAPI?: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & DriftApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi }
+    electronAPI?: ElectronApi & WriteApi & UpdatesApi & ListDirApi & RefreshApi & OpenPathApi & GraphApi & CompareApi & ArchiveApi & SourcesApi & IntegrityApi & ConfigWatcherFsApi & DiagnosticsApi & CoverageApi & DriftApi & { integrations: IntegrationsApi; errorReport: ErrorReportApi }
   }
 }
 

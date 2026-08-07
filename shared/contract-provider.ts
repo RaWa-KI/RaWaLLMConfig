@@ -17,6 +17,14 @@ import type { Category, ConfigEntry, DiffLabels, LlmConfig } from './contract'
 // sandbox-Verlegung bleibt automatisch erhalten, ohne realRoots() zu duplizieren.
 export type ConfigRootKey = 'claudeHome' | 'codexHome' | 'sharedClaude' | 'projectRoot'
 
+// ── Cloud-Auth-Modus (WP-F7) ──────────────────────────────────────────────
+// Nutzerwahl je Cloud-Provider, wie der Zugang laeuft: 'apiKey' = Env-Key-
+// Pruefung (Bestandsverhalten), 'oauth' = Login im jeweiligen Tool — die App
+// zeigt dann KEINE Key-Karte, sondern einen neutralen Hinweis. Persistiert als
+// Pref `cloudProvider.<id>.authMode`; ungesetzt (null) = bisheriges Verhalten
+// (Key-Pruefung). KEIN OAuth-Flow in der App — nur Modus-Wahl + ehrlicher Status.
+export type CloudAuthMode = 'apiKey' | 'oauth'
+
 export interface ProviderRoot {
   // Welche der vier configRoots()-Wurzeln diese Provider-Basis ist. Optional:
   // ein reiner `fixedRoot`-Provider (z.B. lokaler GGUF-Ordner) oder ein metadaten-only

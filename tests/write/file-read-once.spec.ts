@@ -1,6 +1,6 @@
 // file-read-once.spec.ts — Scan-Fundament (WP15): readFileOnce-Snapshot,
-// Size-Cap, Secret-Skip, Format-Paritaet der Metadaten (mtimeIso/sizeKb wie
-// mtimeSafe/sizeKbSafe — UI-fields haengen daran), Paritaet
+// Size-Cap, Secret-Skip, Format-Paritaet der Metadaten (mtimeIso/sizeKb —
+// UI-fields haengen daran), Paritaet
 // extractSearchKeysFromText <-> extractSearchKeys und readPreview-Cap.
 // Reine Node-Sandbox-Tests (mkdtempSync via fixtures), NIE reale Config.
 import fs from 'node:fs'
@@ -26,8 +26,8 @@ test('Datei < Cap: text gesetzt, size/sizeKb/mtimeIso exakt im Bestands-Format',
   expect(snap!.text).toBe(content)
   const st = fs.statSync(p)
   expect(snap!.size).toBe(st.size)
-  // Format-Paritaet: sizeKb wie sizeKbSafe ((size/1024).toFixed(1)),
-  // mtimeIso wie mtimeSafe (toISOString().slice(0,10)).
+  // Format-Paritaet: sizeKb mit einer Dezimalstelle,
+  // mtimeIso als ISO-Tag.
   expect(snap!.sizeKb).toBe((st.size / 1024).toFixed(1))
   expect(snap!.mtimeIso).toBe(st.mtime.toISOString().slice(0, 10))
   expect(snap!.mtimeIso).toMatch(/^\d{4}-\d{2}-\d{2}$/)

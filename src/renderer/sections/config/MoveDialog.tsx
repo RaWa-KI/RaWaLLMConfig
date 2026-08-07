@@ -255,8 +255,8 @@ function MoveFooter(p: MoveFooterProps) {
   return (
     <>
       <div className="mvd-effect">
-        {/* Wortlaut deckungsgleich mit verschiebenWirkung() (@shared/dup-labels);
-            hier mit <strong>-Hervorhebung gerendert, daher inline statt flacher Helper. */}
+        {/* Wortlaut aus den Shared-Labels; mit <strong>-Hervorhebung gerendert,
+            daher inline statt eines flachen Helpers. */}
         <strong>{p.whatLabel}</strong> ({sideLabel(p.version)}) wandert nach <strong>{p.effPath}</strong> ·{' '}
         {SICHERUNG.vorher}.
       </div>

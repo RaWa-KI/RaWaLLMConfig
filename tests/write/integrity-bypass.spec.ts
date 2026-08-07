@@ -1,18 +1,13 @@
-// integrity-bypass.spec.ts — behavioraler Beweis (W6), dass KEINE alte Mutations-
-// Route Referenzen liegen laesst. Insbesondere: ORDNER-Moves ueber
-// moveEntryVersioned / renameEntry / writeMoveDir-IPC ziehen ihre Referenzen
-// nach (W5-Root-Cause-Fix). Temp-Sandbox only, keine Realpfade (assertNotRealHome).
+// integrity-bypass.spec.ts — behavioraler Beweis, dass der aktive Integrity-
+// Kanal keine Referenzen liegen laesst. Temp-Sandbox only, keine Realpfade.
 import { test, expect } from '@playwright/test'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { moveEntryVersioned, renameEntry } from '../../src/main/services/rename-move'
-import { applyDirAction } from '../../src/main/services/apply'
 import { applyIntegrity, previewIntegrity } from '../../src/main/services/integrity/apply-integrity'
 import { makeSandbox, sandboxPath } from './fixtures'
-import { ctx, slash, writeText, readText } from './integrity-helpers'
-
-// Fall 1: Ordner-Move via moveEntryVersioned -> Ref zeigt auf NEUEN Ordnerpfad.
-test('moveEntryVersioned (Ordner) zieht Referenzen auf den neuen Ordnerpfad nach', () => {
+import { ctx, previewAndApply, slash, writeText, readText } from './integrity-helpers'
+// Fall 1: Ordner-Move -> Ref zeigt auf NEUEN Ordnerpfad.
+test('Integrity move (Ordner) zieht Referenzen auf den neuen Ordnerpfad nach', async () => {
   const sb = makeSandbox()
   const fromDir = sandboxPath(sb, 'rules', 'foo')
   const toDir = sandboxPath(sb, 'skills', 'foo')
@@ -22,34 +17,43 @@ test('moveEntryVersioned (Ordner) zieht Referenzen auf den neuen Ordnerpfad nach
   // Referenz auf Unterpfad des Ordners (Substring-Rewrite muss greifen).
   writeText(doc, `Loader: ${slash(join(fromDir, 'SKILL.md'))}\n`)
 
-  const res = moveEntryVersioned({ version: 'shared', fromPath: fromDir, to: toDir }, ctx(sb))
+  const run = await previewAndApply(
+    { kind: 'move', req: { version: 'shared', fromPath: fromDir, to: toDir } },
+    ctx(sb)
+  )
 
   const after = readText(doc)
-  expect(res.error).toBeNull()
+  expect(run.preview.error).toBeNull()
+  expect(run.apply?.error).toBeNull()
+  expect(run.apply?.data?.applied).toBe(true)
   expect(existsSync(fromDir)).toBe(false)
   expect(existsSync(join(toDir, 'SKILL.md'))).toBe(true)
   expect(after).toContain(slash(join(toDir, 'SKILL.md')))
   expect(after).not.toContain(slash(fromDir))
 })
 
-// Fall 2: Ordner-Move via renameEntry (sides:'shared') -> Ref auf neuen Pfad.
-test('renameEntry (Ordner) zieht Referenzen auf den umbenannten Ordnerpfad nach', () => {
+// Fall 2: Ordner-Rename -> Ref auf neuen Pfad.
+test('Integrity rename (Ordner) zieht Referenzen auf den umbenannten Ordnerpfad nach', async () => {
   const sb = makeSandbox()
   const fromDir = sandboxPath(sb, 'skills', 'routing')
-  const newDir = join(sandboxPath(sb, 'skills'), 'routing-neu')
+  const newDir = join(sandboxPath(sb, 'skills'), 'routing-renamed')
   const inner = join(fromDir, 'SKILL.md')
   const doc = sandboxPath(sb, 'docs', 'reference.md')
   writeText(inner, '# Routing\n')
   writeText(doc, `Pfad: ${slash(join(fromDir, 'SKILL.md'))}\n`)
 
-  const res = renameEntry({
-    sides: 'shared',
-    newName: 'routing-neu',
-    shared: { side: 'shared', path: fromDir }
-  }, ctx(sb))
+  const run = await previewAndApply(
+    {
+      kind: 'rename',
+      req: { sides: 'shared', newName: 'routing-renamed', shared: { side: 'shared', path: fromDir } }
+    },
+    ctx(sb)
+  )
 
   const after = readText(doc)
-  expect(res.error).toBeNull()
+  expect(run.preview.error).toBeNull()
+  expect(run.apply?.error).toBeNull()
+  expect(run.apply?.data?.applied).toBe(true)
   expect(existsSync(fromDir)).toBe(false)
   expect(existsSync(join(newDir, 'SKILL.md'))).toBe(true)
   expect(after).toContain(slash(join(newDir, 'SKILL.md')))
@@ -58,8 +62,8 @@ test('renameEntry (Ordner) zieht Referenzen auf den umbenannten Ordnerpfad nach'
   expect(after).not.toContain(slash(join(fromDir, 'SKILL.md')))
 })
 
-// Fall 3: Datei-Move via moveEntryVersioned (Regressionssicherung, war gruen).
-test('moveEntryVersioned (Datei) zieht Referenzen weiterhin nach', () => {
+// Fall 3: Datei-Move (Regressionssicherung).
+test('Integrity move (Datei) zieht Referenzen weiterhin nach', async () => {
   const sb = makeSandbox()
   const from = sandboxPath(sb, 'skills', 'code-quality', 'SKILL.md')
   const to = sandboxPath(sb, 'userglobal', 'skills', 'code-quality', 'SKILL.md')
@@ -67,18 +71,22 @@ test('moveEntryVersioned (Datei) zieht Referenzen weiterhin nach', () => {
   writeText(from, '# Code Quality\n')
   writeText(doc, `Loader: ${slash(from)}\n`)
 
-  const res = moveEntryVersioned({ version: 'shared', fromPath: from, to }, ctx(sb))
+  const run = await previewAndApply(
+    { kind: 'move', req: { version: 'shared', fromPath: from, to } },
+    ctx(sb)
+  )
 
   const after = readText(doc)
-  expect(res.error).toBeNull()
+  expect(run.preview.error).toBeNull()
+  expect(run.apply?.error).toBeNull()
+  expect(run.apply?.data?.applied).toBe(true)
   expect(existsSync(from)).toBe(false)
   expect(after).toContain(slash(to))
   expect(after).not.toContain(slash(from))
 })
 
-// Fall 4: oeffentliche Dir-Move-Route (applyDirAction move-dir, wie writeMoveDir-IPC
-// sie aufruft: ownerMove=true) -> Ref auf neuen Ordnerpfad.
-test('applyDirAction move-dir (IPC-Route) zieht Referenzen auf den neuen Pfad nach', () => {
+// Fall 4: Move-Plan fuer einen bereits existierenden Zielordner.
+test('Integrity move-dir zieht Referenzen auf neuen Pfad nach', async () => {
   const sb = makeSandbox()
   const fromDir = sandboxPath(sb, 'agents', 'alt')
   const toDir = sandboxPath(sb, 'agents', 'neu')
@@ -88,15 +96,18 @@ test('applyDirAction move-dir (IPC-Route) zieht Referenzen auf den neuen Pfad na
   writeText(inner, '# Agent\n')
   writeText(doc, `Ref: ${slash(join(fromDir, 'AGENT.md'))}\n`)
 
-  const res = applyDirAction(
-    { action: 'move-dir', path: fromDir, to: join(toDir, 'alt'), ownerMove: true },
+  const target = join(toDir, 'alt')
+  const run = await previewAndApply(
+    { kind: 'move', req: { version: 'shared', fromPath: fromDir, to: target } },
     ctx(sb)
   )
 
   const after = readText(doc)
-  expect(res.error).toBeNull()
+  expect(run.preview.error).toBeNull()
+  expect(run.apply?.error).toBeNull()
+  expect(run.apply?.data?.applied).toBe(true)
   expect(existsSync(fromDir)).toBe(false)
-  expect(after).toContain(slash(join(toDir, 'alt', 'AGENT.md')))
+  expect(after).toContain(slash(join(target, 'AGENT.md')))
   expect(after).not.toContain(slash(fromDir))
 })
 

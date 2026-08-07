@@ -64,28 +64,24 @@ export async function navToSectionMs(win, label, rootSelector, { text = null, ti
 // scrollen (mehrere scrollBy-Schritte, je zwei Frames Abstand), 500 ms settle
 // (Vorgabe), Eintraege auslesen. Hart: maxDurationMs < 200.
 export async function scrollLongTaskMetric(win) {
-  await win.evaluate(() => {
-    window.__perfLongTasks = []
+  return win.evaluate(async () => {
+    const longTasks = []
+    let unsupported = false
     try {
       new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) window.__perfLongTasks.push(entry.duration)
+        for (const entry of list.getEntries()) longTasks.push(entry.duration)
       }).observe({ type: 'longtask', buffered: false })
     } catch {
-      window.__perfLongTasksUnsupported = true
+      unsupported = true
     }
-  })
-  for (let step = 0; step < 4; step++) {
-    await win.evaluate(() => {
-      const el = document.querySelector('.main') ?? document.scrollingElement
+    const el = document.querySelector('.main') ?? document.scrollingElement
+    for (let step = 0; step < 4; step++) {
       el?.scrollBy?.(0, 600)
-    })
-    await win.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-  }
-  await win.waitForTimeout(500)
-  return win.evaluate(() => {
-    const list = Array.isArray(window.__perfLongTasks) ? window.__perfLongTasks : []
-    const max = list.length > 0 ? Math.round(Math.max(...list)) : 0
-    return { count: list.length, maxDurationMs: max, unsupported: !!window.__perfLongTasksUnsupported, durationsMs: list.map(Math.round) }
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const max = longTasks.length > 0 ? Math.round(Math.max(...longTasks)) : 0
+    return { count: longTasks.length, maxDurationMs: max, unsupported, durationsMs: longTasks.map(Math.round) }
   })
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FocusNotice } from '../../components/FocusNotice'
 import { Icon } from '../../components/Icon'
 import { PrefsSection } from '../prefs/PrefsSection'
@@ -11,21 +11,26 @@ import type { MessageKey } from '@shared/messages'
 import { useStore } from '../../state/store'
 import { SettingsActionsPanel } from './SettingsActionsPanel'
 import { readOverviewFocus } from '../overview/overview-navigation'
+import { useOverviewFocusVersion } from '../overview/use-overview-focus'
 import './SettingsSection.css'
 
 type SettingsTab = 'tweaks' | 'updates' | 'sources' | 'modules'
 
-const TABS: ReadonlyArray<{ id: SettingsTab; labelKey: MessageKey; icon: string }> = [
-  { id: 'tweaks', labelKey: 'settings.tab.tweaks', icon: 'edit' },
-  { id: 'updates', labelKey: 'settings.tab.updates', icon: 'up' },
-  { id: 'sources', labelKey: 'settings.tab.sources', icon: 'folder' },
-  { id: 'modules', labelKey: 'settings.tab.modules', icon: 'plug' }
+// Modus-Flag je Tab (WP-F6): Grundeinstellungen (tweaks) und Updates gehören
+// beiden Modi; sources/modules bleiben Experten-Bereiche.
+const TABS: ReadonlyArray<{ id: SettingsTab; labelKey: MessageKey; icon: string; simple: boolean }> = [
+  { id: 'tweaks', labelKey: 'settings.tab.tweaks', icon: 'edit', simple: true },
+  { id: 'updates', labelKey: 'settings.tab.updates', icon: 'up', simple: true },
+  { id: 'sources', labelKey: 'settings.tab.sources', icon: 'folder', simple: false },
+  { id: 'modules', labelKey: 'settings.tab.modules', icon: 'plug', simple: false }
 ]
 
-function SettingsTabs({ tab, onTab }: { tab: SettingsTab; onTab(v: SettingsTab): void }) {
+type TabList = typeof TABS
+
+function SettingsTabs({ tabs, tab, onTab }: { tabs: TabList; tab: SettingsTab; onTab(v: SettingsTab): void }) {
   return (
     <div className="mode-tabs settings-tabs">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <button
           key={t.id}
           type="button"
@@ -45,14 +50,23 @@ export function SettingsSection({ onReopenOnboarding }: { onReopenOnboarding: ()
   const { ui } = useStore()
   const expert = ui.displayMode === 'expert'
   const [tab, setTab] = useState<SettingsTab>(() => initialTab())
-  // Modus-Weiche (D2): Simple sieht nur den Darstellungs-Tab (tweaks); die
-  // uebrigen Tabs (updates/sources/modules) sind Experten-Bereiche. Im
-  // Expert-Modus unveraendert alle Tabs.
-  const activeTab: SettingsTab = expert ? tab : 'tweaks'
+  // Routen-Sweep 2026-08-07: Ein Diagnose-/Flow-Klick mit settings-tab-Fokus
+  // muss auch wirken, wenn die Einstellungen BEREITS offen sind — initialTab
+  // liest nur beim Mount. Die Fokus-Version stoesst das Nachziehen an.
+  const focusVersion = useOverviewFocusVersion()
+  useEffect(() => {
+    const target = focusTab(readOverviewFocus('settings')?.focusId)
+    if (target) setTab(target)
+  }, [focusVersion])
+  // Modus-Weiche (D2, erweitert WP-F6): Simple sieht die Tabs Darstellung und
+  // Updates; sources/modules bleiben Experten-Bereiche. Im Expert-Modus
+  // unveraendert alle Tabs.
+  const visibleTabs = expert ? TABS : TABS.filter((t) => t.simple)
+  const activeTab: SettingsTab = visibleTabs.some((t) => t.id === tab) ? tab : 'tweaks'
   return (
     <section className="main settings-main">
       <div className="settings-head">
-        {expert && <SettingsTabs tab={activeTab} onTab={setTab} />}
+        <SettingsTabs tabs={visibleTabs} tab={activeTab} onTab={setTab} />
         <button type="button" className="btn ghost settings-onboarding" onClick={onReopenOnboarding}>
           {Icon.refresh}
           {msg('settings.reopenOnboarding')}
@@ -72,10 +86,13 @@ export function SettingsSection({ onReopenOnboarding }: { onReopenOnboarding: ()
   )
 }
 
-function initialTab(): SettingsTab {
-  const focusId = readOverviewFocus('settings')?.focusId
+function focusTab(focusId: string | undefined): SettingsTab | null {
   if (focusId === 'settings-tab-sources') return 'sources'
   if (focusId === 'settings-tab-modules') return 'modules'
   if (focusId === 'settings-tab-updates') return 'updates'
-  return 'tweaks'
+  return null
+}
+
+function initialTab(): SettingsTab {
+  return focusTab(readOverviewFocus('settings')?.focusId) ?? 'tweaks'
 }

@@ -5,12 +5,18 @@
 // (dedupe.ts bleibt unberuehrt). Status same|diff via SHA-256 (hashFile),
 // Heuristik liefert nur suggestion:'parity', nie ein decision (Nutzer-Sache).
 // Laeuft im Scan (sync-fs ok, kein IPC-Pfad). Alle fs-Zugriffe in try/catch.
+import path from 'node:path'
 import type { LlmConfig } from '@shared/contract'
 import type { DriftDecisionRecord, DriftMember, DriftRelation, DriftRootKind } from '@shared/contract-drift'
 import { driftRelationKey } from '@shared/contract-drift'
 import { normalizeCat, normalizeKey } from '@shared/cat-key'
+import { isPathEqualOrUnder } from '@shared/path-compare'
 import { hashFile } from './dedupe-fs'
 import { createDriftRelationStore } from './drift-relation-store'
+import { configRoots } from './config-roots'
+
+// Injizierbare Decision-Quelle (Muster: findDriftRelations-Store-Dep).
+export type DriftDecisionSource = Pick<ReturnType<typeof createDriftRelationStore>, 'readDecisions'>
 
 // Root-Art aus dem Kategorie-Praefix (VOR normalizeCat pruefen).
 // 'agents' = ~/.agents-Loader, 'kimi' = ~/.kimi-code-Loader (WP-8, B9).
@@ -95,4 +101,40 @@ export function findDriftRelations(
       data.userglobal.driftRelations = []
     }
   }
+}
+
+/**
+ * Loader-Root-Art eines realen Pfads — Pfad-Pendant zur ROOT_RX-Logik
+ * (Kategorie-Praefixe): ~/.claude -> claude, ~/.codex -> codex,
+ * ~/.agents -> agents, ~/.kimi-code -> kimi. Sandbox-aware: die Wurzeln
+ * kommen aus configRoots(), .agents/.kimi-code liegen als Geschwister von
+ * claudeHome (gleiche Ableitung wie scan-userglobal/kimi-cats). Nutzer-
+ * Zusatzquellen, die in einen dieser Baeume zeigen, werden so korrekt
+ * normalisiert; fremde Pfade liefern null.
+ */
+export function rootKindForPath(absPath: string): DriftRootKind | null {
+  const roots = configRoots()
+  const home = path.dirname(roots.claudeHome)
+  const candidates: Array<[DriftRootKind, string]> = [
+    ['claude', roots.claudeHome],
+    ['codex', roots.codexHome],
+    ['agents', path.join(home, '.agents')],
+    ['kimi', path.join(home, '.kimi-code')],
+  ]
+  for (const [kind, root] of candidates) {
+    if (isPathEqualOrUnder(absPath, root, process.platform)) return kind
+  }
+  return null
+}
+
+/**
+ * Drift-Decision-Key eines Pfad-Paars (z. B. trunk/mirror eines
+ * DuplicateSet): Root-Arten aus den Pfaden ableiten und denselben
+ * driftRelationKey bauen wie die Drift-Sicht. null, wenn das Paar nicht
+ * eindeutig Cross-Root zuordenbar ist — dann bleibt das Set unangetastet.
+ */
+export function driftDecisionKeyForPaths(cat: string, name: string, paths: string[]): string | null {
+  const kinds = paths.map(rootKindForPath).filter((k): k is DriftRootKind => k !== null)
+  if (kinds.length < 2 || new Set(kinds).size < 2) return null
+  return driftRelationKey(cat, name, kinds)
 }

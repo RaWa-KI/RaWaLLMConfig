@@ -10,7 +10,8 @@ type PreventableEvent = {
 
 type WebContentsLike = {
   getURL(): string
-  on(channel: string, listener: (...args: any[]) => void): void
+  on(channel: 'will-navigate', listener: (event: PreventableEvent, url: string) => void): void
+  on(channel: 'will-attach-webview', listener: (event: PreventableEvent) => void): void
   setWindowOpenHandler(listener: (details: { url: string }) => { action: 'deny' }): void
 }
 
@@ -20,7 +21,7 @@ type BrowserWindowLike = {
 }
 
 type IpcMainLike = {
-  handle(channel: string, listener: (event: any, ...args: any[]) => unknown): unknown
+  handle(channel: string, listener: (event: IpcEventLike, ...args: unknown[]) => unknown): unknown
 }
 
 type IpcEventLike = {

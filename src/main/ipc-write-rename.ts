@@ -2,7 +2,8 @@
 // Routen (WP-03). Kanaele: writeRename / writeMoveVersioned.
 // isWriteEnabled() ZUERST in jedem Handler (Muster ipc-write-dir.ts). Nur
 // ipcMain.handle, kein .on. Antworten sanitisiert (IpcResult ohne Stack/Secret).
-// KEINE eigene Guard-/Backup-Logik — die liegt im apply-Dispatch (rename-move.ts).
+// KEINE eigene Guard-/Backup-Logik — die liegt im Integrity-Dispatch
+// (services/integrity/apply-integrity.ts).
 // ipc-write.ts (registerWriteBase) wird NICHT angefasst — disjunkt.
 import { ipcMain } from 'electron'
 import { IPC_WRITE } from '@shared/channels-write'
