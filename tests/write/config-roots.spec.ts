@@ -65,8 +65,16 @@ test('(a) Default ohne RAWALLM_SANDBOX_ROOT -> reale Home-basierte Wurzeln', () 
   const home = homedir()
   expect(r.claudeHome).toBe(join(home, '.claude'))
   expect(r.codexHome).toBe(join(home, '.codex'))
-  expect(r.sharedClaude).toBe(join(home, 'Desktop', 'Projekte', '.shared', '.claude'))
-  expect(r.projectRoot).toBe(join(home, 'Desktop', 'Projekte', 'RaWaLLMConfig'))
+  // CI-Ehrlichkeit (2026-08-07): sharedClaude/projectRoot sind OPTIONAL und
+  // haengen am Legacy-Seed, der nur bei EXISTIERENDEN Pfaden greift (B13).
+  // Auf einer Bestandsinstallation loesen sie auf, auf einem frischen Runner
+  // sind sie ehrlich null — beides ist korrektes Produktverhalten. Der alte
+  // Festwert bestand in der CI nur durch zufaellige Worker-Reihenfolge.
+  const legacyShared = join(home, 'Desktop', 'Projekte', '.shared', '.claude')
+  const legacyProject = join(home, 'Desktop', 'Projekte', 'RaWaLLMConfig')
+  const { existsSync } = require('node:fs') as typeof import('node:fs')
+  expect(r.sharedClaude).toBe(existsSync(legacyShared) ? legacyShared : null)
+  expect(r.projectRoot).toBe(existsSync(legacyProject) ? legacyProject : null)
   // claudeHome endet auf .claude und liegt unter dem realen Home.
   expect(r.claudeHome.endsWith('.claude')).toBe(true)
   expect(r.claudeHome.startsWith(home)).toBe(true)

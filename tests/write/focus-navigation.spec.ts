@@ -18,6 +18,12 @@ const SETTINGS_LABEL = 'Einstellungen'
 test.setTimeout(180_000)
 
 test('gesetzter Diagnose-Fokus blockiert die Navigation nicht (WP-F2)', async () => {
+  // CI-Ehrlichkeit (2026-08-07): der Service-Test-Step laeuft VOR pnpm build —
+  // ohne gebaute App (out/) sauber skippen statt fehlschlagen. Lokal existiert
+  // out/ aus frueheren Builds; in der CI decken smoke:ui/smoke:flows (nach dem
+  // Build-Step) die Navigations-Klickpfade ab.
+  const { builtMainExists } = await import('../../scripts/audit-probe/launch.mjs')
+  test.skip(!builtMainExists(), 'gebaute App fehlt (out/) — Spec laeuft nach pnpm build')
   // ESM-Helfer (.mjs) aus dem Spec-Kontext via dynamic import laden.
   const { launchElectronApp, closeElectronApp } = await import('../../scripts/audit-probe/launch.mjs')
   const { gotoSection, setDisplayModeVisible, attachConsoleCollector } = await import('../../scripts/audit-probe/qa-helpers.mjs')
