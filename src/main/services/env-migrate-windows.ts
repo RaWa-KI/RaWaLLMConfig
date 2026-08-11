@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 type EnvSetter = (varName: string, value: string) => boolean
 type EnvUnsetter = (varName: string) => boolean
 
-export type PersistentEnvState =
+type PersistentEnvState =
   | { exists: true; value: string }
   | { exists: false }
 

@@ -7,15 +7,20 @@
 import { ipcMain } from 'electron'
 import { IPC_WRITE } from '@shared/channels-write'
 import type { ReconcileRequest, ReconcileResult } from '@shared/contract-write'
+import type { IntegrityApplyProgressPayload } from '@shared/contract-integrity'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
+import { integrityProgressSender } from './ipc-integrity-progress'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
 
 // reconcile: Owner-Entscheidung (keep-trunk|adopt-mirror) ausfuehren. KEIN
 // Auto-Merge — die Entscheidung kommt aus der UI (Confirm + sichtbarer Diff).
-async function handleReconcile(req: ReconcileRequest): Promise<ReconcileResult> {
+async function handleReconcile(
+  req: ReconcileRequest,
+  onProgress?: (p: IntegrityApplyProgressPayload) => void
+): Promise<ReconcileResult> {
   if (!req || typeof req.trunkPath !== 'string' || typeof req.mirrorPath !== 'string') {
     return { data: null, error: 'invalid-request' }
   }
@@ -24,7 +29,10 @@ async function handleReconcile(req: ReconcileRequest): Promise<ReconcileResult> 
   const ctx = getWriteContext()
   const preview = await previewIntegrity({ kind: 'reconcile', req }, ctx)
   if (preview.error || !preview.data) return { data: null, error: preview.error ?? 'integrity-preview-failed' }
-  const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
+  const apply = await applyIntegrity(
+    { plan: preview.data, planHash: preview.data.planHash },
+    { ...ctx, onProgress }
+  )
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
   markScanCachesStale('write:reconcile')
@@ -44,7 +52,7 @@ async function handleReconcile(req: ReconcileRequest): Promise<ReconcileResult> 
  * (Welle 3 / WP-INT-02). Faesst A's ipc-write.ts nicht an.
  */
 export function registerReconcileWrite(): void {
-  ipcMain.handle(IPC_WRITE.configReconcile, (_e, req: ReconcileRequest): Promise<ReconcileResult> =>
-    guardedAsync('reconcile', () => handleReconcile(req))
+  ipcMain.handle(IPC_WRITE.configReconcile, (e, req: ReconcileRequest): Promise<ReconcileResult> =>
+    guardedAsync('reconcile', () => handleReconcile(req, integrityProgressSender(e)))
   )
 }

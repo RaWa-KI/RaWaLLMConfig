@@ -84,7 +84,7 @@ test('path, diff-line and register surfaces are expert-only', () => {
   expect(dirDiffView).toContain("const expert = ui.displayMode === 'expert'")
   expect(dirDiffView).toContain('{expert && (')
   expect(dirDiffView).toContain('<DirSummary dir={dir} labels={labels} />')
-  expect(dirDiffView).toContain('<DirReconcileActions d={d} dir={dir} knownPaths={knownPaths} />')
+  expect(dirDiffView).toContain('<DirReconcileActions d={d} dir={dir} />')
 })
 
 test('categoryLabel projects simple everyday names and expert technical labels', () => {

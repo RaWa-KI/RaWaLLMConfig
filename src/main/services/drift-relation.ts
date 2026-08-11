@@ -112,7 +112,7 @@ export function findDriftRelations(
  * Zusatzquellen, die in einen dieser Baeume zeigen, werden so korrekt
  * normalisiert; fremde Pfade liefern null.
  */
-export function rootKindForPath(absPath: string): DriftRootKind | null {
+function rootKindForPath(absPath: string): DriftRootKind | null {
   const roots = configRoots()
   const home = path.dirname(roots.claudeHome)
   const candidates: Array<[DriftRootKind, string]> = [

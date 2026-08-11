@@ -8,6 +8,7 @@ export const deCoreMessages = {
   "settings.language.de": "Deutsch",
   "settings.language.en": "English",
   "settings.tab.tweaks": "Darstellung",
+  "settings.tab.files": "Dateien",
   "settings.tab.updates": "Updates",
   "settings.tab.sources": "Ordner",
   "settings.tab.modules": "Module",

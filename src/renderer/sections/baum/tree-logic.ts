@@ -81,7 +81,7 @@ export function sameLevelDup(cats: Category[]): Set<string> {
 }
 
 // Wie viele Ebenen trägt diese Einheit (>=1).
-export function cascadeN(cat: Category, e: ConfigEntry, ctx: MarkerCtx): number {
+function cascadeN(cat: Category, e: ConfigEntry, ctx: MarkerCtx): number {
   return ctx.cascade.get(keyCat(cat, e))?.size ?? 1
 }
 

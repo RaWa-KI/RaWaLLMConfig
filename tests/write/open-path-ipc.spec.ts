@@ -8,6 +8,8 @@ import { expect, test } from '@playwright/test'
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+// channels ist reine Konstanten-Datei ohne electron-Bezug -> statisch.
+import { IPC } from '../../shared/channels'
 
 const sandbox = mkdtempSync(join(tmpdir(), 'rawallmconfig-open-path-'))
 
@@ -31,11 +33,11 @@ require.cache[electronPath] = {
   }
 } as never
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { IPC } = require('../../shared/channels') as typeof import('../../shared/channels')
-// Frische Modulinstanz erzwingen (geteilter Worker-require-Cache, siehe
-// secret-list-owner-view.spec.ts — sonst haengt ipc-open am electron-Mock
-// eines frueheren Specs).
+// BEWUSST require statt statischem Import: ipc-open bindet `electron` und muss
+// NACH dem Mock oben geladen werden — statische Imports werden beim
+// Transpilieren vor diese Statements gehoben. Zusaetzlich frische Modulinstanz
+// erzwingen (geteilter Worker-require-Cache, siehe secret-list-owner-view.spec.ts
+// — sonst haengt ipc-open am electron-Mock eines frueheren Specs).
 delete require.cache[require.resolve('../../src/main/ipc-open')]
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { registerOpenIpc, openPathCore } = require('../../src/main/ipc-open') as typeof import('../../src/main/ipc-open')

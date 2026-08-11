@@ -9,16 +9,7 @@
 // shared/manifest-map.ts (eine Quelle fuer Renderer UND Main, kontext-bewusst:
 // config.json nur im /teams/-, plugin.json/package.json nur im /plugins/-Pfad).
 // Kein fs/path im Renderer: rein String-/Trenner-treu ('/' oder '\').
-import { isManifestPath, manifestParent, manifestFolder } from '@shared/manifest-map'
-
-// Re-Export der zentralen Helfer unter den bisherigen Renderer-Namen, damit
-// bestehende Importe (DuplicatePanel) unveraendert bleiben.
-
-/** True, wenn `p` auf eine Item-Ordner-Manifestdatei zeigt (kontext-bewusst). */
-export { isManifestPath }
-
-/** Eltern-Ordner eines Pfades (Trenner-treu, ohne fs/path im Renderer). */
-export const dirOf = manifestParent
+import { manifestFolder } from '@shared/manifest-map'
 
 /**
  * Ordnerpfad fuer einen Eintrag, dessen Aktionen den ORDNER treffen sollen:

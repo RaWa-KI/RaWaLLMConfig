@@ -71,3 +71,51 @@ test('stale marker and force trigger rescans', async () => {
   expect(calls).toBe(3)
   expect(cache.getMeta()?.reason).toBe('manual-refresh')
 })
+
+// F2: Wird waehrend eines laufenden Scans eine Aenderung gemeldet, darf der noch
+// laufende (aeltere) Lauf das Stale-Flag NICHT loeschen — sonst liefert der
+// Cache dauerhaft den alten Stand aus (eingefrorene Zaehler/Listen).
+test('markStale waehrend eines laufenden Scans geht nicht verloren', async () => {
+  let calls = 0
+  const first = deferred<AppData>()
+  const cache = createConfigScanCache(() => {
+    calls += 1
+    return calls === 1 ? first.promise : appData(`scan-${calls}`)
+  })
+
+  const running = cache.getSnapshot({ reason: 'initial' })
+  // Aenderung trifft ein, WAEHREND der erste Scan noch laeuft.
+  cache.markStale('fs-change')
+  first.resolve(appData('scan-1'))
+  await expect(running).resolves.toHaveProperty('snapshot.label', 'scan-1')
+
+  // Stale-Flag ueberlebt den alten Lauf.
+  expect(cache.getMeta()?.stale).toBe(true)
+
+  // Der naechste Abruf liefert frische Daten statt des veralteten Standes.
+  const next = await cache.getSnapshot({ reason: 'after-change' })
+  expect(next.snapshot.label).toBe('scan-2')
+  expect(calls).toBe(2)
+  expect(cache.getMeta()?.stale).toBe(false)
+})
+
+// Ein Abruf, der WAEHREND eines veralteten Laufs kommt, darf sich nicht an
+// diesen anhaengen — er braucht einen Lauf, der die Aenderung schon sieht.
+test('getSnapshot joint keinen Scan, der vor der Stale-Markierung startete', async () => {
+  let calls = 0
+  const first = deferred<AppData>()
+  const cache = createConfigScanCache(() => {
+    calls += 1
+    return calls === 1 ? first.promise : appData(`scan-${calls}`)
+  })
+
+  const running = cache.getSnapshot({ reason: 'initial' })
+  cache.markStale('fs-change')
+  const joined = cache.getSnapshot({ reason: 'after-change' })
+
+  first.resolve(appData('scan-1'))
+  await expect(running).resolves.toHaveProperty('snapshot.label', 'scan-1')
+  // Der zweite Abruf bekommt NICHT das Ergebnis des veralteten Laufs.
+  await expect(joined).resolves.toHaveProperty('snapshot.label', 'scan-2')
+  expect(calls).toBe(2)
+})

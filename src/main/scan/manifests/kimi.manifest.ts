@@ -62,10 +62,13 @@ export const kimiManifest: ProviderManifest = {
     { custom: (base: string) => kimiInstructions(base) },
     { custom: (base: string) => kimiSettings(base) },
     { custom: (base: string) => kimiCredentials(base) },
+    // ~/.kimi-code/skills existiert real, fehlte aber in der Familie — die
+    // Skills des Kimi-Loaders waren dadurch unsichtbar (F10).
+    dirSpec('skills', 'Skills', 'skill', 'Kimi-Skill'),
     dirSpec('hooks', 'Hooks', 'hook', 'Kimi-Hook-Skript'),
     fileSpec('workspaces', 'Workspaces', 'list', '*.json', 'workspaces.json u. a. JSON-Config der Wurzel', 'Kimi-JSON-Konfiguration'),
   ],
 }
 
-// Lesbarkeits-Anker fuer Tests (aufgeloeste Kimi-Wurzel).
-export { kimiHome as kimiManifestRoot }
+// Lesbarkeits-Anker (kimiHome) bleibt modul-intern; frueherer Alias-Export
+// kimiManifestRoot war ungenutzt (Knip 2026-08-10).

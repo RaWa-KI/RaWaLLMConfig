@@ -7,7 +7,7 @@
 // SELBST her (check vor download vor install im Testkoerper), kein
 // require-Cache-Hack, keine Reihenfolge-Abhaengigkeit zwischen Tests.
 import { test, expect } from '@playwright/test'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { makeSandbox, seedFile, type Sandbox } from './fixtures'
@@ -73,10 +73,8 @@ function tempRoot(sb: Sandbox): string {
   return dir
 }
 
-// Erwarteter staged-Pfad (update-manager: <temp>/RaWaLLMConfig-Updates/<asset>).
-function expectedStagedPath(sb: Sandbox): string {
-  return join(tempRoot(sb), 'RaWaLLMConfig-Updates', ASSET_NAME)
-}
+// Sicherheits-Fix: pro Download ein unvorhersagbares mkdtemp-Verzeichnis
+// <temp>/RaWaLLMConfig-Updates-XXXX/<asset> — kein fester Pfad mehr (Assertions inline).
 
 // Fake-Deps installieren; Recorder fuer quit + prefs-Persist zurueckgeben.
 function installDeps(sb: Sandbox, over: Partial<UpdateMgrDeps> = {}): DepsRecorder {
@@ -209,8 +207,9 @@ test.describe('downloadUpdate', () => {
     const r = await downloadUpdate({ version: '9.9.9' }, (p) => progress.push(p))
     expect(r.error).toBe(null)
     expect(r.data?.assetName).toBe(ASSET_NAME)
-    expect(r.data?.stagedPath).toBe(expectedStagedPath(sb))
-    expect(existsSync(expectedStagedPath(sb))).toBe(true)
+    expect(r.data?.stagedPath).toMatch(/RaWaLLMConfig-Updates-[^/\\]+[/\\]/)
+    expect(existsSync(r.data!.stagedPath)).toBe(true)
+    expect(r.data?.stagedPath).not.toBe(join(tempRoot(sb), 'RaWaLLMConfig-Updates', ASSET_NAME))
     expect(r.data?.fileSize).toBe(size)
     expect(r.data?.sha256Verified).toBe(true)
     expect(r.data?.previousVersion).toBe(CURRENT_VERSION)
@@ -231,8 +230,8 @@ test.describe('downloadUpdate', () => {
     const r = await downloadUpdate({ version: '9.9.9' }, () => {})
     expect(r.data).toBe(null)
     expect(r.error).toBe('Archiv-Root fehlt')
-    // Abbruch vor stageInstaller: kein Installer im Staging-Ziel.
-    expect(existsSync(expectedStagedPath(sb))).toBe(false)
+    // Abbruch vor stageInstaller: kein Installer in irgendeinem Staging-Verzeichnis.
+    expect(readdirSync(tempRoot(sb)).some((d) => existsSync(join(tempRoot(sb), d, ASSET_NAME)))).toBe(false)
   })
 })
 

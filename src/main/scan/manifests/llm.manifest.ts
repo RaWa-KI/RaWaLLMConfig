@@ -17,7 +17,7 @@
 // (leere categories). Das ist eine LlmConfig-Ebene (nicht Kategorie-Ebene) und
 // bleibt buildData-/B-5-Sache; das Manifest deckt nur die Kategorien ab.
 import type { Category } from '@shared/contract'
-import type { CustomCategory, ProviderManifest } from '@shared/contract-provider'
+import type { CustomCategory, ProviderManifest, ProviderRoot } from '@shared/contract-provider'
 import { GGUF_ROOT, scanGgufFiles, endpointEntries, LOCAL_DIFF_LABELS, ggufRoots } from '../llm-scan'
 
 // gguf-models-Kategorie exakt wie scanLocalLlm (id/label/icon/path/blurb).
@@ -26,7 +26,7 @@ const ggufCategory: CustomCategory = {
     id: 'gguf-models',
     label: 'GGUF-Modelle',
     icon: 'list',
-    path: ggufRoots().filter((root) => scanGgufFiles([root]).length > 0)[0] ?? GGUF_ROOT,
+    path: ggufRoots().filter((root) => scanGgufFiles([root]).length > 0)[0] ?? GGUF_ROOT(),
     blurb: 'Lokale Modelle fuer llama-server (read-only, nur Datei-Metadaten)',
     entries: scanGgufFiles(),
   }),
@@ -47,9 +47,10 @@ const endpointCategory: CustomCategory = {
 export const llmManifest: ProviderManifest = {
   id: 'local',
   label: 'Lokal',
-  // GGUF_ROOT ist config-roots-unabhaengig (E:); fixedRoot haelt resolveRoots
-  // stabil, auch wenn die Customs base ohnehin ignorieren.
-  roots: [{ rootKey: 'projectRoot', fixedRoot: GGUF_ROOT }],
+  // Getter: GGUF_ROOT() pro Zugriff (Env/Sandbox), kein Load-Time-Freeze.
+  get roots(): ProviderRoot[] {
+    return [{ rootKey: 'projectRoot', fixedRoot: GGUF_ROOT() }]
+  },
   capabilities: ['secret-guarded'],
   // Bestands-DiffLabels: scanLocalLlm setzt in JEDEM Zweig LOCAL_DIFF_LABELS.
   // Der comingSoon-Frueh-Return (E: fehlt) wird auf buildData-Ebene reproduziert.

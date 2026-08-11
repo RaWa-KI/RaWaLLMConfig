@@ -260,7 +260,7 @@ export async function stageInstaller(opts: StageInstallerOpts): Promise<StageRes
   return { ok: true, sha256Verified: Boolean(info.sha256), error: null }
 }
 
-export class LocalUpdateSource implements UpdateSourcePort {
+class LocalUpdateSource implements UpdateSourcePort {
   readonly kind = 'local' as const
 
   constructor(private readonly updateDir: string | null = getUpdateDir()) {}
@@ -286,5 +286,5 @@ export function createLocalUpdateSource(updateDir: string | null = getUpdateDir(
   return new LocalUpdateSource(updateDir)
 }
 
-// Re-exportieren fuer Konsumenten (damit nur ein Import noetig ist)
-export { checkMzHeader, checkExactSize, sha256Hex } from './update-gates'
+// Gate-Helfer (checkMzHeader/checkExactSize/sha256Hex) aus ./update-gates
+// importieren — kein ungenutzter Re-Export mehr (Knip 2026-08-10).

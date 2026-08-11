@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Category, ConfigEntry } from '../../shared/contract'
+// Die CSS-Importe der Renderer-Module fangt der zentrale Loader-Hook ab
+// (tests/write/css-require-stub.ts, registriert in playwright.config.ts) —
+// deshalb reicht hier ein normaler statischer Import.
+import { conflictComparePreset, conflictPartners } from '../../src/renderer/components/Drawer'
 
 // WP-2 (P0 „Unterschiede ansehen" wirkungslos): Der Konflikt-Kasten im Detail-
 // Drawer muss in BEIDEN Anzeige-Modi zu einem echten Diff des Konfliktpaars
@@ -12,12 +16,6 @@ import type { Category, ConfigEntry } from '../../shared/contract'
 // Verhaltenstests laufen gegen die reinen Preset-Funktionen aus Drawer.tsx; die
 // Conditional-Renderings/Verdrahtungen werden per Source-Pin gesichert
 // (tests/write hat bewusst kein Browser-Setup — Muster: config-mode-teil-e.spec.ts).
-
-// CSS-Importe der Renderer-Module sind fuer den Node-Runner unlesbar -> Stub.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-;(require as any).extensions['.css'] = () => undefined
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const drawer = require('../../src/renderer/components/Drawer') as typeof import('../../src/renderer/components/Drawer')
 
 const drawerSrc = read('src/renderer/components/Drawer.tsx')
 const configSection = read('src/renderer/sections/config/ConfigSection.tsx')
@@ -51,7 +49,7 @@ test('conflictPartners liefert das Gegenstueck, nicht die ganze Kategorie', () =
   const unrelated = entry({ id: 'c', name: 'hooks.json', path: 'C:/c/hooks.json' })
   const cat = category([conflicted, twin, unrelated])
 
-  const partners = drawer.conflictPartners(cat, conflicted)
+  const partners = conflictPartners(cat, conflicted)
   expect(partners.map((e) => e.id)).toEqual(['b'])
 })
 
@@ -59,7 +57,7 @@ test('conflictPartners bevorzugt die explizite Kopie-Beziehung (dupOf)', () => {
   const conflicted = entry({ id: 'a', name: 'agents.md', status: 'conflict', path: 'C:/a/agents.md', dupOf: 'b' })
   const copy = entry({ id: 'b', name: 'irgendwas-anderes.md', path: 'C:/b/agents.md' })
   const sameName = entry({ id: 'c', name: 'agents.md', path: 'C:/c/agents.md' })
-  const partners = drawer.conflictPartners(category([conflicted, copy, sameName]), conflicted)
+  const partners = conflictPartners(category([conflicted, copy, sameName]), conflicted)
   expect(partners.map((e) => e.id)).toEqual(['b'])
 })
 
@@ -75,7 +73,7 @@ test('conflictComparePreset erzeugt ein startfaehiges Konflikt-Preset', () => {
   const noise = entry({ id: 'c', name: 'hooks.json', path: 'C:/c/hooks.json' })
   const cat = category([conflicted, twin, noise])
 
-  const preset = drawer.conflictComparePreset(cat, conflicted, { section: 'config', llm: 'claude' })
+  const preset = conflictComparePreset(cat, conflicted, { section: 'config', llm: 'claude' })
   // Herkunft 'conflict' — CompareView nimmt beide Herkuenfte an (siehe Pin unten).
   expect(preset.source).toBe('conflict')
   // Genau das Konfliktpaar, kein Kategorie-Rundumschlag.
@@ -97,7 +95,7 @@ test('Einzeldatei-Konflikt bleibt ehrlich: ein Kandidat, kein erfundener Partner
     conflictReason: 'JSON-Parse-Fehler in installed_plugins.json',
     path: 'C:/a/installed_plugins.json',
   })
-  const preset = drawer.conflictComparePreset(category([lonely]), lonely, { section: 'config', llm: 'claude' })
+  const preset = conflictComparePreset(category([lonely]), lonely, { section: 'config', llm: 'claude' })
   expect(preset.candidates).toHaveLength(1)
   // Die Vergleichsansicht sagt das im Klartext statt still nichts zu tun.
   expect(compareView).toContain('Zu diesem Konflikt gibt es nur eine Datei')

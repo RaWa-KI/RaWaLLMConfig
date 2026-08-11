@@ -61,8 +61,6 @@ export const SAFE_PATHS = [
   '/home/u/notes/settings-overview.md'
 ]
 
-export const DUMMY_TOKEN = 'DUMMY-sk-zzzz9999yyyy8888xxxx7777'
-
 function hasNakedCredential(content: string): boolean {
   const assignRx =
     /(?:password|passwd|token|secret|api[_-]?key|auth[_-]?key)\s*[=:]\s*(?!["']?\$\{)[^\s$#\r\n]{6,}/gi

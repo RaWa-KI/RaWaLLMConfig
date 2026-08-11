@@ -35,7 +35,7 @@ export function assertNotRealHome(target: string): void {
 }
 
 // Sandbox-Root entfernen (idempotent; auch nach Teil-Fail).
-export function destroySandbox(sb: Sandbox | string): void {
+function destroySandbox(sb: Sandbox | string): void {
   const root = typeof sb === 'string' ? sb : sb.root
   try {
     rmSync(root, { recursive: true, force: true })

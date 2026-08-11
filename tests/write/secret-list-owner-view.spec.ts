@@ -10,6 +10,8 @@ import { expect, test } from '@playwright/test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+// channels ist reine Konstanten-Datei ohne electron-Bezug -> statisch.
+import { IPC } from '../../shared/channels'
 
 const sandbox = mkdtempSync(join(tmpdir(), 'rawallmconfig-secret-list-'))
 process.env.RAWALLM_SANDBOX_ROOT = sandbox
@@ -38,12 +40,12 @@ require.cache[electronPath] = {
   }
 } as never
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { IPC } = require('../../shared/channels') as typeof import('../../shared/channels')
-// Frische Modulinstanz erzwingen: Worker teilen den require-Cache über
-// Spec-Dateien hinweg — eine von einem frueheren Spec (mit anderem
-// electron-Mock) geladene ipc-list-Instanz haette ipcMain=undefined
-// (Volllauf-Flake 2026-08-07, 'reading handle').
+// BEWUSST require statt statischem Import: ipc-list bindet `electron` und muss
+// NACH dem Mock oben geladen werden — statische Imports werden beim
+// Transpilieren vor diese Statements gehoben. Zusaetzlich frische Modulinstanz
+// erzwingen: Worker teilen den require-Cache über Spec-Dateien hinweg — eine von
+// einem frueheren Spec (mit anderem electron-Mock) geladene ipc-list-Instanz
+// haette ipcMain=undefined (Volllauf-Flake 2026-08-07, 'reading handle').
 delete require.cache[require.resolve('../../src/main/ipc-list')]
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { registerListIpc } = require('../../src/main/ipc-list') as typeof import('../../src/main/ipc-list')

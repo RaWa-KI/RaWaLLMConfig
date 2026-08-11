@@ -7,14 +7,15 @@
 import { test, expect } from '@playwright/test'
 import { listProviderChoices } from '../../src/main/services/providers-list'
 
-test('liefert genau die 6 Manifest-Provider', () => {
+test('liefert genau die 7 Manifest-Provider', () => {
   const choices = listProviderChoices()
-  expect(choices.length).toBe(6)
+  // 7 seit 2026-08-11: grok kam als vierter nativer Loader dazu (HR16-Paritaet).
+  expect(choices.length).toBe(7)
 })
 
 test('enthaelt die Bestands-Familien + additive cloud- und kimi-Familie', () => {
   const ids = listProviderChoices().map((c) => c.id)
-  for (const id of ['shared', 'claude', 'codex', 'local', 'cloud', 'kimi']) {
+  for (const id of ['shared', 'claude', 'codex', 'local', 'cloud', 'kimi', 'grok']) {
     expect(ids).toContain(id)
   }
 })

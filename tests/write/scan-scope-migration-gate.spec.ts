@@ -17,7 +17,7 @@
 // Quervergleich. Maschinengebunden: ohne Legacy-Pfade -> SKIP (Fremd-Setup).
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { test, expect } from '@playwright/test'
 import { scanAll } from '../../src/main/scan/scan-index'
 import {
@@ -64,9 +64,14 @@ test('WP-7-Gate: Wurzel-Mengen vorher/nachher byte-identisch (Migration)', () =>
   expect(roots.codexHome).toBe(vorher.codexHome)
   expect(roots.sharedClaude).toBe(vorher.sharedClaude)
   expect(roots.projectRoot).toBe(vorher.projectRoot)
-  // Watcher-/Scan-Basis: dieselben vier Wurzeln wie vor dem Paket.
+  // Watcher-Basis: die vier Bestands-Wurzeln UND die beiden weiteren nativen
+  // Tool-Homes (~/.agents, ~/.kimi-code). Sie kamen 2026-08-11 dazu, weil der
+  // Live-Watcher Aenderungen dort sonst nicht sah (F3). Der WRITE-Scope
+  // (configRootList) bleibt davon unberuehrt — das prueft config-roots.spec.
+  const home = dirname(vorher.claudeHome)
   expect(configWatchRootList(gateDeps)).toEqual([
-    vorher.claudeHome, vorher.codexHome, vorher.sharedClaude, vorher.projectRoot
+    vorher.claudeHome, vorher.codexHome, vorher.sharedClaude, vorher.projectRoot,
+    join(home, '.agents'), join(home, '.kimi-code')
   ])
 })
 

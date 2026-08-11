@@ -15,7 +15,7 @@ import { exportSnapshot } from '../backup'
 import { runRollback, type RollbackRecord } from './journal-rollback'
 
 /** SHA-256-Hex einer Datei; undefined wenn nicht existent/lesbar. */
-export function sha256File(path: string): string | undefined {
+function sha256File(path: string): string | undefined {
   try {
     return createHash('sha256').update(readFileSync(path)).digest('hex')
   } catch {

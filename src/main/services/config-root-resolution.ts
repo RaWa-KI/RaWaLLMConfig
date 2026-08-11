@@ -89,7 +89,7 @@ export function discoverRoot(preferred: string | null, defaultPath: string, exis
 // leerer Changelog-Feed, falsche Referenz-Pfade). Beide Formen sind gueltig:
 // zeigt der Wert nicht selbst auf `.claude` und existiert `<wert>/.claude`,
 // wird auf die `.claude`-Ebene normalisiert.
-export function normalizeSharedClaude(d: RootDiscovery, exists: RootExists): RootDiscovery {
+function normalizeSharedClaude(d: RootDiscovery, exists: RootExists): RootDiscovery {
   if (!d.value) return d
   if (basename(d.value) === '.claude') return d
   const child = join(d.value, '.claude')

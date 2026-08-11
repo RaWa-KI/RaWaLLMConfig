@@ -1,6 +1,6 @@
 {
   "name": "rawallmconfig",
-  "version": "0.1.8",
+  "version": "0.1.12",
   "description": "Local desktop app for inspecting and safely managing Claude, Codex, MCP, hooks, local models, and AI workspace configuration.",
   "author": "RaWaLLMConfig contributors",
   "packageManager": "pnpm@11.15.0",
@@ -23,6 +23,7 @@
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2 --config .markdownlint.json README.md CLAUDE.md AGENTS.md ZIELE.md docs/02-planung/INDEX.md docs/02-planung/PLAN-rawallmconfig-modernisierung-nach-rebuild_2026-07-18.md docs/04-berichte/INDEX.md docs/04-berichte/BERICHT-dead-code-cleanup_2026-08-05.md .claude/session-handoff.md",
     "lint:lines": "node scripts/hr27-lines-check.mjs",
+    "knip": "knip",
     "test": "pnpm test:service",
     "test:service": "pnpm exec playwright test --config tests/write/playwright.config.ts",
     "smoke:ui": "node scripts/ui-smoke.mjs",
@@ -59,14 +60,15 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "6.0.2",
-    "electron": "43.1.1",
+    "electron": "43.3.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
-    "eslint": "10.8.0",
+    "eslint": "10.8.1",
     "globals": "17.9.0",
+    "knip": "6.30.0",
     "markdownlint-cli2": "0.23.1",
-    "typescript-eslint": "8.66.0",
     "typescript": "^5.7.0",
-    "vite": "8.0.16"
+    "typescript-eslint": "8.66.0",
+    "vite": "8.2.1"
   }
 }

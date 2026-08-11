@@ -1,7 +1,7 @@
 import type { AppData, Category, ConfigEntry, Scope } from '@shared/contract'
 import type { CompareCandidate } from '@shared/contract-compare'
 
-export type SameFileStatus = 'ready' | 'partial' | 'ambiguous'
+type SameFileStatus = 'ready' | 'partial' | 'ambiguous'
 
 export interface SameFileGroup {
   basename: string

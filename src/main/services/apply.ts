@@ -183,13 +183,6 @@ function applyRequest(req: WriteRequest, partial?: Partial<ApplyOptions>): Write
   return mutateWrite(req, opts, backupPath, inbound)
 }
 
-// Adapter-Instanz (PersistencePort).
-export const apply: PersistencePort = {
-  apply(req: WriteRequest, opts?: Partial<ApplyOptions>): WriteResult {
-    return applyRequest(req, opts)
-  }
-}
-
 // Direkter Export fuer IPC/Tests (ohne Port-Indirektion).
 export function applyWrite(req: WriteRequest, opts?: Partial<ApplyOptions>): WriteResult {
   return applyRequest(req, opts)

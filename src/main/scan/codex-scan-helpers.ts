@@ -17,7 +17,7 @@ export function isSecret(name: string): boolean {
   return isSecretPathForRead(name)
 }
 
-export function statSafe(p: string): fs.Stats | null {
+function statSafe(p: string): fs.Stats | null {
   try {
     return fs.statSync(p)
   } catch (e) {

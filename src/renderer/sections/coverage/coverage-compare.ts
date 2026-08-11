@@ -59,7 +59,7 @@ export function coverageCandidates(row: CoverageRow): CompareCandidate[] {
     }))
 }
 
-export function coverageRowContext(row: CoverageRow): CoverageCompareRowContext {
+function coverageRowContext(row: CoverageRow): CoverageCompareRowContext {
   const cells: CoverageCompareCellContext[] = coverageCells(row).map(({ id, label, cell, notes }) => ({
     id,
     label,

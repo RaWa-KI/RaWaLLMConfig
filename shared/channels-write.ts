@@ -19,7 +19,8 @@ export const IPC_WRITE = {
   // Dir-Operationen (Teil A — CONTRACT-SSoT)
   writeArchiveDir: 'write:archiveDir',
   writeMoveDir: 'write:moveDir',
-  writeReconcileFolder: 'write:reconcileFolder',
+  // Ordner-Merge hat keinen eigenen Kanal mehr (2026-08-11): er laeuft ueber
+  // integrityPreview + integrityApply (Zwei-Klick-Vorschau gegen planHash).
   // Umbenennen-/Verschieben-Routen (WP-03; Datei+Ordner, Seitenwahl, Versions-Wahl)
   writeRename: 'write:rename',
   writeMoveVersioned: 'write:moveVersioned',
@@ -58,3 +59,12 @@ export const IPC_WRITE = {
 } as const
 
 export type IpcWriteChannel = (typeof IPC_WRITE)[keyof typeof IPC_WRITE]
+
+// Main -> Renderer Ereignisse der Integrity-Transaktion (kein invoke/handle).
+// applyProgress meldet den Fortschritt eines laufenden Apply, damit die UI
+// waehrend langer Operationen nicht nur „Arbeitet …" zeigt.
+export const IPC_INTEGRITY_EVENTS = {
+  applyProgress: 'integrity:applyProgress'
+} as const
+
+export type IpcIntegrityEvent = (typeof IPC_INTEGRITY_EVENTS)[keyof typeof IPC_INTEGRITY_EVENTS]

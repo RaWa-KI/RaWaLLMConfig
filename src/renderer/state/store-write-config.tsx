@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { WriteAction, WriteRequest, WriteResult, DirReconcileRequest } from '@shared/contract-write'
+import type { WriteAction, WriteRequest, WriteResult } from '@shared/contract-write'
 import type { RenameRequest, MoveVersionedRequest, MoveImpactScanRequest, MoveImpactScanResult } from '@shared/contract-write-rename'
 import { useStore } from './store'
 import { useRenameMoveActions } from './store-write-rename'
@@ -47,8 +47,10 @@ export interface WriteConfigValue {
   moveEntry(path: string, to: string): Promise<boolean>
   // Dir-Operationen (Teil B — Bridge-only, write-gated).
   archiveDirEntry(path: string): Promise<boolean>
-  moveDirEntry(path: string, to: string): Promise<boolean>
-  reconcileFolder(req: DirReconcileRequest): Promise<boolean>
+  // move-dir: Ziel waehlt der Owner im Main-Ordnerdialog (Finding A) — kein `to`.
+  moveDirEntry(path: string): Promise<boolean>
+  // Ordner-Merge: kein Store-Eintrag mehr — DirReconcileActions nutzt die
+  // Integrity-Route (Vorschau + Ausfuehren gegen planHash) direkt.
   // Umbenennen-/Verschieben-Routen (WP-04; getypte Bridge, partial-Hinweis).
   renameEntry(req: RenameRequest): Promise<boolean>
   moveEntryVersioned(req: MoveVersionedRequest): Promise<boolean>
@@ -159,9 +161,9 @@ function useWriteSliceDeps(actions: StoreActions, core: ReturnType<typeof useWri
     }),
     [actions, core.setBusy, core.setLastError]
   )
-  const { archiveDirEntry, moveDirEntry, reconcileFolder } = useDirActions(sliceDeps)
+  const { archiveDirEntry, moveDirEntry } = useDirActions(sliceDeps)
   const { renameEntry, moveEntryVersioned, moveImpactScan } = useRenameMoveActions(sliceDeps)
-  return { archiveDirEntry, moveDirEntry, reconcileFolder, renameEntry, moveEntryVersioned, moveImpactScan }
+  return { archiveDirEntry, moveDirEntry, renameEntry, moveEntryVersioned, moveImpactScan }
 }
 
 export function WriteConfigProvider({ children }: { children: ReactNode }) {

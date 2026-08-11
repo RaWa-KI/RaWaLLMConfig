@@ -14,7 +14,7 @@ import type {
 import type { MoveVersionedRequest, RenameRequest } from '@shared/contract-write-rename'
 import { pathsEqual } from '@shared/path-compare'
 import { safeStat } from './reference-pairs'
-import { scanReferences } from './reference-scan'
+import { scanReferencesBatchOffThread } from './reference-scan-host'
 import { computePlanHash } from './plan-hash'
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────
@@ -90,6 +90,11 @@ interface ReferenceAggregate {
   truncated: boolean
 }
 
+/**
+ * Scannt ALLE fsOps in EINEM Batch-Durchlauf (ein Baum-Walk statt einem je
+ * fsOp; ein Rename 'beide' las den Baum bisher zweimal komplett). Die
+ * Cross-Volume-Blocker-Logik bleibt unveraendert und in derselben Reihenfolge.
+ */
 async function scanFsOps(
   fsOps: IntegrityFsOp[],
   operationSources: string[],
@@ -98,7 +103,11 @@ async function scanFsOps(
   const aggregate: ReferenceAggregate = {
     ops: [], blockers: [], manual: [], scannedFiles: 0, truncated: false
   }
-  for (const fsOp of fsOps) {
+  const scanResults = await scanReferencesBatchOffThread(
+    fsOps.map((fsOp) => ({ oldPath: fsOp.from, newPath: fsOp.to ?? '' })),
+    { ...opts, operationSources }
+  )
+  fsOps.forEach((fsOp, index) => {
     if (fsOp.to && !sameVolume(fsOp.from, fsOp.to)) {
       aggregate.blockers.push({
         code: 'cross-volume-rollback-not-proven',
@@ -107,16 +116,14 @@ async function scanFsOps(
           'Verschieben ueber Laufwerksgrenzen — sicherer Rollback nicht beweisbar; bitte manuell verschieben.'
       })
     }
-    const scanResult = await scanReferences(fsOp.from, fsOp.to ?? '', {
-      ...opts,
-      operationSources
-    })
+    const scanResult = scanResults[index]
+    if (!scanResult) return
     aggregate.ops.push(...scanResult.ops)
     aggregate.blockers.push(...scanResult.blockers)
     aggregate.manual.push(...scanResult.manualRequired)
     aggregate.scannedFiles += scanResult.scannedFiles
     if (scanResult.truncated) aggregate.truncated = true
-  }
+  })
   return aggregate
 }
 
@@ -124,7 +131,7 @@ async function scanFsOps(
 
 /**
  * Baut einen deterministischen IntegrityPlan für Move- oder Rename-Operationen.
- * Ruft scanReferences pro fsOp auf und aggregiert ops/blockers/manualRequired.
+ * Scannt alle fsOps in einem Batch und aggregiert ops/blockers/manualRequired.
  */
 export async function planMove(
   input: { kind: 'move' | 'rename'; req: MoveVersionedRequest | RenameRequest },

@@ -10,10 +10,10 @@
 import type { PrefValue } from '@shared/contract-write'
 import type { CloudAuthMode } from '@shared/contract-provider'
 
-export const CLOUD_PROVIDER_PREF_PREFIX = 'cloudProvider.'
-export const CLOUD_PROVIDER_PREF_SUFFIX = '.enabled'
+const CLOUD_PROVIDER_PREF_PREFIX = 'cloudProvider.'
+const CLOUD_PROVIDER_PREF_SUFFIX = '.enabled'
 // WP-F7: Auth-Modus-Pref je Anbieter (`cloudProvider.<id>.authMode`).
-export const CLOUD_PROVIDER_AUTHMODE_SUFFIX = '.authMode'
+const CLOUD_PROVIDER_AUTHMODE_SUFFIX = '.authMode'
 
 // Modul-Cache: nur explizit aktivierte Anbieter (true). Ungesetzt = aus.
 let enabledProviders: Record<string, boolean> = {}

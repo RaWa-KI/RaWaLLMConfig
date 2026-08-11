@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, IPC_EVENTS } from '@shared/channels'
 import type { OpenPathRequest, OpenPathData } from '@shared/channels'
 import type { IntegrationsApi } from '@shared/channels-integrations'
-import { IPC_WRITE } from '@shared/channels-write'
+import { IPC_WRITE, IPC_INTEGRITY_EVENTS } from '@shared/channels-write'
 import { IPC_UPDATES, IPC_UPDATES_EVENTS } from '@shared/channels-updates'
 import { createIntegrationsApi } from './integrations-api'
 import { createDiagnosticsApi, type DiagnosticsApi } from './diagnostics-api'
@@ -36,8 +36,6 @@ import type {
   WriteStatusResult,
   WriteSetEnabledRequest,
   DirActionResult,
-  DirReconcileRequest,
-  DirReconcileResult,
   SystemEditRequest,
   SystemEditResult,
   EnvMigrateRequest,
@@ -73,6 +71,7 @@ import type {
 import type { CompareCandidate, MultiCompareResult } from '@shared/contract-compare'
 import type {
   IntegrityApi,
+  IntegrityApplyProgressPayload,
   IntegrityPreviewRequest,
   IntegrityPreviewResult,
   IntegrityApplyRequest,
@@ -204,10 +203,12 @@ const write: WriteApi = {
   // Dir-Operationen (Teil A — CONTRACT-SSoT): Bridge ueber whitelisted Kanaele.
   archiveDirEntry: (path: string): Promise<DirActionResult> =>
     ipcRenderer.invoke(IPC_WRITE.writeArchiveDir, { action: 'archive-dir', path }),
-  moveDirEntry: (path: string, to: string): Promise<DirActionResult> =>
-    ipcRenderer.invoke(IPC_WRITE.writeMoveDir, { action: 'move-dir', path, to }),
-  reconcileFolder: (req: DirReconcileRequest): Promise<DirReconcileResult> =>
-    ipcRenderer.invoke(IPC_WRITE.writeReconcileFolder, req),
+  // SICHERHEIT (Finding A): kein renderer-geliefertes Ziel mehr — der Main-Handler
+  // oeffnet den nativen Ordnerdialog und nutzt dessen Pfad. Kein `to` im Request.
+  moveDirEntry: (path: string): Promise<DirActionResult> =>
+    ipcRenderer.invoke(IPC_WRITE.writeMoveDir, { action: 'move-dir', path }),
+  // Ordner-Merge: keine eigene Bridge-Methode mehr — die UI nutzt
+  // integrityPreview + integrityApply (Zwei-Klick-Vorschau gegen planHash).
   // Umbenennen-/Verschieben-Routen (WP-03/04; Datei+Ordner, Seitenwahl, Versions-Wahl)
   renameEntry: (req: RenameRequest): Promise<RenameResult> =>
     ipcRenderer.invoke(IPC_WRITE.writeRename, req),
@@ -252,7 +253,13 @@ const integrity: IntegrityApi = {
   integrityPreview: (req: IntegrityPreviewRequest): Promise<IntegrityPreviewResult> =>
     ipcRenderer.invoke(IPC_WRITE.integrityPreview, req),
   integrityApply: (req: IntegrityApplyRequest): Promise<IntegrityApplyResult> =>
-    ipcRenderer.invoke(IPC_WRITE.integrityApply, req)
+    ipcRenderer.invoke(IPC_WRITE.integrityApply, req),
+  // Fortschritt eines laufenden Apply (Muster onUpdatesProgress): reine Anzeige.
+  onIntegrityApplyProgress: (cb: (p: IntegrityApplyProgressPayload) => void): (() => void) => {
+    const listener = (_e: unknown, p: IntegrityApplyProgressPayload): void => cb(p)
+    ipcRenderer.on(IPC_INTEGRITY_EVENTS.applyProgress, listener)
+    return () => ipcRenderer.removeListener(IPC_INTEGRITY_EVENTS.applyProgress, listener)
+  }
 }
 
 const integrations = createIntegrationsApi(ipcRenderer)

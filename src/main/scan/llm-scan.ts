@@ -30,7 +30,9 @@ const LOCAL_COMING_SOON: ComingSoon = {
 
 // Basis-Pfad: public-freundlicher Default unter dem Benutzerprofil, optional
 // per RAWALLM_GGUF_ROOT auf ein lokales Modell-Laufwerk umlegbar.
-export const GGUF_ROOT = process.env.RAWALLM_GGUF_ROOT || join(homedir(), 'models', 'gguf')
+export function GGUF_ROOT(): string {
+  return process.env.RAWALLM_GGUF_ROOT || join(homedir(), 'models', 'gguf')
+}
 const GGUF_EXT = '.gguf'
 const WINDOWS_MODEL_DRIVES = 'DEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -52,7 +54,7 @@ function dedupeRoots(roots: string[]): string[] {
 }
 
 export function ggufRoots(): string[] {
-  return dedupeRoots([GGUF_ROOT, ...externalGgufCandidates(), ...userSourceRootsForProvider('local')])
+  return dedupeRoots([GGUF_ROOT(), ...externalGgufCandidates(), ...userSourceRootsForProvider('local')])
 }
 
 /** mtime als ISO-Datum (ohne Uhrzeit), graceful bei Fehler. */
@@ -246,7 +248,7 @@ export { scanGgufFiles, endpointEntries, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON }
 
 /**
  * Lokale LLMs scannen. Read-only: nur Dateinamen/Groessen, nie Inhalte.
- * Ohne GGUF_ROOT -> comingSoon + leere categories.
+ * Ohne GGUF_ROOT() -> comingSoon + leere categories.
  */
 export function scanLocalLlm(): LlmConfig {
   try {

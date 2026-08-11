@@ -61,7 +61,7 @@ export function DirDiffView({ d, labels }: { d: DuplicateSet; labels: DiffLabels
       )}
       <div className="diff-actions">
         {d.note && <span className="diff-note">{d.note}</span>}
-        <DirReconcileActions d={d} dir={dir} knownPaths={knownPaths} />
+        <DirReconcileActions d={d} dir={dir} />
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ import { readinessState, taskMarks, type AreaState, type TaskMark, type TaskMark
 
 export type OverviewTone = 'ready' | 'incomplete' | 'warning'
 
-export interface OverviewMetric {
+interface OverviewMetric {
   id: string
   tone: OverviewTone
   icon: string

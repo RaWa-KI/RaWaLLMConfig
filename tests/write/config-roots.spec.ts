@@ -6,11 +6,15 @@
 import { test, expect } from '@playwright/test'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { configRoots, configRootList, activeSandboxRoot, discoverConfigRoots, workspaceRoots } from '../../src/main/services/config-roots'
 import { discoverRoot } from '../../src/main/services/config-root-resolution'
 
+// write-mode.ts liest RAWALLM_WRITE_ENABLED EINMAL beim Modul-Load (const ENV).
+// Fuer (c) muss das Modul deshalb NACH gesetztem Env neu geladen werden — hier
+// bleibt require + Cache-Invalidierung fachlich noetig, ein statischer Import
+// wuerde den Env-Wert des ersten Loads einfrieren.
 const WM_PATH = require.resolve('../../src/main/services/write-mode.ts')
 function loadWriteMode(): typeof import('../../src/main/services/write-mode') {
   delete require.cache[WM_PATH]
@@ -72,7 +76,6 @@ test('(a) Default ohne RAWALLM_SANDBOX_ROOT -> reale Home-basierte Wurzeln', () 
   // Festwert bestand in der CI nur durch zufaellige Worker-Reihenfolge.
   const legacyShared = join(home, 'Desktop', 'Projekte', '.shared', '.claude')
   const legacyProject = join(home, 'Desktop', 'Projekte', 'RaWaLLMConfig')
-  const { existsSync } = require('node:fs') as typeof import('node:fs')
   expect(r.sharedClaude).toBe(existsSync(legacyShared) ? legacyShared : null)
   expect(r.projectRoot).toBe(existsSync(legacyProject) ? legacyProject : null)
   // claudeHome endet auf .claude und liegt unter dem realen Home.
@@ -143,5 +146,37 @@ test('workspaceRoots akzeptiert POSIX-path_local und ueberspringt ssh://', () =>
   const roots = workspaceRoots()
   expect(roots).toContainEqual({ root: '/home/test/RaWaLLMConfig', label: 'POSIX' })
   expect(roots.some((root) => root.root.startsWith('ssh://'))).toBe(false)
+  clearEnv()
+})
+
+// F7/F8: Die Registry liegt real unter `.shared/coordination/registry/`. Vorher
+// wurde AUSSCHLIESSLICH `.shared/.claude/coordination/registry/` gelesen —
+// workspaceRoots() blieb dadurch dauerhaft leer (kein WS im Wissensnetz, jede
+// WS-Struktur als Anomalie gemeldet). Beide Ablagen muessen greifen.
+test('workspaceRoots liest die Registry am realen Pfad (.shared/coordination)', () => {
+  clearEnv()
+  const sandbox = mkdtempSync(join(tmpdir(), 'rawallm-roots-'))
+  process.env.RAWALLM_SANDBOX_ROOT = sandbox
+  const registryDir = join(sandbox, '.shared', 'coordination', 'registry')
+  mkdirSync(registryDir, { recursive: true })
+  writeFileSync(join(registryDir, 'workspaces.json'), JSON.stringify({
+    workspaces: { demo: { name: 'DemoWS', path_local: '/home/test/DemoWS' } }
+  }), 'utf8')
+
+  expect(workspaceRoots()).toContainEqual({ root: '/home/test/DemoWS', label: 'DemoWS' })
+  clearEnv()
+})
+
+test('workspaceRoots liest die Registry weiterhin am alten Pfad (Kompatibilitaet)', () => {
+  clearEnv()
+  const sandbox = mkdtempSync(join(tmpdir(), 'rawallm-roots-'))
+  process.env.RAWALLM_SANDBOX_ROOT = sandbox
+  const registryDir = join(sandbox, '.shared', '.claude', 'coordination', 'registry')
+  mkdirSync(registryDir, { recursive: true })
+  writeFileSync(join(registryDir, 'workspaces.json'), JSON.stringify({
+    workspaces: { alt: { name: 'AltWS', path_local: '/home/test/AltWS' } }
+  }), 'utf8')
+
+  expect(workspaceRoots()).toContainEqual({ root: '/home/test/AltWS', label: 'AltWS' })
   clearEnv()
 })

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { SEITE_KURZ } from '@shared/dup-labels'
+import { SEITE_KURZ, intraSeiteKurz } from '@shared/dup-labels'
 import type { MvVersion } from './move-target'
 
 export interface ChipOption { val: string; label: string; disabled?: boolean }
@@ -22,10 +22,33 @@ export function pickerValue(st: PickerLikeState): string {
   return st.target ? st.target : st.effPath
 }
 
-export function sideLabel(v: MvVersion): string {
+// Versions-Beschriftung: Bestand Shared/Claude — bei Intra-Familien-Paaren
+// (fassungen gesetzt) ehrliche Fassungs-Namen (Fundstelle A = sharedPath-Slot,
+// Fundstelle B = claudePath-Slot); Shared ist an solchen Paaren nicht beteiligt.
+export function sideLabel(v: MvVersion, fassungen?: [string, string] | null): string {
+  if (fassungen) {
+    const f = intraSeiteKurz(fassungen)
+    if (v === 'shared') return f.a
+    if (v === 'claude') return f.b
+    return f.beide
+  }
   if (v === 'shared') return SEITE_KURZ.shared
   if (v === 'claude') return SEITE_KURZ.claude
   return SEITE_KURZ.beide
+}
+
+// Chip-Optionen der Versions-Wahl (aus MoveDialog ausgelagert): Beschriftung
+// via sideLabel (Bestand oder Intra-Fassungen), disabled je fehlender Seite.
+export function versionOptions(
+  sharedPath: string | undefined,
+  claudePath: string | undefined,
+  fassungen?: [string, string] | null
+): ChipOption[] {
+  return [
+    { val: 'claude', label: sideLabel('claude', fassungen), disabled: !claudePath },
+    { val: 'shared', label: sideLabel('shared', fassungen), disabled: !sharedPath },
+    { val: 'beide', label: sideLabel('beide', fassungen), disabled: !(sharedPath && claudePath) }
+  ]
 }
 
 export function MvField({ label, children }: { label: string; children: ReactNode }) {

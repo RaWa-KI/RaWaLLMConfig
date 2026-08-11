@@ -18,7 +18,7 @@ export const SKIP_DIRS = new Set([
   '.git', 'node_modules', 'dist', 'build', '.vite'
 ])
 
-export const TEXT_EXTS = new Set([
+const TEXT_EXTS = new Set([
   '.cjs', '.css', '.htm', '.html', '.ini', '.js', '.json', '.jsx', '.md',
   '.mjs', '.toml', '.ts', '.tsx', '.txt', '.xml', '.yaml', '.yml'
 ])
@@ -36,7 +36,7 @@ export function slashPath(p: string): string {
   return p.replace(/\\/g, '/')
 }
 
-export function jsonEscapedPath(p: string): string {
+function jsonEscapedPath(p: string): string {
   return p.replace(/\\/g, '\\\\')
 }
 

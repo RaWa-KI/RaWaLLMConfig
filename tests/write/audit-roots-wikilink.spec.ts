@@ -8,18 +8,12 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { LlmConfig } from '../../shared/contract'
 import { scanAllWikilinks } from '../../src/main/scan/reference-sweep'
+import { buildAuditConfig } from '../../src/main/scan/scan-audit-categories'
 
 function w(file: string, content: string): string {
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, content, 'utf8')
   return file
-}
-
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (k.includes('/src/main/scan/') || k.includes('/src/main/services/')) delete require.cache[key]
-  }
 }
 
 let tmp = ''
@@ -87,8 +81,6 @@ test('B10: buildAuditConfig loest cross-root auf und buendelt zu 1 Karte mit Zae
   process.env.RAWALLM_SANDBOX_ROOT = sb
   try {
     seedWikilinkSandbox(sb)
-    bustScanCache()
-    const { buildAuditConfig } = require('../../src/main/scan/scan-audit-categories') as { buildAuditConfig: () => LlmConfig }
     const audit = buildAuditConfig()
     const refs = audit.categories.find((cat) => cat.id === 'audit-references')
     expect(refs).toBeDefined()
@@ -101,7 +93,6 @@ test('B10: buildAuditConfig loest cross-root auf und buendelt zu 1 Karte mit Zae
   } finally {
     if (saved === undefined) delete process.env.RAWALLM_SANDBOX_ROOT
     else process.env.RAWALLM_SANDBOX_ROOT = saved
-    bustScanCache()
     rmSync(sb, { recursive: true, force: true })
   }
 })

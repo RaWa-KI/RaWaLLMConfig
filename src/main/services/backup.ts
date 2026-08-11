@@ -23,7 +23,7 @@ export { resolveDefaultArchiveRoot, setArchiveRootResolver }
 export const DEFAULT_ARCHIVE_ROOT = resolveDefaultArchiveRoot()
 
 // Ergebnis-Nutzlast eines Pre-Snapshots: wohin kopiert wurde (Name sichtbar).
-export interface SnapshotData {
+interface SnapshotData {
   source: string
   snapshotPath: string
 }
@@ -143,7 +143,7 @@ export function archiveDest(targetPath: string, archiveRoot: string): IpcResult<
 // Tages-Archivordner unter archiveRoot. archive-missing wenn Root fehlt (STOP).
 // Leeres/fehlendes snapshotPath im Ergebnis = HARTER Abbruch-Trigger in apply.
 
-export interface SnapshotDirData {
+interface SnapshotDirData {
   source: string
   snapshotPath: string // Pfad des kopierten Ordners im Archiv (nie leer bei success)
   fileCount: number

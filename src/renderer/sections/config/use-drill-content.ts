@@ -10,7 +10,7 @@ import { fetchContentFull } from './diff-shared'
 // Antwort wird masked=true gesetzt und der maskierte Text NUR angezeigt, nie
 // zurueckgeschrieben (Secret-Gate bleibt unangetastet).
 
-export type DrillState = 'loading' | 'done' | 'protected'
+type DrillState = 'loading' | 'done' | 'protected'
 
 export interface DrillContent {
   state: DrillState

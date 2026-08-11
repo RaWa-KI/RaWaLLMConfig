@@ -3,7 +3,7 @@ import type { UpdateSourceDescription, UpdateSourcePort } from './update-source-
 import { getDeps } from './update-manager-deps'
 import { getUpdateState as getStateSnapshot, setSourceState } from './update-state'
 
-export function updateSourceLabel(desc: UpdateSourceDescription): string {
+function updateSourceLabel(desc: UpdateSourceDescription): string {
   if (!desc.configured) return 'Quelle gerade nicht erreichbar'
   return desc.kind === 'local' ? 'Lokaler Update-Ordner' : 'Öffentliche Releases (GitHub)'
 }

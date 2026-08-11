@@ -8,7 +8,7 @@ export type FrontmatterArtifact =
   | 'codex-agent'
   | 'generic'
 
-export type FrontmatterDiagnosticLevel = 'hint' | 'warning'
+type FrontmatterDiagnosticLevel = 'hint' | 'warning'
 
 export interface FrontmatterKeyDiagnostic {
   level: FrontmatterDiagnosticLevel
@@ -31,7 +31,7 @@ const CLAUDE_SKILLS_DOC = 'https://code.claude.com/docs/en/skills'
 const CLAUDE_AGENTS_DOC = 'https://code.claude.com/docs/en/sub-agents'
 const CODEX_SKILLS_DOC = 'https://developers.openai.com/codex/skills'
 
-export const FRONTMATTER_SCHEMAS: Record<FrontmatterArtifact, FrontmatterSchema> = {
+const FRONTMATTER_SCHEMAS: Record<FrontmatterArtifact, FrontmatterSchema> = {
   'claude-rule': {
     official: ['description', 'paths'],
     wrongKnown: { globs: { suggestion: 'paths', message: 'globs wird von Claude Rules ignoriert.' } },

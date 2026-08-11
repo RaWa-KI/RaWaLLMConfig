@@ -5,7 +5,7 @@ import { sharedTrunkIntegrationDefinition } from '../integrations/shared-trunk'
 import { watcherGovernanceIntegrationDefinition } from '../integrations/watcher-governance'
 import { workspaceRegistryIntegrationDefinition } from '../integrations/workspace-registry'
 
-export const CORE_INTEGRATION_DEFINITION: IntegrationDefinition = {
+const CORE_INTEGRATION_DEFINITION: IntegrationDefinition = {
   id: 'core',
   label: 'Grundfunktionen',
   core: true,
@@ -13,7 +13,7 @@ export const CORE_INTEGRATION_DEFINITION: IntegrationDefinition = {
   probeKind: 'none'
 }
 
-export const USER_SOURCES_INTEGRATION_DEFINITION: IntegrationDefinition = {
+const USER_SOURCES_INTEGRATION_DEFINITION: IntegrationDefinition = {
   id: 'user-sources',
   label: 'Eigene Ordner',
   core: false,

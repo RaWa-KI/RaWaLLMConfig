@@ -103,7 +103,12 @@ export async function gotoSection(win, label) {
     return 'nav'
   }
   await openMoreMenu(win)
-  await win.locator('.nav-overflow-menu .sec-btn.menu-item', { hasText: label }).first().click({ timeout: 5000 })
+  // Gleicher Overlay-Budget-Reflex wie openMoreMenu: 5 s reichen unter
+  // Transition-Last nicht (focus-navigation 2026-08-10: Menu-Item resolved,
+  // Actionability-Timeout).
+  const menuItem = win.locator('.nav-overflow-menu .sec-btn.menu-item', { hasText: label }).first()
+  await menuItem.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+  await menuItem.click({ timeout: STEP_TIMEOUT_MS })
   await win.waitForTimeout(600)
   return 'menu'
 }

@@ -4,6 +4,7 @@
 // Eine Operation ist nur erfolgreich, wenn FS-Zustand UND Referenzgraph konsistent
 // sind; sonst Rollback. Trägt NIE rohe Secret-Werte.
 import type {
+  IntegrityApplyProgressPayload,
   IntegrityApplyResult,
   IntegrityPreviewResult,
   IntegrityApplyRequest,
@@ -19,7 +20,7 @@ import { isSecretPathForRead } from '../secret-guard'
 
 // Optionale Hooks: werden VOR/NACH dem Referenz-Rewrite-Schritt aufgerufen.
 // Ermöglichen Tests, Fehler an gezielten Stellen zu injizieren.
-export interface IntegrityHooks {
+interface IntegrityHooks {
   beforeReferences?: () => void | Promise<void>
   afterReferences?: () => void | Promise<void>
 }
@@ -28,6 +29,8 @@ export interface IntegrityApplyOptions {
   archiveRoot: string
   auditPath: string
   allowedRoots?: string[]
+  /** Optionaler Fortschritts-Kanal fuer die UI; ohne Wirkung auf die Transaktion. */
+  onProgress?: (p: IntegrityApplyProgressPayload) => void
   hooks?: IntegrityHooks
 }
 
@@ -119,6 +122,7 @@ export async function applyIntegrity(
     archiveRoot: opts.archiveRoot,
     auditPath: opts.auditPath,
     allowedRoots: opts.allowedRoots,
+    onProgress: opts.onProgress,
     hooks: opts.hooks
   })
 }

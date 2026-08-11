@@ -43,24 +43,47 @@ export interface ReferenceApplyResult {
   error: string | null
 }
 
+/** Reine Anzeige-Rueckmeldung je bearbeiteter Datei (nie transaktionsrelevant). */
+export type ReferenceApplyProgress = (done: number, total: number) => void
+
 /**
  * Wendet die geplanten ReferenceOps an. Pro Datei: längste needle zuerst
  * (vermeidet Teil-Treffer-Kollision), atomar schreiben, Audit. Liefert die Liste
  * tatsächlich geänderter Dateien. Fehler beim Schreiben bricht ab (Aufrufer rollt zurück).
+ * onProgress meldet nach jeder Datei den Stand — auch fuer uebersprungene, damit
+ * der Zaehler die Gesamtzahl wirklich erreicht.
  */
-export function applyReferenceOps(ops: ReferenceOp[], auditPath: string): ReferenceApplyResult {
+export function applyReferenceOps(
+  ops: ReferenceOp[],
+  auditPath: string,
+  onProgress?: ReferenceApplyProgress
+): ReferenceApplyResult {
   const rewrittenFiles: string[] = []
-  for (const [filePath, fileOps] of groupByFile(ops)) {
+  const grouped = groupByFile(ops)
+  const total = grouped.size
+  let done = 0
+  const step = (): void => {
+    done++
+    onProgress?.(done, total)
+  }
+  for (const [filePath, fileOps] of grouped) {
     let content: string
     try {
       content = readFileSync(filePath, 'utf8')
     } catch {
-      continue // Datei nicht mehr lesbar (z.B. selbst verschoben) — überspringen
+      // Datei nicht mehr lesbar (z.B. selbst verschoben oder als Loser
+      // archiviert) — überspringen. Die Archiv-Kopie behält bewusst ihre alten
+      // Referenzen; die Verify-Phase überspringt Unlesbares ebenso.
+      step()
+      continue
     }
     const sorted = [...fileOps].sort((a, b) => b.oldValue.length - a.oldValue.length)
     let next = content
     for (const op of sorted) next = replaceAll(next, op.oldValue, op.newValue)
-    if (next === content) continue
+    if (next === content) {
+      step()
+      continue
+    }
     try {
       atomicWrite(filePath, next)
       rewrittenFiles.push(filePath)
@@ -68,6 +91,7 @@ export function applyReferenceOps(ops: ReferenceOp[], auditPath: string): Refere
     } catch (err) {
       return { rewrittenFiles, error: err instanceof Error ? err.message : 'reference-write-failed' }
     }
+    step()
   }
   return { rewrittenFiles, error: null }
 }

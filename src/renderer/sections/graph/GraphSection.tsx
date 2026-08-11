@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { GraphIngestResult } from '@shared/contract-graph'
+import type { GraphIngestAll, GraphIngestResult } from '@shared/contract-graph'
 import { Icon } from '../../components/Icon'
 import { GraphMetrics } from './GraphMetrics'
 import { OrphanTriage } from './OrphanTriage'
@@ -19,7 +19,9 @@ import './GraphSection.css'
 type LoadState =
   | { phase: 'loading' }
   | { phase: 'error'; msg: string }
-  | { phase: 'done'; workspaces: GraphIngestResult[] }
+  // modules: Einrichtungsstand der optionalen Module — noetig, um den leeren
+  // Zustand ehrlich zu unterscheiden (nicht eingerichtet vs. keine Daten, F8).
+  | { phase: 'done'; workspaces: GraphIngestResult[]; modules?: GraphIngestAll['modules'] }
 
 export function GraphSection() {
   const [state, setState] = useState<LoadState>({ phase: 'loading' })
@@ -39,7 +41,7 @@ export function GraphSection() {
         if (res.error || !res.data) {
           setState({ phase: 'error', msg: res.error ?? 'Graph-Ingest fehlgeschlagen' })
         } else {
-          setState({ phase: 'done', workspaces: res.data.workspaces })
+          setState({ phase: 'done', workspaces: res.data.workspaces, modules: res.data.modules })
         }
       } catch (err) {
         if (alive) {
@@ -85,10 +87,18 @@ function GraphBody(props: {
 
   const { workspaces } = state
   if (workspaces.length === 0) {
+    // Zwei sehr verschiedene Gruende, bisher mit EINEM Text (F8): entweder ist
+    // das Modul gar nicht eingerichtet (dann hilft nur der Modul-Tab) oder es
+    // ist eingerichtet, aber es liegen noch keine Daten vor.
+    const eingerichtet = state.modules?.graphify?.availability === 'active'
     return (
       <div className="empty">
         {Icon.box}
-        <p>Keine Workspaces mit graphify-Daten gefunden.</p>
+        {eingerichtet ? (
+          <p>Keine Ordner mit Wissensnetz-Daten gefunden. Sobald ein Ordner ausgewertet wurde, erscheint er hier.</p>
+        ) : (
+          <p>Das Wissensnetz ist noch nicht eingerichtet. Du richtest es unter Einstellungen → Module ein.</p>
+        )}
       </div>
     )
   }

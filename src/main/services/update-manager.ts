@@ -9,7 +9,7 @@
  */
 
 import { join, basename } from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 
 import type {
   UpdateCheckResult,
@@ -185,8 +185,13 @@ async function prepareDownload(
   if (!manifest.release) return { data: null, error: 'Manifest nicht lesbar' }
   const { info: freshInfo } = buildUpdateInfo(manifest.release, getDeps().getVersion())
   if (!freshInfo) return { data: null, error: 'Manifest nicht lesbar' }
-  const updatesTempRoot = join(getDeps().getTempPath(), 'RaWaLLMConfig-Updates')
-  mkdirSync(updatesTempRoot, { recursive: true })
+  // Sicherheits-Fix (2026-08-11): unvorhersagbares, uns gehoerendes Staging-
+  // Verzeichnis je Download via mkdtemp (0700, Zufalls-Suffix). Ein fester Name in
+  // einem weltweit beschreibbaren Temp-Elternordner (/tmp) erlaubte sonst Vorab-
+  // Anlage/TOCTOU: ein fremder Nutzer platziert/tauscht die AppImage vor chmod+exec.
+  const tempParent = getDeps().getTempPath()
+  mkdirSync(tempParent, { recursive: true })
+  const updatesTempRoot = mkdtempSync(join(tempParent, 'RaWaLLMConfig-Updates-'))
   const destPath = join(updatesTempRoot, basename(freshInfo.assetName))
   if (!isWithinBase(updatesTempRoot, destPath)) {
     return { data: null, error: 'Ungültiger Zielpfad' }

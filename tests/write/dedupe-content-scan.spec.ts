@@ -59,6 +59,29 @@ test('verschachtelter Mirror (Smoke-Fall): identisches Manifest -> Ordner-Paar t
   expect(sets[0]!.dir!.diffCount).toBe(1)
 })
 
+test('Secret-Verzeichnis (/credentials//security/): Dateien werden NICHT gehasht/gepaart, Nicht-Secret-Kopien schon', () => {
+  const sb = makeSandbox()
+  const data = setup(sb)
+  // Identischer Inhalt an drei Orten — einer davon in einem Secret-WERT-Verzeichnis.
+  // Ohne den Fix (Basename-only-Pruefung) wuerde die credentials-Datei gehasht,
+  // als Dublette gepaart und ihr Inhalt an den Renderer ausgeliefert.
+  const secretBody = 'ACCESS_TOKEN=supersecret-opaque-blob\n'
+  seed('.claude/rules/credentials/leak.txt', secretBody, sb) // MUSS ausgeschlossen sein
+  seed('.claude/rules/a/leak.txt', secretBody, sb) // Nicht-Secret-Kopie 1
+  seed('.claude/rules/b/leak.txt', secretBody, sb) // Nicht-Secret-Kopie 2
+  const secBody = 'SESSIONBLOB-abcdef0123\n'
+  seed('.claude/rules/security/session.txt', secBody, sb) // MUSS ausgeschlossen sein
+  seed('.claude/rules/c/session.txt', secBody, sb) // nur EINE Nicht-Secret-Kopie -> kein Paar
+  findContentDuplicates(data)
+  const sets = data.claude!.duplicates
+  // Kein Secret-Verzeichnis-Pfad darf in der renderer-seitigen Struktur auftauchen.
+  const dump = JSON.stringify(sets).replace(/\\\\/g, '/').toLowerCase()
+  expect(dump).not.toContain('/credentials/')
+  expect(dump).not.toContain('/security/')
+  // Die zwei Nicht-Secret-Kopien (a/b) paaren normal -> die Erkennung lebt.
+  expect(sets.length).toBeGreaterThan(0)
+})
+
 test('Einzeldatei-Paar: identische Rule in Unterordner ohne Manifest -> Datei-Paar (same)', () => {
   const sb = makeSandbox()
   const data = setup(sb)

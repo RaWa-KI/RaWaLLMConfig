@@ -45,7 +45,7 @@ export interface IntegrationStoreResult {
   integrations: IntegrationActivation[]
 }
 
-export function defaultIntegrationsPath(): string {
+function defaultIntegrationsPath(): string {
   return join(app.getPath('userData'), 'integrations.json')
 }
 

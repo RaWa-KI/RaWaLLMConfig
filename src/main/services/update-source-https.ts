@@ -45,7 +45,7 @@ interface BytesResult {
   error: string | null
 }
 
-export function getReleaseUrl(): string | null {
+function getReleaseUrl(): string | null {
   const value = process.env.RAWALLM_RELEASE_URL?.trim()
   return value && value.length > 0 ? value : null
 }

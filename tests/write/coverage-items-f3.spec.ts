@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { AppData, ConfigEntry, LlmConfig } from '../../shared/contract'
 import { deOverviewMessages } from '../../shared/messages/de-overview'
+import { buildAuditConfig } from '../../src/main/scan/scan-audit-categories'
 import {
   coverageDetailLead,
   coverageItemOverflow,
@@ -31,31 +32,22 @@ function w(file: string, content: string): string {
   return file
 }
 
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (k.includes('/src/main/scan/') || k.includes('/src/main/services/')) delete require.cache[key]
-  }
-}
-
+// Der Audit-Scan loest seine Wurzeln bei JEDEM Aufruf ueber configRoots() auf —
+// es genuegt, die Env um den Scan herum zu setzen (kein Cache-Bust, kein
+// require: buildAuditConfig ist statisch importiert).
 function withSandboxEnv<T>(sb: string, fn: () => T): T {
   const saved = process.env.RAWALLM_SANDBOX_ROOT
   process.env.RAWALLM_SANDBOX_ROOT = sb
   try {
-    bustScanCache()
     return fn()
   } finally {
     if (saved === undefined) delete process.env.RAWALLM_SANDBOX_ROOT
     else process.env.RAWALLM_SANDBOX_ROOT = saved
-    bustScanCache()
   }
 }
 
 function buildAuditIn(sb: string): LlmConfig {
-  return withSandboxEnv(sb, () => {
-    const mod = require('../../src/main/scan/scan-audit-categories') as { buildAuditConfig: () => LlmConfig }
-    return mod.buildAuditConfig()
-  })
+  return withSandboxEnv(sb, () => buildAuditConfig())
 }
 
 function summaryFromSandbox(): ConfigEntry {

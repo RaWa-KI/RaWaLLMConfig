@@ -4,9 +4,10 @@ import { normalizePathForCompare } from '@shared/path-compare'
 import { configRoots, workspaceRoots } from '../services/config-roots'
 import { kimiHome } from './manifests/kimi-cats'
 
-// Bekannte Tool-Homes (HR16: Claude, Codex und Kimi sind gleichwertige native
-// Loader). Ein gleichnamiger Ordner in einem anderen Root ist parallel, kein Dup.
-export const TOOL_HOME_DIRS = new Set(['.claude', '.codex', '.kimi-code'])
+// Bekannte Tool-Homes (HR16: Claude, Codex, Kimi, Grok und der gemeinsame
+// .agents-Baum sind gleichwertige native Loader). Ein gleichnamiger Ordner in
+// einem anderen Root ist parallel, kein Dup.
+export const TOOL_HOME_DIRS = new Set(['.claude', '.codex', '.kimi-code', '.agents', '.grok'])
 export const CONFIG_SUBDIRS = new Set(['skills', 'rules', 'hooks', 'agents', 'commands', 'plugins'])
 
 export interface RootDef {
@@ -14,6 +15,13 @@ export interface RootDef {
   allowedTopLevel: ReadonlySet<string>
   warnTopLevel: ReadonlySet<string>
   knownNestedToolHomes: ReadonlySet<string>
+  /**
+   * Root ist der registrierte Workspace-Parent: JEDER direkte Unterordner ist
+   * ein Workspace, dessen Tool-Homes und Config-Unterordner erwartet sind.
+   * Der Struktur-Scan meldet sie damit als „ok/Erwartet" statt als Warnung —
+   * vorher warnte er die normale WS-Struktur flaechendeckend an (F7).
+   */
+  workspaceParent?: boolean
 }
 
 function pathKey(value: string): string {
@@ -26,12 +34,8 @@ export function buildRootDefs(): Record<string, RootDef> {
   const projekte = path.dirname(roots.projectRoot)
   const knownNestedToolHomes = new Set([
     roots.sharedClaude,
-    path.join(roots.projectRoot, '.claude'),
-    path.join(roots.projectRoot, '.codex'),
-    ...workspaceRoots().flatMap(({ root }) => [
-      path.join(root, '.claude'),
-      path.join(root, '.codex')
-    ])
+    ...[roots.projectRoot, ...workspaceRoots().map(({ root }) => root)]
+      .flatMap((root) => [...TOOL_HOME_DIRS].map((home) => path.join(root, home)))
   ].map(pathKey))
 
   return {
@@ -39,7 +43,10 @@ export function buildRootDefs(): Record<string, RootDef> {
       label: 'Projekte',
       allowedTopLevel: new Set<string>(),
       warnTopLevel: new Set([...TOOL_HOME_DIRS, ...CONFIG_SUBDIRS]),
-      knownNestedToolHomes
+      knownNestedToolHomes,
+      // Der Projekte-Parent ist der registrierte Workspace-Parent: die
+      // WS-Struktur darunter ist erwartet, kein Anomalie-Befund (F7).
+      workspaceParent: true
     },
     [roots.claudeHome]: {
       label: '~/.claude',

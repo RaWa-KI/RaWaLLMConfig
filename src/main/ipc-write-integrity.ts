@@ -9,6 +9,7 @@
 import { ipcMain } from 'electron'
 import { IPC_WRITE } from '@shared/channels-write'
 import type {
+  IntegrityApplyProgressPayload,
   IntegrityPreviewRequest,
   IntegrityPreviewResult,
   IntegrityApplyRequest,
@@ -16,6 +17,7 @@ import type {
 } from '@shared/contract-integrity'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
+import { integrityProgressSender } from './ipc-integrity-progress'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
@@ -40,12 +42,15 @@ function handlePreview(req: IntegrityPreviewRequest): Promise<IntegrityPreviewRe
 
 // Handler: Apply = transaktionale Mutation. Schreib-Gate ZUERST (kein guard/
 // backup/mutate bei false). Hash-/Blocker-Gate liegt im Service (applyIntegrity).
-async function handleApply(req: IntegrityApplyRequest): Promise<IntegrityApplyResult> {
+async function handleApply(
+  req: IntegrityApplyRequest,
+  onProgress?: (p: IntegrityApplyProgressPayload) => void
+): Promise<IntegrityApplyResult> {
   if (!isWriteEnabled()) return Promise.resolve({ data: null, error: WRITE_DISABLED_REASON })
   if (!req || !req.plan || typeof req.planHash !== 'string') {
     return Promise.resolve({ data: null, error: 'invalid-request' })
   }
-  const result = await applyIntegrity(req, integrityCtx())
+  const result = await applyIntegrity(req, { ...integrityCtx(), onProgress })
   // Nur wirklich angewandte Transaktionen invalidieren (Teilplan B).
   if (result.data?.applied) markScanCachesStale('write:integrity-apply')
   return result
@@ -63,7 +68,7 @@ export function registerIntegrityWrite(): void {
   )
   ipcMain.handle(
     IPC_WRITE.integrityApply,
-    (_e, req: IntegrityApplyRequest): Promise<IntegrityApplyResult> =>
-      guardedAsync('integrityApply', () => handleApply(req))
+    (e, req: IntegrityApplyRequest): Promise<IntegrityApplyResult> =>
+      guardedAsync('integrityApply', () => handleApply(req, integrityProgressSender(e)))
   )
 }

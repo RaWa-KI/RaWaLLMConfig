@@ -119,7 +119,7 @@ function pathLooksUserglobal(lowerPath: string): boolean {
 
 // true = Datei liegt auf der tool-weiten Userglobal-Ebene (laedt bei jedem Start).
 // false = projekt-/workspace-gebunden (laedt nur beim Arbeiten in diesem Projekt).
-export function isUserglobalOrigin(origin?: string, path?: string): boolean {
+function isUserglobalOrigin(origin?: string, path?: string): boolean {
   const o = (origin || '').toLowerCase().trim()
   if (o && USERGLOBAL_TOKENS.some((tok) => o.includes(tok))) return true
   const p = (path || '').replace(/\\/g, '/').toLowerCase()

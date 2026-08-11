@@ -13,8 +13,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { DuplicateSet, LlmConfig } from '@shared/contract'
 import { isManifestPath, manifestParent } from '@shared/manifest-map'
-import { isSecretPathForRead } from './secret-guard'
+import { isSecretPathForRead, isSecretDirName } from './secret-guard'
 import { configRoots, userSourceRootsForProvider } from './config-roots'
+import { kimiHome } from '../scan/manifests/kimi-cats'
 import { hashFile } from './dedupe-fs'
 import { normalizeCat } from './dedupe-key'
 import { buildDuplicateSet, hiddenDecisionKeys, isHiddenByDecision, pushUniqueSet } from './dedupe-set-builder'
@@ -80,6 +81,9 @@ function familyRoots(): Record<string, string[]> {
   const base: Record<string, string | null> = {
     claude: r.claudeHome,
     codex: r.codexHome,
+    // HR16-Paritaet: ~/.kimi-code wurde nie auf Dubletten geprueft, obwohl die
+    // Familie gescannt wird — echte Kopien blieben dort unsichtbar (F10).
+    kimi: kimiHome(),
     shared: r.sharedClaude,
   }
   for (const [family, root] of Object.entries(base)) {
@@ -121,11 +125,22 @@ function contentSetsForFamily(family: string, roots: string[], cfg: LlmConfig): 
   return sets
 }
 
-/** Rekursiver Walk EINES Kategorie-Baums; sammelt hashbare Dateien (graceful). */
-function walkCatDir(root: string, catDir: string, out: FoundFile[]): void {
+/**
+ * Rekursiver Walk EINES Kategorie-Baums; sammelt hashbare Dateien (graceful).
+ *
+ * Deterministisch (F3): Die Eintraege jeder Ebene werden nach Namen sortiert
+ * abgearbeitet (readdir-Reihenfolge ist plattform-/dateisystemabhaengig), und
+ * die Sicherheitsgrenze MAX_WALK_FILES bricht NICHT mehr den gesamten Restbaum
+ * per `return` ab: sie kappt nur noch das Einsammeln weiterer Dateien und
+ * beendet den Walk geordnet. Vorher entschied die zufaellige Lesereihenfolge,
+ * welche Dateien nach dem Cap noch gefunden wurden — dieselbe Installation
+ * lieferte damit wechselnde Duplikat-Listen.
+ */
+function walkCatDir(root: string, catDir: string, out: FoundFile[]): boolean {
   const base = path.join(root, catDir)
   const stack = [base]
   let walked = 0
+  let capped = false
   while (stack.length > 0) {
     const dir = stack.pop()!
     let dirents: fs.Dirent[]
@@ -134,25 +149,42 @@ function walkCatDir(root: string, catDir: string, out: FoundFile[]): void {
     } catch {
       continue // fehlende/unlesbare Kategorie-Baeume sind normal (z. B. keine teams/)
     }
+    // Stabile Reihenfolge: sortiert abarbeiten, Unterordner in umgekehrter
+    // Sortierung auf den Stack legen -> pop() liefert sie wieder sortiert.
+    dirents = [...dirents].sort((a, b) => a.name.localeCompare(b.name))
+    const subDirs: string[] = []
     for (const d of dirents) {
       if (d.name.startsWith('.')) continue
       if (d.isSymbolicLink()) continue // Links/Junctions nicht folgen (kein Doppelzaehlen)
       const full = path.join(dir, d.name)
       if (d.isDirectory()) {
-        if (!SKIP_DIRS.has(d.name)) stack.push(full)
+        // Secret-WERT-Verzeichnisse (credentials/security) gar nicht erst betreten
+        // (Defense-in-Depth; die per-Datei-Pruefung unten nutzt den vollen Pfad).
+        if (!SKIP_DIRS.has(d.name) && !isSecretDirName(d.name)) subDirs.push(full)
         continue
       }
-      if (!d.isFile() || isSecretPathForRead(d.name)) continue
+      // Secret-Pruefung mit dem VOLLEN Pfad: der Klassifikator erkennt Secret-
+      // Verzeichnisse (/credentials//security/) an Elternsegmenten, die im blossen
+      // Basename fehlen — sonst wuerden Secret-Dateien gehasht und als Dublette
+      // ausgeliefert (Basename-only war ein Leak, 2026-08-11).
+      if (!d.isFile() || isSecretPathForRead(full)) continue
       if (++walked > MAX_WALK_FILES) {
-        console.error(`[scan:dedupe-content] walk-cap erreicht (${base.slice(-60)})`)
-        return
+        // Kappen statt Totalabbruch: die aktuelle Ebene wird noch geordnet
+        // beendet, danach laeuft der Walk aus. Ergebnis bleibt reproduzierbar.
+        if (!capped) console.error(`[scan:dedupe-content] walk-cap erreicht (${base.slice(-60)})`)
+        capped = true
+        break
       }
       const size = statSize(full)
       if (size === null || size === 0) continue
       if (size > MAX_HASH_BYTES) continue
       out.push({ abs: full, size, catDir })
     }
+    if (capped) break
+    // Umgekehrt pushen, damit pop() die Unterordner in Sortierreihenfolge liefert.
+    for (let i = subDirs.length - 1; i >= 0; i--) stack.push(subDirs[i])
   }
+  return capped
 }
 
 function statSize(abs: string): number | null {

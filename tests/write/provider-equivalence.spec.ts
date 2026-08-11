@@ -7,59 +7,40 @@
 // duplicates/diffLabels/coverage sind dedupe-/coverage-Sache (nicht Scanner) und
 // werden ausgeklammert.
 //
-// MECHANIK: Die Alt-Scanner binden ihren Basis-Pfad bei Modul-Load
-// (`const claudeDir = configRoots().claudeHome`). Damit Alt-Scanner UND Engine
-// gegen dieselbe Sandbox laufen, wird RAWALLM_SANDBOX_ROOT gesetzt, BEVOR die
-// Scanner-/Manifest-/Engine-Module geladen werden, und der require-Cache des
-// Scan-Subtrees vor jedem Provider verworfen (loadFresh). configRoots() liest
-// Env pro Aufruf -> resolveRoots(manifest.roots) trifft dieselbe Sandbox.
+// MECHANIK: Die Alt-Scanner loesen ihren Basis-Pfad seit 2026-08-10 bei JEDEM
+// Aufruf ueber configRoots() auf (`claudeDir()` statt `const claudeDir`) — genau
+// wie die Engine ueber resolveRoots(manifest.roots). Beide Pfade treffen damit
+// dieselbe Sandbox, sobald RAWALLM_SANDBOX_ROOT gesetzt ist; statische Imports
+// genuegen, kein require + Cache-Bust mehr.
 // Runner: Playwright (test/expect) als reiner Node-Test-Runner (kein Browser).
 import { test, expect } from '@playwright/test'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Category, LlmConfig } from '../../shared/contract'
 import type { ProviderManifest } from '../../shared/contract-provider'
+import { scanClaude } from '../../src/main/scan/claude-scan'
+import { scanCodex } from '../../src/main/scan/codex-scan'
+import { scanShared } from '../../src/main/scan/shared-scan'
+import { endpointEntries, ggufRoots, scanGgufFiles, scanLocalLlm } from '../../src/main/scan/llm-scan'
+import { claudeManifest } from '../../src/main/scan/manifests/claude.manifest'
+import { codexManifest } from '../../src/main/scan/manifests/codex.manifest'
+import { sharedManifest } from '../../src/main/scan/manifests/shared.manifest'
+import { kimiManifest } from '../../src/main/scan/manifests/kimi.manifest'
+import { llmManifest } from '../../src/main/scan/manifests/llm.manifest'
+import { scanProvider } from '../../src/main/scan/engine/scan-engine'
 
-// ── Fresh-Load-Harness ─────────────────────────────────────────────────────
-// Alle Scan-/Manifest-/Engine-Module aus dem require-Cache werfen, damit ihre
-// modul-gebundenen *Dir-Konstanten unter dem aktuellen RAWALLM_SANDBOX_ROOT neu
-// aufgeloest werden. Grob ueber den Pfad-Praefix (Scan-Subtree + shared/services).
-// scan-invalidation MUSS mit: das Modul bindet markStrukturScanCacheStale aus
-// struktur-scan — bleibt es gecacht, waehrend struktur-scan neu laedt, markiert
-// es die Alt-Instanz stale und Invalidierungs-Asserts laufen ins Leere.
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (
-      k.includes('/src/main/scan/') ||
-      k.includes('/src/main/services/config-roots') ||
-      k.includes('/src/main/services/scan-invalidation') ||
-      k.includes('/shared/contract')
-    ) {
-      delete require.cache[key]
-    }
-  }
-}
-
-// Ein Alt-Scanner + sein Manifest + die Engine frisch unter der gesetzten Env
-// laden. Liefert beide Scan-Funktionen, gegen dieselbe Sandbox aufrufbar.
-interface FreshPair {
+// Alt-Scanner + Manifest je Provider — dieselbe Paarung wie vorher der
+// dynamische require-Lookup, nur typsicher und statisch aufgeloest.
+interface ProviderPair {
   alt: () => LlmConfig
   manifest: ProviderManifest
-  scanProvider: (m: ProviderManifest) => LlmConfig
 }
-function loadFresh(altModule: string, altExport: string, manifestModule: string, manifestExport: string): FreshPair {
-  bustScanCache()
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const alt = require(`../../src/main/scan/${altModule}`)[altExport] as () => LlmConfig
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const manifest = require(`../../src/main/scan/manifests/${manifestModule}`)[manifestExport] as ProviderManifest
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { scanProvider } = require('../../src/main/scan/engine/scan-engine') as {
-    scanProvider: (m: ProviderManifest) => LlmConfig
-  }
-  return { alt, manifest, scanProvider }
+const PAIRS: Record<'claude' | 'codex' | 'shared' | 'llm', ProviderPair> = {
+  claude: { alt: scanClaude, manifest: claudeManifest },
+  codex: { alt: scanCodex, manifest: codexManifest },
+  shared: { alt: scanShared, manifest: sharedManifest },
+  llm: { alt: scanLocalLlm, manifest: llmManifest }
 }
 
 // Sandbox-Wurzeln (Layout wie config-roots.sandboxRoots).
@@ -129,7 +110,7 @@ test('claude: Engine-Manifest == scanClaude (deep-equal categories)', () => {
   }, null, 2))
   w(join(r, 'plugins', 'extra', 'package.json'), JSON.stringify({ name: 'extra' }, null, 2))
 
-  const { alt, manifest, scanProvider } = loadFresh('claude-scan', 'scanClaude', 'claude.manifest', 'claudeManifest')
+  const { alt, manifest } = PAIRS.claude
   expectSameCategories(alt().categories, scanProvider(manifest).categories)
 })
 
@@ -158,7 +139,7 @@ test('codex: Engine-Manifest == scanCodex (deep-equal categories)', () => {
   // teams/*.toml
   w(join(r, 'teams', 'team-a.toml'), 'name = "a"\n')
 
-  const { alt, manifest, scanProvider } = loadFresh('codex-scan', 'scanCodex', 'codex.manifest', 'codexManifest')
+  const { alt, manifest } = PAIRS.codex
   expectSameCategories(alt().categories, scanProvider(manifest).categories)
 })
 
@@ -184,7 +165,7 @@ test('shared: Engine-Manifest == scanShared (deep-equal categories)', () => {
   // coordination/<sub>/ Zaehler (mind. ein Sub mit Inhalt)
   w(join(r, 'coordination', 'briefings', 'b1.md'), '# b1\n')
 
-  const { alt, manifest, scanProvider } = loadFresh('shared-scan', 'scanShared', 'shared.manifest', 'sharedManifest')
+  const { alt, manifest } = PAIRS.shared
   expectSameCategories(alt().categories, scanProvider(manifest).categories)
 })
 
@@ -201,17 +182,11 @@ test('kimi: Engine-Manifest liefert die 5 Kategorien gegen die Sandbox-Wurzel', 
   w(join(r, 'hooks', 'guard.mjs'), '// kimi hook\n')
   w(join(r, 'credentials', 'kimi-code.json'), JSON.stringify({ access_token: 'synthetisch-abc' }, null, 2))
 
-  bustScanCache()
-  /* eslint-disable @typescript-eslint/no-var-requires */
-  const { kimiManifest } = require('../../src/main/scan/manifests/kimi.manifest') as { kimiManifest: ProviderManifest }
-  const { scanProvider } = require('../../src/main/scan/engine/scan-engine') as {
-    scanProvider: (m: ProviderManifest) => LlmConfig
-  }
-  /* eslint-enable @typescript-eslint/no-var-requires */
   const cfg = scanProvider(kimiManifest)
 
+  // kimi-skills seit 2026-08-11 (F10: ~/.kimi-code/skills fehlte in der Familie).
   expect(cfg.categories.map((c) => c.id)).toEqual([
-    'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-hooks', 'kimi-workspaces',
+    'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-skills', 'kimi-hooks', 'kimi-workspaces',
   ])
   // Wurzel-Aufloesung: sandbox-aware ueber den roots-Getter (fixedRoot).
   expect(cfg.categories[0].path).toBe(r)
@@ -229,13 +204,9 @@ test('kimi: Engine-Manifest liefert die 5 Kategorien gegen die Sandbox-Wurzel', 
 // Fehlen alle Roots, macht scanLocalLlm einen comingSoon-Frueh-Return mit
 // LEEREN categories (LlmConfig-Ebene, B-5/buildData-Sache).
 test('llm: Engine-Manifest == scanLocalLlm (deep-equal categories, root-aware)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { existsSync } = require('node:fs') as typeof import('node:fs')
-  const { alt, manifest, scanProvider } = loadFresh('llm-scan', 'scanLocalLlm', 'llm.manifest', 'llmManifest')
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const llm = require('../../src/main/scan/llm-scan') as typeof import('../../src/main/scan/llm-scan')
+  const { alt, manifest } = PAIRS.llm
   const engineCats = scanProvider(manifest).categories
-  if (llm.ggufRoots().some((root) => existsSync(root))) {
+  if (ggufRoots().some((root) => existsSync(root))) {
     // Modellroot vorhanden -> Alt liefert exakt die beiden Kategorien.
     expectSameCategories(alt().categories, engineCats)
   } else {
@@ -243,7 +214,7 @@ test('llm: Engine-Manifest == scanLocalLlm (deep-equal categories, root-aware)',
     // Kategorie-Identitaet wird gegen die direkten Bestands-Funktionen bewiesen.
     expect(alt().categories).toEqual([])
     expect(engineCats.map((c) => c.id)).toEqual(['gguf-models', 'llm-endpoints'])
-    expect(engineCats[0].entries).toEqual(llm.scanGgufFiles())
-    expect(engineCats[1].entries).toEqual(llm.endpointEntries())
+    expect(engineCats[0].entries).toEqual(scanGgufFiles())
+    expect(engineCats[1].entries).toEqual(endpointEntries())
   }
 })

@@ -32,13 +32,13 @@ function checkRateLimit(): boolean {
   return dailyReportCount < MAX_REPORTS_PER_DAY
 }
 
-export function getRateLimitStatus(): { remaining: number; limit: number } {
+function getRateLimitStatus(): { remaining: number; limit: number } {
   const today = new Date().toISOString().slice(0, 10)
   if (today !== dailyReportDate) return { remaining: MAX_REPORTS_PER_DAY, limit: MAX_REPORTS_PER_DAY }
   return { remaining: Math.max(0, MAX_REPORTS_PER_DAY - dailyReportCount), limit: MAX_REPORTS_PER_DAY }
 }
 
-export function collectSystemInfo(): ErrorReportSystemInfo {
+function collectSystemInfo(): ErrorReportSystemInfo {
   return {
     appVersion: app.getVersion(),
     // Kein DB-/Datei-Schema in dieser App — bewusst -1 wie im Referenz-Template.

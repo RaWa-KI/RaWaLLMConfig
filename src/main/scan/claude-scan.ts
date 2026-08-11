@@ -27,7 +27,9 @@ import { configEntry as entry } from './scan-entry'
 
 // Basis-Pfad aus der Single Source (Default = realer ~/.claude, M1 unveraendert;
 // mit RAWALLM_SANDBOX_ROOT = <sandbox>/.claude). Bei Modul-Load aufgeloest.
-const claudeDir = configRoots().claudeHome
+function claudeDir() {
+  return configRoots().claudeHome
+}
 
 // Sichtbare Spalten-Anker (Quelle->Ziel->Wirkung) zentral aus dup-labels:
 // zentrale Version (Shared) gegenueber der lokalen Claude-Kopie.
@@ -46,7 +48,7 @@ function readDirSafe(dir: string): fs.Dirent[] {
 // Skills: je Unterordner mit SKILL.md ein Entry inkl. Inhaltsvorschau.
 // WP16: GENAU 1 readFileOnce je SKILL.md (statt existsSync + 3 Voll-Reads + stats).
 function collectSkills(): ConfigEntry[] {
-  const base = path.join(claudeDir, 'skills')
+  const base = path.join(claudeDir(), 'skills')
   const out: ConfigEntry[] = []
   for (const d of readDirSafe(base)) {
     if (!d.isDirectory()) continue
@@ -68,7 +70,7 @@ function collectSkills(): ConfigEntry[] {
 // Agents: Markdown mit Frontmatter (description/model/tools) + Vorschau.
 // WP16: GENAU 1 readFileOnce je Agent-Datei.
 function collectAgents(): ConfigEntry[] {
-  const base = path.join(claudeDir, 'agents')
+  const base = path.join(claudeDir(), 'agents')
   const out: ConfigEntry[] = []
   for (const d of readDirSafe(base)) {
     if (!d.isFile() || !d.name.endsWith('.md')) continue
@@ -90,7 +92,7 @@ function collectAgents(): ConfigEntry[] {
 // Rules: Markdown — erste H1-Ueberschrift als desc, Zeilen + Vorschau.
 // WP16: GENAU 1 readFileOnce je Rule-Datei.
 function collectRules(): ConfigEntry[] {
-  const base = path.join(claudeDir, 'rules')
+  const base = path.join(claudeDir(), 'rules')
   const out: ConfigEntry[] = []
   for (const d of readDirSafe(base)) {
     if (!d.isFile() || !d.name.endsWith('.md')) continue
@@ -155,7 +157,7 @@ function collectHookEvents(fp: string): ConfigEntry[] {
 // Skripte sind KEINE Secret-Klasse -> Roh-Inhalt als Vorschau ist erlaubt.
 // WP16: GENAU 1 readFileOnce je Skript.
 function collectHookScripts(): ConfigEntry[] {
-  const base = path.join(claudeDir, 'hooks')
+  const base = path.join(claudeDir(), 'hooks')
   const out: ConfigEntry[] = []
   for (const d of readDirSafe(base)) {
     if (!d.isFile() || !/\.(cjs|mjs|js|sh|ps1)$/i.test(d.name)) continue
@@ -173,12 +175,12 @@ function collectHookScripts(): ConfigEntry[] {
 
 // Hooks: settings.json-Events (maskierte struct-preview) + ~/.claude/hooks/-Skripte.
 function collectHooks(): ConfigEntry[] {
-  return [...collectHookEvents(path.join(claudeDir, 'settings.json')), ...collectHookScripts()]
+  return [...collectHookEvents(path.join(claudeDir(), 'settings.json')), ...collectHookScripts()]
 }
 
 // Settings: nur Top-Level-Key-Namen + Strukturzaehler, Werte redacted.
 function collectSettings(): ConfigEntry[] {
-  const fp = path.join(claudeDir, 'settings.json')
+  const fp = path.join(claudeDir(), 'settings.json')
   try {
     const s = JSON.parse(fs.readFileSync(fp, 'utf8')) as Record<string, unknown>
     const perm = s.permissions as { deny?: unknown[]; allow?: unknown[] } | undefined
@@ -198,15 +200,15 @@ function collectSettings(): ConfigEntry[] {
 
 // Instructions: alle CLAUDE.md (global + je WS) + settings.local.json-Existenz.
 function collectInstructions(): ConfigEntry[] {
-  const out: ConfigEntry[] = collectClaudeMds(claudeDir)
+  const out: ConfigEntry[] = collectClaudeMds(claudeDir())
   // settings.local.json + .claude.json: secret-classed -> MASKIERTE struct-preview
   // (Owner-Override #11). Eintraege mit path, damit readFull (maskiert) sie zeigt.
-  const local = path.join(claudeDir, 'settings.local.json')
+  const local = path.join(claudeDir(), 'settings.local.json')
   if (fs.existsSync(local)) {
     out.push(entry('instr-settings-local', 'settings.local.json', local,
       'Lokale Settings (Werte maskiert)', { typ: 'settings.local.json' }, maskedPreview(local) || undefined))
   }
-  const claudeJson = path.join(claudeDir, '.claude.json')
+  const claudeJson = path.join(claudeDir(), '.claude.json')
   if (fs.existsSync(claudeJson)) {
     out.push(entry('instr-claude-json', '.claude.json', claudeJson,
       'Instructions/Plugins-Quellen (Werte maskiert)', { typ: '.claude.json' }, maskedPreview(claudeJson) || undefined))
@@ -217,7 +219,7 @@ function collectInstructions(): ConfigEntry[] {
 // Teams: je Unterordner Drilldown auf config.json (entry.code + Datei-Pfad).
 // Kein Fallback auf Ordner-Pfad — nur Teams mit config.json werden gelistet.
 function collectTeams(): ConfigEntry[] {
-  const base = path.join(claudeDir, 'teams')
+  const base = path.join(claudeDir(), 'teams')
   const out: ConfigEntry[] = []
   for (const d of readDirSafe(base)) {
     if (!d.isDirectory()) continue
@@ -236,7 +238,7 @@ function collectTeams(): ConfigEntry[] {
 // Plugins: Drilldown auf installed_plugins.json (oder package.json) je Unterordner.
 // Listet keine reinen Infra-Verzeichnisse (cache/data/marketplaces) als Eintraege.
 function collectPlugins(): ConfigEntry[] {
-  const base = path.join(claudeDir, 'plugins')
+  const base = path.join(claudeDir(), 'plugins')
   // Infra-Verzeichnisse: nur als Metadaten, kein Drilldown
   const INFRA_DIRS = new Set(['cache', 'data', 'marketplaces', 'logs', 'tmp'])
   // Owner-Override #1: Top-Level installed_plugins.json wird zuerst gelistet
@@ -267,19 +269,19 @@ function cat(id: string, label: string, icon: string, p: string, blurb: string, 
 // B-4: additive Exporte fuer die datengetriebenen Manifest-CustomCategories.
 // NUR Sichtbarmachung der bewaehrten Bestands-Funktionen — Logik UNVERAENDERT.
 // Die Engine-Manifeste wrappen diese, damit die Migrations-Gleichheit gilt.
-export { cat as claudeCat, claudeDir, collectSkills, collectRules, collectAgents }
+export { cat as claudeCat, collectSkills, collectRules, collectAgents }
 export { collectHooks, collectInstructions, collectSettings, collectTeams, collectPlugins }
 
 export function scanClaude(): LlmConfig {
   const categories: Category[] = [
-    cat('skills', 'Skills', 'skill', path.join(claudeDir, 'skills'), 'Globale Skill-Definitionen', collectSkills()),
-    cat('rules', 'Rules', 'rule', path.join(claudeDir, 'rules'), 'Verhaltensregeln (always-on/conditional)', collectRules()),
-    cat('agents', 'Agents', 'agent', path.join(claudeDir, 'agents'), 'Globale Agent-Definitionen', collectAgents()),
-    cat('hooks', 'Hooks', 'hook', path.join(claudeDir, 'settings.json'), 'Hook-Events aus settings.json', collectHooks()),
-    cat('instructions', 'Instructions', 'list', claudeDir, 'CLAUDE.md + lokale Settings', collectInstructions()),
-    cat('settings', 'Settings', 'gear', path.join(claudeDir, 'settings.json'), 'settings.json Struktur (Werte redacted)', collectSettings()),
-    cat('teams', 'Teams', 'team', path.join(claudeDir, 'teams'), 'Team-Konfigurationen (config.json)', collectTeams()),
-    cat('plugins', 'Plugins', 'plug', path.join(claudeDir, 'plugins'), 'Installierte Plugins (installed_plugins.json)', collectPlugins()),
+    cat('skills', 'Skills', 'skill', path.join(claudeDir(), 'skills'), 'Globale Skill-Definitionen', collectSkills()),
+    cat('rules', 'Rules', 'rule', path.join(claudeDir(), 'rules'), 'Verhaltensregeln (always-on/conditional)', collectRules()),
+    cat('agents', 'Agents', 'agent', path.join(claudeDir(), 'agents'), 'Globale Agent-Definitionen', collectAgents()),
+    cat('hooks', 'Hooks', 'hook', path.join(claudeDir(), 'settings.json'), 'Hook-Events aus settings.json', collectHooks()),
+    cat('instructions', 'Instructions', 'list', claudeDir(), 'CLAUDE.md + lokale Settings', collectInstructions()),
+    cat('settings', 'Settings', 'gear', path.join(claudeDir(), 'settings.json'), 'settings.json Struktur (Werte redacted)', collectSettings()),
+    cat('teams', 'Teams', 'team', path.join(claudeDir(), 'teams'), 'Team-Konfigurationen (config.json)', collectTeams()),
+    cat('plugins', 'Plugins', 'plug', path.join(claudeDir(), 'plugins'), 'Installierte Plugins (installed_plugins.json)', collectPlugins()),
   ]
   return { categories, duplicates: [], diffLabels: CLAUDE_DIFF_LABELS }
 }

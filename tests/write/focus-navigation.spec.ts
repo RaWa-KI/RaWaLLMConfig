@@ -31,8 +31,12 @@ test('gesetzter Diagnose-Fokus blockiert die Navigation nicht (WP-F2)', async ()
   const errors: string[] = attachConsoleCollector(win)
   try {
     // Erststart im temp-userData: Onboarding ueberspringen (wie ui-smoke).
+    // Race (2026-08-10): frischer Start kann .ob-card erst NACH dem
+    // isVisible-Check rendern — dann haengt der Shell-Wait 30 s hinter dem
+    // unquittierten Onboarding. Erst eine der beiden Surfaces abwarten.
+    await waitForOnboardingOrShell(win)
     await dismissOnboarding(win)
-    await win.locator('.sec-btn, .nav-item, .rows, .empty').first().waitFor({ state: 'visible', timeout: 30_000 })
+    await win.locator('.sec-btn, .nav-item, .rows, .empty').first().waitFor({ state: 'visible', timeout: 60_000 })
     // System ist Experten-Bereich (ggf. nur im „Mehr"-Menue) — wie ui-smoke.
     await setDisplayModeVisible(win, 'expert')
     await gotoSection(win, SYSTEM_LABEL)
@@ -73,14 +77,23 @@ test('gesetzter Diagnose-Fokus blockiert die Navigation nicht (WP-F2)', async ()
   }
 })
 
+// Wartet, bis entweder Onboarding oder die App-Shell gerendert ist.
+async function waitForOnboardingOrShell(win: any): Promise<void> {
+  await win.locator('.ob-card, .sec-btn, .nav-item, .rows, .empty').first()
+    .waitFor({ state: 'visible', timeout: 60_000 })
+}
+
 // Erststart-Onboarding abschliessen, falls die Karte erscheint (frisches
 // userData-Verzeichnis pro Launch). „Ueberspringen" beendet den Erststart.
 async function dismissOnboarding(win: any): Promise<void> {
   const card = win.locator('.ob-card')
-  if (!(await card.isVisible().catch(() => false))) return
+  // Bis zu 8 s nachwarten: Scan-Phase kann die Karte spaet sichtbar machen.
+  const appeared = await card.waitFor({ state: 'visible', timeout: 8_000 })
+    .then(() => true, () => false)
+  if (!appeared) return
   const skip = win.locator('.ob-actions button', { hasText: 'Überspringen' })
   // Scan-Phase abwarten: der Button rendert erst nach der Ordnersuche klickbar.
-  await skip.waitFor({ state: 'visible', timeout: 30_000 })
+  await skip.waitFor({ state: 'visible', timeout: 45_000 })
   // DOM-Klick (Muster ui-smoke clickControl): das Start-Overlay faengt sonst
   // transient die Pointer-Events ab (flaky auf traegen Runnern).
   await win.evaluate(() => {
@@ -88,7 +101,7 @@ async function dismissOnboarding(win: any): Promise<void> {
       .find((el) => (el.textContent ?? '').includes('Überspringen'))
     if (btn instanceof HTMLElement) btn.click()
   })
-  await card.waitFor({ state: 'detached', timeout: 15_000 }).catch(() => {})
+  await card.waitFor({ state: 'detached', timeout: 20_000 }).catch(() => {})
 }
 
 // Klickt die System-Bereiche durch und liefert die area-id des ersten Bereichs

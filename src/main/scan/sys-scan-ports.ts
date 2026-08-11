@@ -49,7 +49,7 @@ export interface LocalLiveEvidence {
   models: boolean
 }
 
-export function collectLocalLiveEvidence(): LocalLiveEvidence {
+function collectLocalLiveEvidence(): LocalLiveEvidence {
   const ollamaEnv = Object.keys(process.env).some((key) => key.startsWith('OLLAMA'))
   const ollamaModels = typeof process.env.OLLAMA_MODELS === 'string' && fs.existsSync(process.env.OLLAMA_MODELS)
   const sourceRoots = userSourceRootsForProvider('local')

@@ -52,7 +52,7 @@ function isUserglobalPath(filePath: string): boolean {
   return HOME_CONFIG_ROOT_RX.test(filePath.replace(/\\/g, '/'))
 }
 
-export function estimateTokens(text: string | undefined): number | undefined {
+function estimateTokens(text: string | undefined): number | undefined {
   if (text === undefined) return undefined
   return Math.ceil(text.length / AVG_CHARS_PER_TOKEN)
 }

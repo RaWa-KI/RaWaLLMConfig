@@ -2,13 +2,23 @@ import type { DuplicateSet } from '@shared/contract'
 import type { ReconcileRequest } from '@shared/contract-write'
 import { Icon } from '../../components/Icon'
 import { useStore } from '../../state/store'
-import { SEITE, SICHERUNG, CONFIRM, WRITE_AUS, seiteForFamily } from '@shared/dup-labels'
+import {
+  SICHERUNG,
+  CONFIRM,
+  WRITE_AUS,
+  intraAktionTexte,
+  isIntraFamilyDup,
+  seiteForFamily
+} from '@shared/dup-labels'
 
 // Confirm-Block fuer ein Einzeldatei-Paar (HR27-Split aus DuplicatePanel.tsx,
 // WP-06 Teil B). Bestaetigung vor dem Schreiben: erklaert Quelle → Ziel →
 // Wirkung in Alltagssprache, zeigt beide Pfade (Sprach-Anker Shared/Claude) und
 // den backup-first-Hinweis. SYMMETRISCH (Finding B): Titel/Text je Richtung
 // (keep-trunk/keep-mirror/adopt-mirror/adopt-trunk), seite-parametrisiert.
+// Intra-Familien-Paare (isIntraFamilyDup) erhalten die ehrlichen Fassungs-Texte
+// (Fundstelle A/B) statt „Shared"/„deine Kopie" — nur Beschriftung, der
+// Confirm-Flow bleibt unveraendert.
 // Schreibzugriff write-gated (Button disabled bei OFF). Texte aus dup-labels.ts.
 
 type Decision = ReconcileRequest['decision']
@@ -46,7 +56,10 @@ export function FilePairConfirm({
   onConfirm(): void
 }) {
   const { ui } = useStore()
-  const c = CONFIRM(seiteForFamily(ui.llm))
+  // Intra-Familien-Paar: ehrliche Fassungs-Confirm-Texte statt Shared/Kopie.
+  const c = isIntraFamilyDup(d, ui.llm)
+    ? intraAktionTexte(d.trunk.path, d.mirror.path).confirm
+    : CONFIRM(seiteForFamily(ui.llm))
   const { titel, text } = textFor(c, decision)
   const disabledTitle = !writeEnabled ? (writeReason ?? WRITE_AUS) : undefined
   return (
@@ -80,5 +93,3 @@ export function FilePairConfirm({
   )
 }
 
-// Sprach-Anker re-export, falls Aufrufer die zwei Seiten direkt brauchen.
-export const SEITEN = SEITE

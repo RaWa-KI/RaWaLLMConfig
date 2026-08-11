@@ -33,7 +33,7 @@ function stripQuotes(p: string): string {
 //    (separator-robust via lastSegment). Dedupliziert, Sidecar-Pfad zuerst. Liefert
 //    nur sichtbare Pfade (nie Secret-Werte) — config.data ist die Wahrheit fuer
 //    "bekannte Config-Datei", kein FS-Read im Renderer noetig.
-export function suggestRestoreTargets(
+function suggestRestoreTargets(
   data: AppData | null,
   originalName: string,
   originalPath?: string

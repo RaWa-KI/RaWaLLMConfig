@@ -20,7 +20,7 @@ import { getCloudProviderAuthMode, isCloudProviderEnabled } from '../../services
 // ── Provider-Stammdaten (deklarativ) ──────────────────────────────────────
 // secretRefs: alle akzeptierten Env-NAMEN (inkl. Aliase) — NIE Werte.
 // apiBase: Anzeige-Metadatum (kein Auto-Call). models: Anzeige-Beispiele.
-export interface CloudProvider {
+interface CloudProvider {
   id: string
   label: string
   secretRefs: string[]
@@ -28,7 +28,7 @@ export interface CloudProvider {
   models: string[]
 }
 
-export const CLOUD_PROVIDERS: CloudProvider[] = [
+const CLOUD_PROVIDERS: CloudProvider[] = [
   {
     id: 'openai',
     label: 'OpenAI',

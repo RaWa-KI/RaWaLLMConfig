@@ -6,6 +6,7 @@ export const CORE_MESSAGE_PARAM_NAMES = {
   "settings.language.de": [],
   "settings.language.en": [],
   "settings.tab.tweaks": [],
+  "settings.tab.files": [],
   "settings.tab.updates": [],
   "settings.tab.sources": [],
   "settings.tab.modules": [],

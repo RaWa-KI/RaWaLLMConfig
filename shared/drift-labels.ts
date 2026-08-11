@@ -42,10 +42,31 @@ export const DRIFT_REVIDIEREN = {
   hinweis: 'Eine neue Festlegung ersetzt die bisherige — jederzeit umkehrbar.'
 } as const
 
-// Ignorierte standardmaessig ausgeblendet; Schalter mit Zaehler.
+// Ignorierte standardmaessig ausgeblendet; Schalter mit Zaehler (aria-Label der
+// Gruppen-Schaltflaeche, damit Screenreader die Wirkung hoeren).
 export const DRIFT_IGNORIERTE = {
   einblenden: (n: number) => `Ignorierte einblenden (${n})`,
   ausblenden: 'Ignorierte ausblenden'
+} as const
+
+// Panel-Kopf: setzt den Abschnitt klar von der Duplikat-Liste ab. Wichtig ist
+// die Abgrenzung — Nutzer lasen die Drift-Relationen bisher als „noch mehr
+// Duplikate, die ich aufraeumen muss" (F3).
+export const DRIFT_PANEL = {
+  kopf: 'Gewollte Kopien',
+  abgrenzung:
+    'Kein Aufräum-Thema: Diese Dateien liegen mit Absicht bei mehreren Werkzeugen gleichzeitig, weil jedes Werkzeug nur seine eigene Ablage liest. Nur wenn zwei Kopien voneinander abweichen, lohnt ein Blick.'
+} as const
+
+// Aufklappbare Gruppen: was du bereits entschieden hast, verschwindet aus der
+// Standardliste und bleibt hier jederzeit nachlesbar.
+export const DRIFT_GRUPPEN = {
+  parityTitel: (n: number) => `Festgelegte Paritäts-Kopien (${n})`,
+  parityHinweis: 'Von dir als gewollte Kopie festgelegt — hier ist nichts zu tun.',
+  parityAria: (n: number) => `Festgelegte Paritäts-Kopien anzeigen (${n})`,
+  ignoriertTitel: (n: number) => `Ignorierte Paare (${n})`,
+  ignoriertHinweis: 'Von dir ausgeblendet — sie stehen nicht mehr in der Liste oben.',
+  offenLeer: 'Nichts offen — alle gefundenen Kopien sind festgelegt oder ignoriert.'
 } as const
 
 // Loader-Root-Chips der Mitglieder. 'agents' bleibt der ~/.agents-Loader,

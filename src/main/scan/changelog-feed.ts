@@ -19,15 +19,15 @@ import type { WatcherChangelog } from '@shared/contract'
 import { isSecretPathForRead } from '../services/secret-guard'
 
 /** Schema A: `YYYY-MM-DD--tool--[v]version[--tag].md` (Datumspraefix, historisch). */
-export const DATE_PREFIX_RE =
+const DATE_PREFIX_RE =
   /^(\d{4}-\d{2}-\d{2})--([a-z0-9-]+?)--v?([0-9][0-9.]*(?:-[a-z0-9]+)*)(?:--([a-z0-9-]+))?\.md$/i
 
 /** Schema B: `vNNN.NNN.NNN--YYYY-MM-DD--tool--[v]version[--tag].md` (real seit Rename). */
-export const VERSION_PREFIX_RE =
+const VERSION_PREFIX_RE =
   /^v([0-9][0-9.]*)--(\d{4}-\d{2}-\d{2})--([a-z0-9-]+?)--v?([0-9][0-9.]*(?:-[a-z0-9]+)*)(?:--([a-z0-9-]+))?\.md$/i
 
 /** Wieviele Eintraege der Feed maximal liefert (ordneruebergreifend, neueste zuerst). */
-export const CHANGELOG_FEED_LIMIT = 12
+const CHANGELOG_FEED_LIMIT = 12
 
 export interface ParsedChangelog {
   date: string
@@ -51,7 +51,7 @@ function listMd(dir: string): string[] {
 }
 
 /** Alle `*-changelog`-Ordner unterhalb der Referenz-Wurzel (dynamisch, keine Allowlist). */
-export function changelogDirs(referencesDir: string): string[] {
+function changelogDirs(referencesDir: string): string[] {
   try {
     return fs.readdirSync(referencesDir)
       .filter((d) => d.endsWith('-changelog'))

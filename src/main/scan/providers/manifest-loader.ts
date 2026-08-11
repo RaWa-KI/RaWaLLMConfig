@@ -33,7 +33,7 @@ export interface ManifestLoadResult {
 const PROVIDERS_SUBDIR = 'rawallm-providers'
 
 /** Sandbox-aware Manifest-Verzeichnis: Env-Override sonst <projectRoot>/rawallm-providers. */
-export function providersDir(dir?: string): string | null {
+function providersDir(dir?: string): string | null {
   if (dir && dir.trim().length > 0) return dir
   const env = process.env.RAWALLM_PROVIDERS_DIR
   if (env && env.trim().length > 0) return env.trim()

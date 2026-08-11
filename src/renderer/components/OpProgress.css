@@ -1,0 +1,93 @@
+/* OpProgress — Fortschritt beim Speichern. Layout-Technik: Flex (Spalte),
+   Container fluid (width 100%), Hoehen/Abstaende in rem. KEINE festen
+   Pixelbreiten am Layout-Container -> traegt jede Breite ab ~320 px (HR33). */
+.op-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* Kopfzeile bricht auf schmalen Viewports selbst um (wrap statt Media-Query). */
+.op-progress-copy {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  font-weight: 850;
+}
+
+.op-progress-copy span {
+  flex: 1 1 12rem;
+  min-width: 0;
+  color: var(--text-lt);
+  font-weight: 750;
+  text-align: right;
+}
+
+.op-progress-track {
+  position: relative;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--border), var(--bg-card) 35%);
+  border-radius: 999px;
+}
+
+.op-progress-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--sage), var(--papa));
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+/* Unbestimmt: Gesamtzahl unbekannt -> laufender Balken statt falscher Prozente. */
+.op-progress-bar.unknown {
+  width: 35%;
+  animation: op-progress-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes op-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+
+.op-progress-note {
+  margin: 0;
+  color: var(--warm-gray);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+/* Bewegungsreduktion respektieren: statischer Balken statt Dauer-Animation. */
+@media (prefers-reduced-motion: reduce) {
+  .op-progress-bar {
+    transition: none;
+  }
+
+  .op-progress-bar.unknown {
+    width: 100%;
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
+/* Sehr schmal: Kopfzeile untereinander, Text linksbuendig lesbar. */
+@media (max-width: 30rem) {
+  .op-progress-copy span {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}

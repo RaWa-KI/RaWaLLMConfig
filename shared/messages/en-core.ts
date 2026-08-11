@@ -8,6 +8,7 @@ export const enCoreMessages = {
   "settings.language.de": "German",
   "settings.language.en": "English",
   "settings.tab.tweaks": "Appearance",
+  "settings.tab.files": "Files",
   "settings.tab.updates": "Updates",
   "settings.tab.sources": "Folders",
   "settings.tab.modules": "Modules",

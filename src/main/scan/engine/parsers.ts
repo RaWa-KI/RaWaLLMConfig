@@ -26,7 +26,7 @@ const PREVIEW_LINES = 45
 const PREVIEW_CHARS = 1800
 
 // Das parser-spezifische Teil-Ergebnis (additiv auf das Basis-ConfigEntry).
-export interface ParsedFields {
+interface ParsedFields {
   desc?: string
   fields?: Record<string, string>
   code?: string

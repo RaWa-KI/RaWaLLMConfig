@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type {
+  IntegrityKind,
   IntegrityPreviewRequest,
   IntegrityPreviewResult,
   IntegrityApplyRequest,
@@ -30,6 +31,19 @@ function noBridge<T>(): { data: T | null; error: string } {
   return { data: null, error: 'Bridge nicht verfügbar' }
 }
 
+// Toast-Wortlaut je Operationsart: Verschieben/Umbenennen sagt „verschoben",
+// der Ordner-Merge sagt „zusammengeführt" — sonst liest der Nutzer beim
+// Zusammenführen eine falsche Erfolgsmeldung.
+function toastTexte(kind: IntegrityKind): { ok: string; fehler: string } {
+  if (kind === 'reconcile' || kind === 'reconcile-folder') {
+    return {
+      ok: 'Zusammengeführt — Verweise wurden mitgezogen.',
+      fehler: 'Zusammenführen fehlgeschlagen.'
+    }
+  }
+  return { ok: 'Verschoben — Verweise wurden mitgezogen.', fehler: 'Verschieben fehlgeschlagen.' }
+}
+
 export function useIntegrity(): IntegrityState {
   const { actions } = useStore()
 
@@ -49,6 +63,7 @@ export function useIntegrity(): IntegrityState {
 
   const apply = useCallback(
     async (req: IntegrityApplyRequest): Promise<IntegrityApplyResult> => {
+      const texte = toastTexte(req.plan?.kind ?? 'move')
       if (typeof window === 'undefined' || !window.electronAPI?.integrityApply) {
         actions.showToast('Bridge nicht verfügbar', 'x')
         return noBridge()
@@ -57,11 +72,11 @@ export function useIntegrity(): IntegrityState {
       try {
         res = await window.electronAPI.integrityApply(req)
       } catch {
-        actions.showToast('Verschieben fehlgeschlagen.', 'x')
+        actions.showToast(texte.fehler, 'x')
         return { data: null, error: 'integrity-apply-failed' }
       }
       if (res.error || !res.data) {
-        actions.showToast('Verschieben fehlgeschlagen.', 'x')
+        actions.showToast(texte.fehler, 'x')
         return res
       }
       // Bei Rollback wurde die Quelle NICHT veraendert — ehrlicher Warn-Toast,
@@ -71,7 +86,9 @@ export function useIntegrity(): IntegrityState {
         return res
       }
       actions.reloadConfig()
-      actions.showToast('Verschoben — Verweise wurden mitgezogen.', 'check')
+      // texte.ok statt festem Verschieben-Text: beim Zusammenführen las der
+      // Nutzer sonst „Verschoben …" (der kind-abhaengige Wortlaut war toter Code).
+      actions.showToast(texte.ok, 'check')
       return res
     },
     [actions]

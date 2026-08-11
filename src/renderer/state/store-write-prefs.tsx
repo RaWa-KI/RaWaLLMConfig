@@ -9,7 +9,7 @@ import { useStore } from './store'
 export type PrefsMap = Record<string, PrefValue>
 
 // Renderer-Defaults (spiegeln prefs-store DEFAULT_PREFS; Erststart-Anzeige).
-export const PREFS_DEFAULTS: PrefsMap = {
+const PREFS_DEFAULTS: PrefsMap = {
   theme: 'hell',
   structure: 'lines',
   density: 'airy',

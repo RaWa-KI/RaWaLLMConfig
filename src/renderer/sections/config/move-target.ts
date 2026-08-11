@@ -15,7 +15,7 @@ export type MvVersion = 'shared' | 'claude' | 'beide'
 // Familie -> erkennbares Wurzel-Endsegment in den realen knownPaths. 'claude'
 // matcht NUR `.claude`, das NICHT direkt hinter `.shared` liegt (Trunk-Wurzel
 // `.shared/.claude` gehoert zur Familie 'shared'). Keine sichtbaren Label-Texte.
-export const MV_FAMILY_SEGMENTS: Record<string, string> = {
+const MV_FAMILY_SEGMENTS: Record<string, string> = {
   shared: '.shared/.claude',
   claude: '.claude',
   codex: '.codex'

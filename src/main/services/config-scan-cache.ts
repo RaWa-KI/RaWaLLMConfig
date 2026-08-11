@@ -30,6 +30,14 @@ interface ConfigScanCacheState {
   cached: AppData | null
   stale: boolean
   staleReason: string
+  // Stale-Sequenz (F2): jede markStale-Markierung erhoeht staleSeq. Ein Scan
+  // merkt sich den Stand bei seinem Start und darf das Stale-Flag NUR loeschen,
+  // wenn zwischendurch nichts Neues markiert wurde. Ohne diese Sequenz loeschte
+  // ein Scan, der VOR der Aenderung startete, die Markierung der Aenderung mit —
+  // Zaehler und Listen blieben dauerhaft auf dem alten Stand eingefroren.
+  staleSeq: number
+  // Stale-Stand, den der laufende Scan (inFlight) garantiert abdeckt.
+  coveredSeq: number
   inFlight: Promise<AppData> | null
   meta: ConfigScanCacheMeta | null
 }
@@ -48,7 +56,15 @@ function pendingMeta(status: ConfigScanCacheMeta['status'], reason: string, stal
 }
 
 function createInitialState(): ConfigScanCacheState {
-  return { cached: null, stale: true, staleReason: 'cold-start', inFlight: null, meta: null }
+  return {
+    cached: null,
+    stale: true,
+    staleReason: 'cold-start',
+    staleSeq: 0,
+    coveredSeq: -1,
+    inFlight: null,
+    meta: null
+  }
 }
 
 function setStatusMeta(state: ConfigScanCacheState, status: 'hit' | 'join', reason: string): void {
@@ -57,25 +73,52 @@ function setStatusMeta(state: ConfigScanCacheState, status: 'hit' | 'join', reas
 }
 
 async function runScan(scan: ConfigScanner, state: ConfigScanCacheState, reason: string): Promise<AppData> {
+  // Stand BEIM START merken — nicht beim Einreihen: der Scan sieht den
+  // Dateisystem-Zustand ab genau diesem Moment.
+  const seq = state.staleSeq
+  state.coveredSeq = seq
   const startedAt = isoNow()
   const start = nowMs()
-  try {
-    const data = await scan()
-    state.cached = data
+  const data = await scan()
+  state.cached = data
+  // Wurde WAEHREND des Laufs erneut markStale gerufen, bleibt stale=true: die
+  // frischen Daten sind bereits wieder ueberholt und der naechste getSnapshot
+  // muss neu scannen. Sonst ginge die Markierung verloren (F2).
+  if (state.staleSeq === seq) {
     state.stale = false
     state.staleReason = ''
-    state.meta = {
-      status: 'scan',
-      reason,
-      startedAt,
-      finishedAt: isoNow(),
-      durationMs: Math.max(0, Math.round(nowMs() - start)),
-      stale: false
-    }
-    return data
-  } finally {
-    state.inFlight = null
   }
+  state.meta = {
+    status: 'scan',
+    reason,
+    startedAt,
+    finishedAt: isoNow(),
+    durationMs: Math.max(0, Math.round(nowMs() - start)),
+    stale: state.stale
+  }
+  return data
+}
+
+/**
+ * Einen Scan starten. Laeuft bereits ein (inzwischen veralteter) Scan, wird der
+ * neue daran ANGEHAENGT statt parallel gestartet — kein doppelter Vollscan, aber
+ * garantiert ein Lauf, der die letzte Aenderung sieht.
+ */
+function startScan(
+  scan: ConfigScanner,
+  state: ConfigScanCacheState,
+  reason: string
+): Promise<AppData> {
+  const previous = state.inFlight
+  const run = (): Promise<AppData> => runScan(scan, state, reason)
+  const promise = previous ? previous.then(run, run) : run()
+  state.inFlight = promise
+  state.coveredSeq = state.staleSeq
+  void promise.then(
+    () => { if (state.inFlight === promise) state.inFlight = null },
+    () => { if (state.inFlight === promise) state.inFlight = null }
+  )
+  return promise
 }
 
 function getCachedSnapshot(state: ConfigScanCacheState, reason: string): Promise<AppData> | null {
@@ -91,16 +134,20 @@ export function createConfigScanCache(scan: ConfigScanner = scanAll): ConfigScan
       const reason = options.reason ?? (state.staleReason || DEFAULT_REASON)
       const cachedSnapshot = options.force ? null : getCachedSnapshot(state, reason)
       if (cachedSnapshot) return cachedSnapshot
-      if (state.inFlight) {
+      // Laufenden Scan nur mitbenutzen, wenn er NACH der letzten Stale-
+      // Markierung gestartet wurde. Sonst beantwortet ein veralteter Lauf die
+      // frische Anforderung — genau der Wettlauf hinter den eingefrorenen
+      // Zaehlern/Listen (F2).
+      if (state.inFlight && state.coveredSeq === state.staleSeq) {
         setStatusMeta(state, 'join', reason)
         return state.inFlight
       }
-      state.inFlight = runScan(scan, state, reason)
-      return state.inFlight
+      return startScan(scan, state, reason)
     },
     markStale(reason = 'stale'): void {
       state.stale = true
       state.staleReason = reason
+      state.staleSeq += 1
     },
     getMeta(): ConfigScanCacheMeta | null {
       return state.meta

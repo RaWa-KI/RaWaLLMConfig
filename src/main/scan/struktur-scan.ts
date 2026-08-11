@@ -117,6 +117,9 @@ interface WalkCtx {
   maxDepth: number
   findings: StrukturFinding[]
   seen: Map<string, string>
+  // Pfade der erwarteten Workspace-Struktur: sie sind je WS parallel vorhanden
+  // und duerfen NICHT als Duplikat markiert werden (jeder WS hat sein .claude).
+  expected: Set<string>
   truncated: boolean
 }
 
@@ -145,6 +148,21 @@ function walkStep(dir: string, depth: number, ctx: WalkCtx): void {
     const isConfigDir = TOOL_HOME_DIRS.has(nameLower) || CONFIG_SUBDIRS.has(nameLower)
     if (isConfigDir) {
       if (ctx.def.knownNestedToolHomes.has(normalizePathForCompare(childPath, process.platform))) continue
+      // Unter dem registrierten Workspace-Parent ist die Ebene <Parent>/<WS>/…
+      // die normale Workspace-Struktur: Tool-Homes (.claude/.codex/.agents/
+      // .kimi-code/.grok) und Config-Unterordner gehoeren dort hin. Das ist
+      // „Erwartet", keine Anomalie (F7: der Scan warnte die Regelstruktur an).
+      if (ctx.def.workspaceParent === true && depth === 2) {
+        ctx.expected.add(childPath)
+        ctx.findings.push({
+          path: childPath,
+          status: 'ok',
+          root: ctx.def.label,
+          kind: name,
+          note: `Erwartet: "${name}" gehört zur normalen Workspace-Struktur`
+        })
+        continue
+      }
       ctx.findings.push({
         path: childPath,
         status: 'warn',
@@ -165,10 +183,11 @@ function walkRoot(
   def: RootDef,
   maxDepth: number,
   findings: StrukturFinding[],
-  seen: Map<string, string>
+  seen: Map<string, string>,
+  expected: Set<string>
 ): boolean {
   if (!dirExists(rootPath)) return false
-  const ctx: WalkCtx = { def, maxDepth, findings, seen, truncated: false }
+  const ctx: WalkCtx = { def, maxDepth, findings, seen, expected, truncated: false }
   walkStep(rootPath, 1, ctx)
   return ctx.truncated
 }
@@ -179,10 +198,12 @@ function walkRoot(
 // werden NICHT als Duplikat markiert. Der Schluessel kombiniert daher Root und
 // Kind ("<root>::<kind>"); nur derselbe Kind zweimal im selben Root ist ein
 // echtes Duplikat (Anomalie).
-function markDuplicates(findings: StrukturFinding[]): void {
+function markDuplicates(findings: StrukturFinding[], expected: Set<string>): void {
   const rootKindPaths = new Map<string, StrukturFinding[]>()
   for (const f of findings) {
     if (f.status !== 'ok') continue
+    // Erwartete Workspace-Struktur ist je WS parallel — kein Duplikat.
+    if (expected.has(f.path)) continue
     const key = `${f.root}::${f.kind.toLowerCase()}`
     const list = rootKindPaths.get(key) ?? []
     list.push(f)
@@ -221,16 +242,17 @@ export function handleStrukturScan(req: StrukturScanRequest | undefined): IpcRes
     }
     const findings: StrukturFinding[] = []
     const seen = new Map<string, string>()
+    const expected = new Set<string>()
     const MAX_DEPTH = 5
     let truncated = false
 
     for (const [rootPath, def] of Object.entries(defs)) {
-      if (walkRoot(rootPath, def, MAX_DEPTH, findings, seen)) {
+      if (walkRoot(rootPath, def, MAX_DEPTH, findings, seen, expected)) {
         truncated = true
       }
     }
 
-    markDuplicates(findings)
+    markDuplicates(findings, expected)
 
     const data: StrukturScanResultData = {
       findings,

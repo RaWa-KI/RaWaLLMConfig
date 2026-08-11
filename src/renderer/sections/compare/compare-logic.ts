@@ -43,7 +43,7 @@ function alignOne(result: MultiCompareResult, j: number): AlignedCell[] {
 // durch GENAU EINE Platzhalter-Zelle { fold:N } ersetzen (N = Lauflaenge); kind
 // uebernimmt die erste Zelle des Laufs. present-Zellen bleiben unveraendert in
 // Reihenfolge. So kollabiert die Leerzeilen-Flut zu einer kompakten Markierung.
-export function foldGaps(cells: AlignedCell[]): AlignedCell[] {
+function foldGaps(cells: AlignedCell[]): AlignedCell[] {
   const out: AlignedCell[] = []
   let i = 0
   while (i < cells.length) {

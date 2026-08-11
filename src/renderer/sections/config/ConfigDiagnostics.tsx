@@ -8,7 +8,7 @@ import './ConfigDiagnostics.css'
 
 // WP-F11: Eintrags-Verweis mit Ziel-ID, damit „Technisches Detail" nicht nur
 // Namen nennt, sondern per Klick den Drawer des Eintrags öffnet.
-export interface DiagnosticRef {
+interface DiagnosticRef {
   entryId: string
   name: string
 }

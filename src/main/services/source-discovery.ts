@@ -31,6 +31,8 @@ const CANDIDATES: readonly Candidate[] = [
   // HR16-Paritaet: Claude, Codex und Kimi sind gleichwertige native Loader.
   // providerId 'kimi' zeigt auf kimi.manifest (providerRegistry()).
   { subPath: '.kimi-code', providerId: 'kimi', label: 'Kimi (~/.kimi-code)' },
+  // providerId 'grok' zeigt auf grok.manifest (providerRegistry()).
+  { subPath: '.grok', providerId: 'grok', label: 'Grok (~/.grok)' },
   { subPath: '.ollama', providerId: 'local', label: 'Ollama (~/.ollama)' },
   { subPath: '.lmstudio', providerId: 'local', label: 'LM Studio (~/.lmstudio)' }
 ]

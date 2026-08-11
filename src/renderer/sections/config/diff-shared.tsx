@@ -135,13 +135,13 @@ export function isOversizeFallback(lines: DiffLine[]): boolean {
   return lines.length > 0 && lines[0].both === true && lines[0].l.startsWith(DIFF_OVERSIZE_PREFIX)
 }
 
-export function diffSign(line: DiffLine, side: 'trunk' | 'mirror'): string {
+function diffSign(line: DiffLine, side: 'trunk' | 'mirror'): string {
   if (side === 'trunk' && line.trunkOnly) return line.t === 'del' ? '−' : '+'
   if (side === 'mirror' && line.mirrorOnly) return line.t === 'add' ? '+' : '−'
   return ''
 }
 
-export function diffCls(line: DiffLine, side: 'trunk' | 'mirror'): string {
+function diffCls(line: DiffLine, side: 'trunk' | 'mirror'): string {
   if (side === 'trunk' && line.trunkOnly) return ' ' + line.t
   if (side === 'mirror' && line.mirrorOnly) return ' ' + line.t
   return ' ctx'

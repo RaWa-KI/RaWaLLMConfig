@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import './PrefsSection.css'
 import type { PrefValue } from '@shared/contract-write'
 import { SUPPORTED_LOCALES } from '@shared/messages'
-import { languagePackHint, prefsStoreHint, settingsExpertList } from '@shared/messages/ux-copy'
+import { languagePackHint, prefsStoreHint } from '@shared/messages/ux-copy'
 import { Icon } from '../../components/Icon'
 import { msg, msgText } from '../../lib/messages'
 import { useLocale } from '../../state/store-locale'
 import { useStore } from '../../state/store'
 import { usePrefs } from '../../state/store-write-prefs'
+import { DisplayModeCard } from '../settings/DisplayModeCard'
+import { RootRows } from './RootRows'
 
 // PrefsSection — Tweaks/App-Prefs (F-Tweaks). Zeigt die Tweaks an und speichert
 // sie via usePrefs() (Main: backup-first + atomar). Persistierter Zustand wird
@@ -122,18 +124,6 @@ function StoreHintCard({ reason, expert }: { reason: string; expert: boolean }) 
   )
 }
 
-function SettingsExpertCard() {
-  const items = settingsExpertList()
-  return (
-    <div className="card flat prefs-expert-details">
-      <b>{msg('expertDetails.rawDetails')}</b>
-      <ul>
-        {items.map((item) => <li key={item}>{item}</li>)}
-      </ul>
-    </div>
-  )
-}
-
 function BackupPathRow({ value, onPick, onReset }: {
   value: string
   onPick: () => void
@@ -151,30 +141,6 @@ function BackupPathRow({ value, onPick, onReset }: {
       </div>
     </div>
   )
-}
-
-const ROOT_FIELDS = [
-  ['roots.sharedClaude', 'Gemeinsamer Konfigurationsordner'],
-  ['roots.workspaceParent', 'Arbeitsbereich-Ordner'],
-  ['roots.projectRoot', 'RaWaLLMConfig-Ordner']
-] as const
-
-function RootRows({ prefs, onSet }: { prefs: Record<string, PrefValue>; onSet(key: string, value: string): void }) {
-  async function pick(key: string): Promise<void> {
-    const result = await window.electronAPI?.pickFolder()
-    if (result?.data) onSet(key, result.data)
-  }
-  return <div className="root-rows">
-    <div className="tweak-label">Verzeichnisse</div>
-    <p className="tweak-help">Wählen Sie nur abweichende Orte. Änderungen gelten nach dem Neustart der App.</p>
-    {ROOT_FIELDS.map(([key, label]) => {
-      const value = String(prefs[key] ?? '')
-      return <div className="backup-row" key={key}>
-        <div><div className="tweak-label">{label}</div><code className="backup-path">{value || 'nicht konfiguriert'}</code></div>
-        <div className="backup-actions"><button type="button" className="pill ghost" onClick={() => void pick(key)}>{Icon.folder} Ordner wählen</button>{value && <button type="button" className="pill ghost" onClick={() => onSet(key, '')}>Zurücksetzen</button>}</div>
-      </div>
-    })}
-  </div>
 }
 
 function usePrefsStoreHint(): string | null {
@@ -208,7 +174,7 @@ export function PrefsSection() {
   }
 
   return (
-    <main className="main" style={{ gridColumn: '1 / -1' }}>
+    <main className="main prefs-main">
       <div className="view-head">
         <div className="view-title">
           <h2>Darstellung</h2>
@@ -221,7 +187,10 @@ export function PrefsSection() {
           <div className="empty" style={{ padding: 20 }}>{loadError}</div>
         </div>
       )}
-      {ui.displayMode === 'expert' && <SettingsExpertCard />}
+      {/* Owner-Befund 2026-08-11: Modus-Schalter samt Experten-Erklärung gehört
+          in diesen Tab statt über alle Tabs — die frühere Karte „Rohdaten und
+          technische Details" ist damit ersetzt und steht nur noch einmal. */}
+      <DisplayModeCard />
 
       <div className="card prefs-card">
         <div className="prefs-head">

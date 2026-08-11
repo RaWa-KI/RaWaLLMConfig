@@ -10,7 +10,8 @@ files:
   - package.json
   - out/**/*
 
-electronVersion: "43.1.1"
+# Muss dem devDependency-Pin entsprechen (caudex-Freigabe 2026-08-08, ABI 148 unveraendert).
+electronVersion: "43.3.0"
 
 icon: build/icon.ico
 

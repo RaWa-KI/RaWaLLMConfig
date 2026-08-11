@@ -6,20 +6,22 @@ follows below.
 
 ## Bildschirmfotos
 
-Ein aktuelles Bild der Startseite folgt erst nach dem High-Fidelity-Nachweis
-eines frisch gebauten und installierten Pakets.
+Aufgenommen aus dem Build der Version 0.1.12.
 
-![Modulkonfiguration](docs/brand/app-config-modules.png)
+![Startseite mit Bereitschafts-Überblick](docs/brand/app-overview.png)
 
 ![Änderungsansicht](docs/brand/model-config-edit-simple-mode.png)
+
+![Modulkonfiguration](docs/brand/app-config-modules.png)
 
 ![Toolchain-Watcher](docs/brand/toolchain-watcher.png)
 
 ## Deutsch
 
-RaWaLLMConfig macht lokale Konfigurationen für Claude, Codex, MCP, Hooks,
-Agenten und lokale Modelle an einem Ort sichtbar. Die App arbeitet lokal.
-Schreibaktionen brauchen eine Bestätigung und legen zuerst eine Sicherung an.
+RaWaLLMConfig macht lokale Konfigurationen für Claude, Codex, Kimi, Grok,
+MCP, Hooks, Agenten und lokale Modelle an einem Ort sichtbar. Die App
+arbeitet lokal. Schreibaktionen brauchen eine Bestätigung und legen zuerst
+eine Sicherung an.
 
 Die App ist eine öffentliche Alpha. Der Kern ist nutzbar, einzelne Ansichten
 und Integrationen werden noch vereinfacht und vervollständigt.
@@ -29,6 +31,10 @@ und Integrationen werden noch vereinfacht und vervollständigt.
 - Übersicht über erkannte Konfigurationsquellen und wichtige Zustände.
 - Geführte Einstiege für Prüfung, Vergleich und sichere Änderungen.
 - Geschützter Schreibmodus mit Bestätigung und Backup-first-Logik.
+- Fortschrittsanzeige bei längeren Speichervorgängen (Sicherung anlegen,
+  Dateien verschieben, Verweise aktualisieren, Prüfen).
+- Trennung von echten Duplikaten und gewollten Kopien: als Paritäts-Kopie
+  festgelegte oder ignorierte Paare verlassen die Duplikatliste.
 - Toolchain-Watcher für lokale Versionen und Wartungshinweise.
 - Plattformbezogene Auswahl passender Update-Pakete.
 - Node-basierte Service-Tests für zentrale App-Flows.
@@ -128,9 +134,9 @@ dem Merge eine Contributor License Agreement. Details stehen in
 
 ## English
 
-RaWaLLMConfig brings local configuration for Claude, Codex, MCP, hooks,
-agents, and local models into one desktop app. It runs locally. Write actions
-require confirmation and create a backup before changing files.
+RaWaLLMConfig brings local configuration for Claude, Codex, Kimi, Grok, MCP,
+hooks, agents, and local models into one desktop app. It runs locally. Write
+actions require confirmation and create a backup before changing files.
 
 The app is a public alpha. Its core is usable, while some views and
 integrations are still being simplified and completed.
@@ -140,6 +146,10 @@ integrations are still being simplified and completed.
 - An overview of detected configuration sources and important states.
 - Guided entry points for inspection, comparison, and safe changes.
 - Protected write mode with confirmation and backup-first safeguards.
+- Progress display for longer write operations (snapshot, move files,
+  update references, verify).
+- Separation of real duplicates from intended copies: pairs declared as
+  parity copies or ignored leave the duplicate list.
 - A toolchain watcher for local versions and maintenance notices.
 - Platform-aware selection of matching update packages.
 - Node-based service tests for central app flows.

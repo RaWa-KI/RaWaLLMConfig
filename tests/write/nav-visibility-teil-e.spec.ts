@@ -25,7 +25,7 @@ const overviewCss = read('src/renderer/sections/overview/OverviewSection.css')
 const overviewSection = read('src/renderer/sections/overview/OverviewSection.tsx')
 const diagnosisCards = read('src/renderer/sections/overview/DiagnosisCards.tsx')
 const diagnosisView = read('src/renderer/sections/config/DiagnosisView.tsx')
-const settingsActions = read('src/renderer/sections/settings/SettingsActionsPanel.tsx')
+const displayModeCard = read('src/renderer/sections/settings/DisplayModeCard.tsx')
 const sectionVisibility = read('src/renderer/state/section-visibility.ts')
 const navVisibility = read('src/renderer/chrome/nav-visibility.ts')
 
@@ -152,10 +152,13 @@ test('review fixes e-wp1: switch visibility, safe routing, settings gating', () 
   expect(diagnosisView).toContain('onOpenExpert')
   expect(diagnosisCards).toContain('actionVisibleForMode(props.card.diagnosisAction')
   expect(diagnosisCards).toContain('diagnostics.card.openInExpert')
-  // Fix 3: Backup/Export/Import-Karte nur im Expert-Modus (Teilplan F: selber
-  // Modus-Wert, jetzt als Hook-Alias `displayMode` aus useDisplayModeSwitch).
-  expect(settingsActions).toContain('useDisplayModeSwitch(')
-  expect(settingsActions).toContain("displayMode === 'expert'")
+  // Fix 3: Backup/Export/Import nur im Expert-Modus — seit 2026-08-11 nicht
+  // mehr als Dauerkarte, sondern als expert-gated Tab „Dateien" (simple: false).
+  // Der Modus-Schalter selbst haengt in der DisplayModeCard des Darstellung-Tabs
+  // (Teilplan F: Hook-Alias `displayMode` aus useDisplayModeSwitch).
+  expect(settingsSection).toContain("{ id: 'files', labelKey: 'settings.tab.files', icon: 'save', simple: false }")
+  expect(displayModeCard).toContain('useDisplayModeSwitch(')
+  expect(displayModeCard).toContain('const { active: displayMode, onSelect: onDisplayMode }')
   // Fix 4/5: konsistente aktive Pill und gruppenbeschrifteter Umschalter.
   expect(llmBar).toContain('activeSection')
   expect(modeSwitch).toContain('role="group"')

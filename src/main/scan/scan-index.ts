@@ -9,7 +9,7 @@ import { scanMcp } from './mcp-scan'
 import { markMcpConflicts } from './mcp-conflicts'
 import { scanRegistry, scanRegistryAsync } from './engine/build-data'
 import { isProviderScanEnabled } from './integration-filter'
-import { buildAuditConfig } from './scan-audit-categories'
+import { buildAuditConfig, buildAuditConfigAsync } from './scan-audit-categories'
 import { findDuplicates } from '../services/dedupe'
 import { findContentDuplicates } from '../services/dedupe-content-scan'
 import { findDriftRelations } from '../services/drift-relation'
@@ -117,6 +117,7 @@ export function applyCoverageAcks(data: Record<string, LlmConfig>, acknowledged:
 // buildUserglobal + buildData werden im Test gegen eine legacyBuildData()-Referenz
 // (direkte Alt-Scanner-Aufrufe) deep-equal verglichen. NUR Sichtbarmachung —
 // KEINE Logikaenderung. scanMcp wird im Test direkt aus mcp-scan importiert.
+// Knip sieht require()-Nutzung in Specs nicht — ignoreIssues in .knip.json.
 export { mergeMcp, buildUserglobal, buildData, buildLlms }
 
 function hasEntries(cfg: LlmConfig | undefined): boolean {
@@ -137,6 +138,8 @@ function buildLlms(data: Record<string, LlmConfig>): LlmDef[] {
     { id: 'codex', glyph: '◇', name: 'Codex', sub: 'OpenAI', color: 'var(--papa)', path: '~/.codex', scanError: data.codex?.scanError },
     // HR16-Paritaet: dritter nativer Loader mit eigener Familie (~/.kimi-code).
     { id: 'kimi', glyph: '◈', name: 'Kimi', sub: 'Moonshot', color: 'var(--sage)', path: '~/.kimi-code', scanError: data.kimi?.scanError },
+    // HR16-Paritaet: vierter nativer Loader mit eigener Familie (~/.grok).
+    { id: 'grok', glyph: '◉', name: 'Grok', sub: 'xAI', color: 'var(--terra)', path: '~/.grok', scanError: data.grok?.scanError },
     { id: 'local', glyph: '▢', name: 'Lokal', sub: 'llama.cpp', color: 'var(--lisa)', path: '~/.ollama', scanError: data.local?.scanError },
     { id: 'cloud', glyph: '✦', name: 'Cloud-APIs', sub: 'OpenAI · Anthropic · Gemini', color: 'var(--sage)', path: 'API', scanError: data.cloud?.scanError }
   ].filter((def) => visible(data[def.id]))
@@ -220,6 +223,7 @@ export async function scanAllAsync(): Promise<AppData> {
   } catch (err) {
     console.error('[scan:coverage]', err instanceof Error ? err.message : 'coverage-error')
   }
-  data.audit = buildAuditConfig()
+  await yieldToEventLoop()
+  data.audit = await buildAuditConfigAsync()
   return { snapshot: buildSnapshot(), machines: buildMachines(), llms: buildLlms(data), data }
 }

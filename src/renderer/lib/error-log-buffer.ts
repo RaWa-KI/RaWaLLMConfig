@@ -7,7 +7,7 @@
 
 const MAX_ENTRIES = 50
 
-export interface ErrorLogEntry {
+interface ErrorLogEntry {
   ts: string
   kind: string
   message: string

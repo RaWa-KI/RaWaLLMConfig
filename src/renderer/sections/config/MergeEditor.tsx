@@ -97,7 +97,7 @@ export function MergeEditor(props: MergeEditorProps) {
       <MergeColHead trunkPath={trunkPath} mirrorPath={mirrorPath} seite={seite} labels={labels} />
       <div className="merge-host-wrap">
         <div ref={hostRef} className="merge-host" />
-        <MergeArrows rows={rows} disabled={!writeEnabled} onAdopt={onAdopt} />
+        <MergeArrows rows={rows} disabled={!writeEnabled} onAdopt={onAdopt} labels={labels} />
       </div>
       <MergeBar
         writeEnabled={writeEnabled}
@@ -106,6 +106,7 @@ export function MergeEditor(props: MergeEditorProps) {
         dirty={dirty}
         onSave={save}
         onRevert={revert}
+        labels={labels}
       />
     </div>
   )

@@ -31,7 +31,7 @@ export interface DirBases {
 }
 
 // rel mit POSIX-Trenner an einen Basispfad anfuegen (Trennzeichen aus Basis ableiten).
-export function joinRel(base: string, rel: string): string {
+function joinRel(base: string, rel: string): string {
   if (!base) return ''
   const sep = base.includes('\\') ? '\\' : '/'
   const cleanBase = base.replace(/[\\/]+$/, '')

@@ -5,7 +5,7 @@ import type { OverviewNavigationAction } from './overview-navigation'
 
 export type GuidedFlowId = 'firstStart' | 'checkProblem' | 'prepareChange' | 'activateModule'
 
-export interface GuidedFlowSymptom {
+interface GuidedFlowSymptom {
   id: string
   title: string
   status: string

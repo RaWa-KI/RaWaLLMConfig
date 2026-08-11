@@ -7,6 +7,8 @@ import { expect, test } from '@playwright/test'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+// channels-write ist reine Konstanten-Datei ohne electron-Bezug -> statisch.
+import { IPC_WRITE } from '../../shared/channels-write'
 
 const sandbox = mkdtempSync(join(tmpdir(), 'rawallmconfig-coverage-ack-ipc-'))
 process.env.RAWALLM_SANDBOX_ROOT = sandbox
@@ -26,8 +28,10 @@ require.cache[electronPath] = {
   }
 } as never
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { IPC_WRITE } = require('../../shared/channels-write') as typeof import('../../shared/channels-write')
+// BEWUSST require statt statischem Import: beide Module ziehen transitiv
+// `electron` nach (write-mode -> config-roots -> app-paths). Statische Imports
+// werden beim Transpilieren VOR die obigen Statements gehoben — der
+// electron-Mock waere dann noch nicht im require-Cache und app.getPath fehlte.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const writeMode = require('../../src/main/services/write-mode') as typeof import('../../src/main/services/write-mode')
 // eslint-disable-next-line @typescript-eslint/no-var-requires

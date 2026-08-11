@@ -12,6 +12,8 @@ import { crosscheckHooks } from './hook-crosscheck'
 import { scanHr27 } from './hr27-scan'
 import { collectMemoryFiles } from './memory-audit'
 import { mtimeSafe } from './scan-helpers'
+import { buildClaudeDoctorCategories } from './claude-doctor-audit'
+import { buildClaudeDoctorCategoriesAsync } from './claude-doctor-audit-async'
 
 interface AuditEntry {
   id: string
@@ -31,7 +33,22 @@ export function buildAuditConfig(): LlmConfig {
     cat('audit-hooks', 'Hook-Audit', 'hook', anchor, hooks()),
     cat('audit-hr27', 'HR27-Audit', 'rule', anchor, hr27(hr27Roots(roots))),
     cat('audit-memory', 'Memory-Audit', 'agent', anchor, memory(memoryRoots())),
+    ...buildClaudeDoctorCategories(),
   ].filter((c): c is Category => c !== null)
+  return { categories: cats, duplicates: [] }
+}
+
+export async function buildAuditConfigAsync(): Promise<LlmConfig> {
+  const roots = configRoots()
+  const anchor = roots.projectRoot ?? roots.sharedClaude ?? ''
+  const cats = [
+    cat('audit-references', 'Referenz-Audit', 'list', anchor, refs(wikilinkScanSpec(roots))),
+    cat('audit-registry', 'Registry-Audit', 'list', registryPath(), registry()),
+    cat('audit-hooks', 'Hook-Audit', 'hook', anchor, hooks()),
+    cat('audit-hr27', 'HR27-Audit', 'rule', anchor, hr27(hr27Roots(roots))),
+    cat('audit-memory', 'Memory-Audit', 'agent', anchor, memory(memoryRoots())),
+    ...await buildClaudeDoctorCategoriesAsync(),
+  ].filter((category): category is Category => category !== null)
   return { categories: cats, duplicates: [] }
 }
 
@@ -161,7 +178,7 @@ function memoryDirs(roots: string[]): string[] {
 // ~/.claude/projects) bleiben ausgenommen. projectRoot und sharedClaude
 // bleiben Voll-Walk (bisheriges Verhalten, reine Config-/Doku-Baeume).
 const DOC_SUBDIRS = new Set([
-  '.claude', '.codex', '.kimi-code', '.agents',
+  '.claude', '.codex', '.kimi-code', '.agents', '.grok',
   'agents', 'skills', 'rules', 'hooks', 'commands', 'docs', 'doc',
 ])
 const DOC_FILE_RX = /\.(md|mdx|txt)$/i

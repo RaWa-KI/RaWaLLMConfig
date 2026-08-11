@@ -2,22 +2,12 @@ import { test, expect } from '@playwright/test'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LlmConfig } from '../../shared/contract'
+import { scanClaude } from '../../src/main/scan/claude-scan'
+import { scanCodex } from '../../src/main/scan/codex-scan'
 
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    // scan-invalidation mit werfen: es bindet struktur-scan-Modulzustand;
-    // sonst markiert die Alt-Instanz den neu geladenen Cache nie stale.
-    if (
-      k.includes('/src/main/scan/') ||
-      k.includes('/src/main/services/config-roots') ||
-      k.includes('/src/main/services/scan-invalidation')
-    ) {
-      delete require.cache[key]
-    }
-  }
-}
+// Statischer Import statt require + Cache-Bust: claude-scan/codex-scan loesen
+// claudeDir/codexDir bei JEDEM Aufruf ueber configRoots() auf (reine Funktion
+// von RAWALLM_SANDBOX_ROOT) — das gesetzte Env genuegt.
 
 test('claude rule scan exposes paths/globs and flags ignored globs', () => {
   const root = mkdtempSync(join(tmpdir(), 'rawallm-rule-fm-'))
@@ -29,9 +19,6 @@ test('claude rule scan exposes paths/globs and flags ignored globs', () => {
     writeFileSync(join(rules, 'scoped.md'), '---\npaths: "**/*.ts"\n---\n# Scoped\n', 'utf8')
     writeFileSync(join(rules, 'legacy.md'), '---\nglobs: "**/*.ts"\n---\n# Legacy\n', 'utf8')
     writeFileSync(join(root, '.claude', 'settings.json'), '{}', 'utf8')
-    bustScanCache()
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { scanClaude } = require('../../src/main/scan/claude-scan') as { scanClaude: () => LlmConfig }
     const cat = scanClaude().categories.find((c) => c.id === 'rules')!
     const scoped = cat.entries.find((e) => e.name === 'scoped')!
     const legacy = cat.entries.find((e) => e.name === 'legacy')!
@@ -57,9 +44,6 @@ test('codex skill scan exposes schema hints, load mode and token estimate', () =
       '---\nname: demo\ndescription: Demo skill\nglobs: "**/*.ts"\n---\n# Demo\n',
       'utf8',
     )
-    bustScanCache()
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { scanCodex } = require('../../src/main/scan/codex-scan') as { scanCodex: () => LlmConfig }
     const cat = scanCodex().categories.find((c) => c.id === 'codex-skills')!
     const entry = cat.entries.find((e) => e.name === 'demo')!
     expect(entry.loadMode).toBe('bei-bedarf')

@@ -15,8 +15,10 @@ import type {
   MoveImpactScanRequest,
   MoveImpactScanResult
 } from '@shared/contract-write-rename'
+import type { IntegrityApplyProgressPayload } from '@shared/contract-integrity'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
+import { integrityProgressSender } from './ipc-integrity-progress'
 import { scanMoveImpact } from './services/move-impact-scan'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { markScanCachesStale } from './services/scan-invalidation'
@@ -25,7 +27,10 @@ import { guarded, guardedAsync } from './lib/guarded'
 type RenameSideName = 'shared' | 'claude'
 
 // Handler: Umbenennen (Datei ODER Ordner) mit Seitenwahl.
-async function handleRename(req: RenameRequest): Promise<RenameResult> {
+async function handleRename(
+  req: RenameRequest,
+  onProgress?: (p: IntegrityApplyProgressPayload) => void
+): Promise<RenameResult> {
   if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
   if (!req || typeof req.sides !== 'string' || typeof req.newName !== 'string') {
     return { data: null, error: 'invalid-request' }
@@ -33,7 +38,10 @@ async function handleRename(req: RenameRequest): Promise<RenameResult> {
   const ctx = getWriteContext()
   const preview = await previewIntegrity({ kind: 'rename', req }, ctx)
   if (preview.error || !preview.data) return { data: null, error: preview.error ?? 'integrity-preview-failed' }
-  const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
+  const apply = await applyIntegrity(
+    { plan: preview.data, planHash: preview.data.planHash },
+    { ...ctx, onProgress }
+  )
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
   const sides = preview.data.fsOps.map((op, idx) => {
@@ -51,7 +59,10 @@ function sideForRename(req: RenameRequest, index: number): RenameSideName {
 }
 
 // Handler: Verschieben einer gewaehlten Version an einen freien Ziel-Pfad.
-async function handleMoveVersioned(req: MoveVersionedRequest): Promise<MoveVersionedResult> {
+async function handleMoveVersioned(
+  req: MoveVersionedRequest,
+  onProgress?: (p: IntegrityApplyProgressPayload) => void
+): Promise<MoveVersionedResult> {
   if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
   if (!req || typeof req.version !== 'string' || typeof req.fromPath !== 'string' || typeof req.to !== 'string') {
     return { data: null, error: 'invalid-request' }
@@ -59,7 +70,10 @@ async function handleMoveVersioned(req: MoveVersionedRequest): Promise<MoveVersi
   const ctx = getWriteContext()
   const preview = await previewIntegrity({ kind: 'move', req }, ctx)
   if (preview.error || !preview.data) return { data: null, error: preview.error ?? 'integrity-preview-failed' }
-  const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
+  const apply = await applyIntegrity(
+    { plan: preview.data, planHash: preview.data.planHash },
+    { ...ctx, onProgress }
+  )
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
   const fsOp = preview.data.fsOps[0]
@@ -92,13 +106,13 @@ function handleMoveImpactScan(req: MoveImpactScanRequest): MoveImpactScanResult 
 export function registerRenameWrite(): void {
   ipcMain.handle(
     IPC_WRITE.writeRename,
-    (_e, req: RenameRequest): Promise<RenameResult> =>
-      guardedAsync('rename', () => handleRename(req))
+    (e, req: RenameRequest): Promise<RenameResult> =>
+      guardedAsync('rename', () => handleRename(req, integrityProgressSender(e)))
   )
   ipcMain.handle(
     IPC_WRITE.writeMoveVersioned,
-    (_e, req: MoveVersionedRequest): Promise<MoveVersionedResult> =>
-      guardedAsync('moveVersioned', () => handleMoveVersioned(req))
+    (e, req: MoveVersionedRequest): Promise<MoveVersionedResult> =>
+      guardedAsync('moveVersioned', () => handleMoveVersioned(req, integrityProgressSender(e)))
   )
   ipcMain.handle(
     IPC_WRITE.writeMoveImpactScan,

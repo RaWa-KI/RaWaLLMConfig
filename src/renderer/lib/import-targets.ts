@@ -25,7 +25,7 @@ export interface ImportItem {
 
 // Bekannte Config-Wurzeln (Allowlist-Segmente). Nur Pfade unter diesen Segmenten
 // sind schreibbar; alles andere -> skipped-foreign (kein beliebiger absoluter Pfad).
-export const ALLOWED_ROOT_SEGMENTS = ['.claude', '.codex', '.shared']
+const ALLOWED_ROOT_SEGMENTS = ['.claude', '.codex', '.shared']
 
 // projectRoot-Segment (.../RaWaLLMConfig). Der Main-Write-Scope
 // (config-roots.ConfigRoots) enthaelt ausser den Allowlist-Segmenten auch den
@@ -33,9 +33,9 @@ export const ALLOWED_ROOT_SEGMENTS = ['.claude', '.codex', '.shared']
 // mit-akzeptieren, sonst weicht die Renderer-Vorpruefung vom Main-Scope ab und
 // verwirft (skipped-foreign) Pfade, die der Main schreiben wuerde (B1). Klein-
 // geschrieben; segments() normalisiert plattformgerecht.
-export const PROJECT_ROOT_SEGMENT = 'RaWaLLMConfig'
+const PROJECT_ROOT_SEGMENT = 'RaWaLLMConfig'
 
-export function segments(p: string, platform: string = rendererPathComparisonPlatformFor(p)): string[] {
+function segments(p: string, platform: string = rendererPathComparisonPlatformFor(p)): string[] {
   return splitPathForPlatform(p, platform).segments
     .map((segment) => normalizePathForCompare(segment, platform))
 }

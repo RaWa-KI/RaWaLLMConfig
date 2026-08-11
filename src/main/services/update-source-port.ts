@@ -23,7 +23,7 @@ export interface UpdateSourceManifestResult {
   sourceConfigured: boolean
 }
 
-export type MaybePromise<T> = T | Promise<T>
+type MaybePromise<T> = T | Promise<T>
 
 export interface UpdateStageRequest {
   info: UpdateInfo

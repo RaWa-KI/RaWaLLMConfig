@@ -13,7 +13,14 @@ export default defineConfig({
     resolve: { alias: sharedAlias },
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/main/index.ts') },
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          // utilityProcess-Entry: landet als out/main/reference-scan-worker.js
+          // und wird zur Laufzeit ueber join(__dirname, ...) geforkt.
+          'reference-scan-worker': resolve(
+            __dirname, 'src/main/services/integrity/reference-scan-worker.ts'
+          )
+        },
         external: ['electron'],
         output: { format: 'cjs', entryFileNames: '[name].js' }
       }

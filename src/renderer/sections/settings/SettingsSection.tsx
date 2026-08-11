@@ -9,17 +9,21 @@ import { IntegrationsSection } from '../integrations/IntegrationsSection'
 import { msg, msgText } from '../../lib/messages'
 import type { MessageKey } from '@shared/messages'
 import { useStore } from '../../state/store'
-import { SettingsActionsPanel } from './SettingsActionsPanel'
+import { FilesPanel } from './FilesPanel'
 import { readOverviewFocus } from '../overview/overview-navigation'
 import { useOverviewFocusVersion } from '../overview/use-overview-focus'
 import './SettingsSection.css'
 
-type SettingsTab = 'tweaks' | 'updates' | 'sources' | 'modules'
+type SettingsTab = 'tweaks' | 'files' | 'updates' | 'sources' | 'modules'
 
 // Modus-Flag je Tab (WP-F6): Grundeinstellungen (tweaks) und Updates gehören
-// beiden Modi; sources/modules bleiben Experten-Bereiche.
+// beiden Modi; files/sources/modules bleiben Experten-Bereiche.
+// Owner-Befund 2026-08-11: „Sichern und wieder einlesen" stand als Dauerblock
+// über jedem Tab und hat den Erklärblock doppelt gezeigt — die Karte hat jetzt
+// den eigenen Tab „Dateien" (schon vorher expert-gated, daher simple: false).
 const TABS: ReadonlyArray<{ id: SettingsTab; labelKey: MessageKey; icon: string; simple: boolean }> = [
   { id: 'tweaks', labelKey: 'settings.tab.tweaks', icon: 'edit', simple: true },
+  { id: 'files', labelKey: 'settings.tab.files', icon: 'save', simple: false },
   { id: 'updates', labelKey: 'settings.tab.updates', icon: 'up', simple: true },
   { id: 'sources', labelKey: 'settings.tab.sources', icon: 'folder', simple: false },
   { id: 'modules', labelKey: 'settings.tab.modules', icon: 'plug', simple: false }
@@ -73,8 +77,8 @@ export function SettingsSection({ onReopenOnboarding }: { onReopenOnboarding: ()
         </button>
       </div>
       <FocusNotice section="settings" />
-      <SettingsActionsPanel />
       {activeTab === 'tweaks' && <PrefsSection />}
+      {activeTab === 'files' && <FilesPanel />}
       {activeTab === 'updates' && (
         <UpdateManagerProvider>
           <UpdateManagerPanel />
@@ -90,6 +94,7 @@ function focusTab(focusId: string | undefined): SettingsTab | null {
   if (focusId === 'settings-tab-sources') return 'sources'
   if (focusId === 'settings-tab-modules') return 'modules'
   if (focusId === 'settings-tab-updates') return 'updates'
+  if (focusId === 'settings-tab-files') return 'files'
   return null
 }
 

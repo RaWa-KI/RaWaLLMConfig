@@ -29,12 +29,15 @@ export interface DupRowActionsProps {
   claudePath?: string
   // Schnellwahl-Ziele fuer den MoveDialog (PathPicker).
   knownPaths: string[]
+  // Intra-Familien-Paar: Fassungs-Kurznamen [A, B] fuer ehrliche Versions-Chips
+  // im MoveDialog (statt „Shared — zentral"/„Claude — lokal"); optional.
+  fassungen?: [string, string] | null
   // Trigger fuer den Inline-Rename — der Parent tauscht die Zeile gegen RenameInline.
   onStartRename(): void
 }
 
 export function DupRowActions(props: DupRowActionsProps) {
-  const { name, kind = 'Datei', fileCount, sharedPath, claudePath, knownPaths, onStartRename } = props
+  const { name, kind = 'Datei', fileCount, sharedPath, claudePath, knownPaths, fassungen, onStartRename } = props
   const { writeEnabled, writeReason, busy, moveEntryVersioned } = useWriteConfig()
   const [moveOpen, setMoveOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -68,6 +71,7 @@ export function DupRowActions(props: DupRowActionsProps) {
         fileCount={fileCount}
         sharedPath={sharedPath}
         claudePath={claudePath}
+        fassungen={fassungen}
         knownPaths={knownPaths}
         busy={busy}
         errorText={moveError}

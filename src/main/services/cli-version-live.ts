@@ -122,7 +122,3 @@ export function liveErrorText(error: ToolVersionResult['error']): string {
   return 'keine Versionsausgabe erhalten'
 }
 
-// Kompat-Wrapper (string|null): Aufrufer, die nur die Version brauchen.
-export async function readToolVersionAsync(bin: string, args: string[]): Promise<string | null> {
-  return (await readToolVersionResult(bin, args)).version
-}

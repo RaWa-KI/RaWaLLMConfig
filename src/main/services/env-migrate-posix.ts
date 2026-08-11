@@ -12,8 +12,8 @@ import {
   type FailedPathIdentity, type FailedTempFileSystem,
 } from './env-migrate-failed-temp'
 
-export const POSIX_ENV_MARKER_START = '# >>> RaWaLLMConfig env >>>'
-export const POSIX_ENV_MARKER_END = '# <<< RaWaLLMConfig env <<<'
+const POSIX_ENV_MARKER_START = '# >>> RaWaLLMConfig env >>>'
+const POSIX_ENV_MARKER_END = '# <<< RaWaLLMConfig env <<<'
 
 const VAR_NAME_RX = /^[A-Z_][A-Z0-9_]{0,127}$/
 

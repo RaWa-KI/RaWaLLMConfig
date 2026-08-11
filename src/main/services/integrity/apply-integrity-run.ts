@@ -5,6 +5,7 @@
 import { existsSync } from 'node:fs'
 import type {
   IntegrityApplyData,
+  IntegrityApplyPhase,
   IntegrityApplyResult,
   IntegrityFsOp,
   IntegrityPlan,
@@ -13,20 +14,42 @@ import type {
 import { applyWrite, applyDirAction } from '../apply'
 import { reconcile } from '../reconcile'
 import { applyReferenceOps } from './reference-apply'
-import { scanReferences } from './reference-scan'
+import { runVerifyPhase } from './verify-references'
 import { createJournal, type IntegrityJournal } from './journal'
 
 export interface RunOptions {
   archiveRoot: string
   auditPath: string
   allowedRoots?: string[]
+  /**
+   * Reine Anzeige-Meldung an die UI (Fortschrittsbalken beim Speichern). Darf
+   * die Transaktion NIE beeinflussen — Fehler im Callback werden geschluckt.
+   */
+  onProgress?: (p: {
+    operationId: string
+    phase: IntegrityApplyPhase
+    done: number
+    total: number
+  }) => void
   hooks?: {
     beforeReferences?: () => void | Promise<void>
     afterReferences?: () => void | Promise<void>
   }
 }
 
-const MOVE_KINDS = new Set(['move', 'rename'])
+/** Fortschritts-Melder, der nie wirft (Anzeige ist nie transaktionsrelevant). */
+type Report = (phase: IntegrityApplyPhase, done: number, total: number) => void
+
+function makeReporter(plan: IntegrityPlan, opts: RunOptions): Report {
+  return (phase, done, total) => {
+    if (!opts.onProgress) return
+    try {
+      opts.onProgress({ operationId: plan.operationId, phase, done, total })
+    } catch {
+      // Anzeige-Kanal weg (Fenster geschlossen) — die Transaktion laeuft weiter.
+    }
+  }
+}
 
 /** Trunk/Mirror aus einem reconcile-fsOp rekonstruieren (für reconcile()). */
 function reconcilePair(op: IntegrityFsOp): { trunkPath: string; mirrorPath: string } {
@@ -59,11 +82,14 @@ function runFsOp(op: IntegrityFsOp, journal: IntegrityJournal, opts: RunOptions)
     journal.recordMove(op.from, res.data.movedTo ?? op.to!)
     return null
   }
-  // reconcile + reconcile-folder: jede als Einzel-reconcile (rewritet intern).
+  // reconcile + reconcile-folder: jede als Einzel-reconcile, aber OHNE internen
+  // Referenz-Rewrite (skipRefRewrite) — der lief pro Paar einmal über den ganzen
+  // Baum und war die Ursache der minutenlangen Speicher-Dauer. Die Referenzen
+  // zieht danach die plan-treue Referenz-Phase nach.
   const pair = reconcilePair(op)
   const res = reconcile(
     { trunkPath: pair.trunkPath, mirrorPath: pair.mirrorPath, decision: op.decision as never },
-    base
+    { ...base, skipRefRewrite: true }
   )
   if (res.error || !res.data) return res.error ?? 'reconcile-failed'
   if (res.data.mirrorArchivedTo) journal.recordMove(op.from, res.data.mirrorArchivedTo)
@@ -76,24 +102,30 @@ interface ReferencePhaseResult {
 }
 
 /**
- * Phase reference: plan-treu nur die geplanten referenceOps anwenden (nicht neu
- * scannen). reconcile/reconcile-folder rewriten bereits intern (kein Doppel) —
- * daher nur für move/rename. manualRequired-Dateien (kaputtes JSON, Secret)
- * tragen keine ops und bleiben unangetastet.
+ * Phase reference: plan-treu GENAU die geplanten referenceOps anwenden — für
+ * ALLE kinds, auch reconcile/reconcile-folder. Deren fsOps laufen seit dem
+ * Performance-Fix mit skipRefRewrite, rewriten also nicht mehr intern; damit
+ * kommt im gesamten Apply kein Baum-Walk mehr vor (vorher: ein kompletter Walk
+ * je Loser→Survivor-Paar, synchron im Main-Prozess). Die Plan-Ops stammen aus
+ * demselben Loser→Survivor-Scan, adopt-Fälle nutzen dieselbe Mapping-Richtung.
+ *
+ * Semantik-Detail: Ist eine Referenzdatei selbst der archivierte Loser, ist sie
+ * am Altpfad nicht mehr lesbar und wird von applyReferenceOps übersprungen —
+ * die Archiv-Kopie behält bewusst ihre alten Referenzen (HR7-Beweisstück). Die
+ * gezielte Verify-Phase überspringt Unlesbares ebenso, es gibt also keinen
+ * Rollback dafür.
+ *
+ * manualRequired-Dateien (kaputtes JSON, Secret) tragen keine ops und bleiben
+ * unangetastet.
  */
-function runReferencePhase(plan: IntegrityPlan, opts: RunOptions): ReferencePhaseResult {
-  if (!MOVE_KINDS.has(plan.kind)) return { rewrittenFiles: [], error: null }
-  return applyReferenceOps(plan.referenceOps, opts.auditPath)
-}
-
-/** Phase verify: keine Pflicht-Referenz-Ops dürfen mehr offen sein. */
-async function runVerifyPhase(plan: IntegrityPlan, opts: RunOptions): Promise<string | null> {
-  for (const op of plan.fsOps) {
-    if (!op.to) continue
-    const scan = await scanReferences(op.from, op.to, { allowedRoots: opts.allowedRoots })
-    if (scan.ops.length > 0) return 'verify-failed: alte Pflichtreferenzen verbleiben'
-  }
-  return null
+function runReferencePhase(
+  plan: IntegrityPlan,
+  opts: RunOptions,
+  report: Report
+): ReferencePhaseResult {
+  return applyReferenceOps(plan.referenceOps, opts.auditPath, (done, total) => {
+    report('references', done, total)
+  })
 }
 
 function rolledBack(plan: IntegrityPlan, status: RollbackStatus, journalPath: string): IntegrityApplyResult {
@@ -108,28 +140,42 @@ function rolledBack(plan: IntegrityPlan, status: RollbackStatus, journalPath: st
   return { data, error: status === 'rollback-failed' ? 'rollback-failed' : null }
 }
 
-/** Snapshottet alle Quell-/Ziel-/Referenz-Dateien VOR Mutation (dedupe). */
-function runSnapshotPhase(plan: IntegrityPlan, journal: IntegrityJournal): void {
+/** Alle zu sichernden Pfade EINMAL sammeln (dedupe, stabile Reihenfolge). */
+function snapshotTargets(plan: IntegrityPlan): string[] {
   const seen = new Set<string>()
-  const snap = (p: string): void => {
+  const targets: string[] = []
+  const add = (p: string): void => {
     if (!p || seen.has(p)) return
     seen.add(p)
-    if (existsSync(p)) journal.snapshot(p, plan.kind)
+    targets.push(p)
   }
   for (const op of plan.fsOps) {
-    snap(op.from)
-    if (op.to && op.action !== 'move' && op.action !== 'move-dir') snap(op.to)
+    add(op.from)
+    if (op.to && op.action !== 'move' && op.action !== 'move-dir') add(op.to)
   }
-  for (const op of plan.referenceOps) snap(op.filePath)
+  for (const op of plan.referenceOps) add(op.filePath)
+  return targets
+}
+
+/** Snapshottet alle Quell-/Ziel-/Referenz-Dateien VOR Mutation (dedupe). */
+function runSnapshotPhase(plan: IntegrityPlan, journal: IntegrityJournal, report: Report): void {
+  const targets = snapshotTargets(plan)
+  let done = 0
+  for (const path of targets) {
+    if (existsSync(path)) journal.snapshot(path, plan.kind)
+    done++
+    report('snapshot', done, targets.length)
+  }
 }
 
 /** Führt die komplette Transaktion aus (Phasen + Rollback). */
 export async function runIntegrity(plan: IntegrityPlan, opts: RunOptions): Promise<IntegrityApplyResult> {
   const journal = createJournal(plan.operationId, { archiveRoot: opts.archiveRoot, auditPath: opts.auditPath })
+  const report = makeReporter(plan, opts)
 
   // Phase snapshot — Fehler hier = harter Abbruch VOR Mutation (nichts zu rollen).
   try {
-    runSnapshotPhase(plan, journal)
+    runSnapshotPhase(plan, journal, report)
   } catch (err) {
     return { data: null, error: err instanceof Error ? err.message : 'snapshot-failed' }
   }
@@ -137,16 +183,19 @@ export async function runIntegrity(plan: IntegrityPlan, opts: RunOptions): Promi
   // Phasen fs -> reference -> verify; Fehler -> Rollback.
   let rewrittenFiles: string[] = []
   try {
+    let fsDone = 0
     for (const op of plan.fsOps) {
       const e = runFsOp(op, journal, opts)
       if (e) throw new Error(e)
+      fsDone++
+      report('fs', fsDone, plan.fsOps.length)
     }
     await opts.hooks?.beforeReferences?.()
-    const ref = runReferencePhase(plan, opts)
+    const ref = runReferencePhase(plan, opts, report)
     if (ref.error) throw new Error(ref.error)
     rewrittenFiles = ref.rewrittenFiles
     await opts.hooks?.afterReferences?.()
-    const verifyErr = await runVerifyPhase(plan, opts)
+    const verifyErr = runVerifyPhase(plan, (done, total) => report('verify', done, total))
     if (verifyErr) throw new Error(verifyErr)
   } catch {
     const status = journal.rollback()

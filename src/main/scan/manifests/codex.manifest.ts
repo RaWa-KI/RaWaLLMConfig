@@ -14,7 +14,7 @@
 import type { Category } from '@shared/contract'
 import type { CategorySpec, CustomCategory, ProviderManifest } from '@shared/contract-provider'
 import { diffLabels } from '@shared/dup-labels'
-import { scanInstructions, scanSettings, scanHooks, codexDir } from '../codex-scan'
+import { scanInstructions, scanSettings, scanHooks } from '../codex-scan'
 
 // Deklarative dir-Kategorie nach scanDir-Vorbild. scan:'dir' => Engine nutzt
 // scanDirEntry (Ordner) + fileEntry (Dateien), genau wie scanDir. parser nur als
@@ -69,5 +69,3 @@ export const codexManifest: ProviderManifest = {
   ],
 }
 
-// Lesbarkeits-Anker fuer den Equivalence-Test (Bestands-codexDir).
-export const codexManifestRoot = codexDir

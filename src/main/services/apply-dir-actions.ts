@@ -19,7 +19,7 @@ import {
 } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { join, dirname, posix, relative, basename, resolve, isAbsolute } from 'node:path'
+import { join, dirname, posix, basename, resolve, isAbsolute } from 'node:path'
 import { isSecretPathForWrite } from './secret-guard'
 
 // ── Walk-Helfer (Dateiliste rekursiv, Symlinks uebersprungen) ─────────────
@@ -56,7 +56,7 @@ function isSymlink(dirent: import('node:fs').Dirent, abs: string): boolean {
 }
 
 /** Listet alle regulaeren Dateien unter rootAbs als rel-Pfad -> abs-Pfad. */
-export function listDirFiles(rootAbs: string): FileMap {
+function listDirFiles(rootAbs: string): FileMap {
   const out: FileMap = new Map()
   walkDir(rootAbs, '', out)
   return out
@@ -228,5 +228,3 @@ export function moveDir(srcDir: string, destDir: string): string | null {
   }
 }
 
-// Re-export relative fuer nutzende Module (kein Import-Dup).
-export { relative }

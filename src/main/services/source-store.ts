@@ -29,7 +29,7 @@ interface SourceStoreContext {
 }
 
 // Default-Store-Datei (Produktivlauf). app.getPath NUR hier, lazy (kein Top-Level).
-export function defaultSourcesPath(): string {
+function defaultSourcesPath(): string {
   return join(app.getPath('userData'), 'sources.json')
 }
 

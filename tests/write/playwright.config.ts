@@ -2,6 +2,14 @@
 // Kein Browser noetig: reine Node-Service-Tests gegen temp-Sandbox. Playwright
 // dient nur als Test-Runner (test/expect) ohne neue Dependency.
 import { defineConfig } from '@playwright/test'
+import { registerCssRequireStub } from './css-require-stub'
+
+// Zentraler .css-Loader-Hook fuer die Komponenten-Specs (Drawer,
+// ConfigDiagnostics): Playwright laedt diese Config in JEDEM Worker-Prozess,
+// bevor dort Spec-Dateien ausgewertet werden. Damit duerfen Renderer-Module
+// statisch importiert werden, ohne dass jede Spec ihren eigenen
+// require.extensions-Hack vor dem Import setzen muss. Detail: css-require-stub.ts.
+registerCssRequireStub()
 
 export default defineConfig({
   testDir: '.',

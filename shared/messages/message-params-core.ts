@@ -3,6 +3,7 @@ export type CoreMessageParamsMap = {
   "settings.language.de": undefined
   "settings.language.en": undefined
   "settings.tab.tweaks": undefined
+  "settings.tab.files": undefined
   "settings.tab.updates": undefined
   "settings.tab.sources": undefined
   "settings.tab.modules": undefined

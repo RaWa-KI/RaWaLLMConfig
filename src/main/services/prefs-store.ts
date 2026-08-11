@@ -111,13 +111,11 @@ export function createFilePrefsStore(partial?: Partial<PrefsOptions>): Persisten
   }
 }
 
-// Default-Instanz (Produktivlauf). Tests nutzen createFilePrefsStore({prefsPath:temp}).
-export const prefsStore: PersistencePort = createFilePrefsStore()
+// Produktivlauf: createFilePrefsStore() wird dort instanziiert, wo der
+// PersistencePort gebraucht wird (kein ungenutzter Modul-Singleton mehr).
 
 export {
   getPrefsStoreInfo,
-  hasMariadbEnv,
   resolvePrefsStore,
-  setPrefsStoreInfo,
-  type PrefsStoreInfo
+  setPrefsStoreInfo
 } from './persistence-resolve'

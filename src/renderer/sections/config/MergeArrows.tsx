@@ -1,10 +1,13 @@
+import type { DiffLabels } from '@shared/contract'
 import type { ChunkRow } from './merge-chunks'
-import { CHUNK, seiteForFamily } from '@shared/dup-labels'
+import { CHUNK, intraChunk, intraFassungenAusLabels, seiteForFamily } from '@shared/dup-labels'
 import { useStore } from '../../state/store'
 
 // Pfeil-Tooltips aus @shared/dup-labels (CHUNK(seite).linksTip/rechtsTip) — seite-
 // abhaengig (Welle 1): Codex-Paare nennen „Codex", Claude-Paare „Claude".
-// Keine verbotenen Begriffe (Quelle → Ziel → Wirkung).
+// Intra-Familien-Paare (labels = Fundstellen-Labels): ehrliche Fassungs-Tips
+// (intraChunk) statt „von Claude nach Shared". Keine verbotenen Begriffe
+// (Quelle → Ziel → Wirkung).
 
 // Chunk-Uebernahme-Pfeile des editierbaren Paar-Diffs (v4-Mockup §Pfeile,
 // eigene Mittelspalte). Pro Diff-Chunk eine kleine schwebende Pfeil-Karte mit
@@ -19,15 +22,19 @@ import { useStore } from '../../state/store'
 export function MergeArrows({
   rows,
   disabled,
-  onAdopt
+  onAdopt,
+  labels
 }: {
   rows: ChunkRow[]
   disabled: boolean
   onAdopt(index: number, dir: 'left' | 'right'): void
+  // Optional: ehrliche Intra-Familien-Labels (Fundstelle A/B) fuer die Tips.
+  labels?: DiffLabels
 }) {
   const { ui } = useStore()
   const seite = seiteForFamily(ui.llm)
-  const chunk = CHUNK(seite)
+  const fassungen = labels ? intraFassungenAusLabels(labels) : null
+  const chunk = fassungen ? intraChunk(fassungen) : CHUNK(seite)
 
   if (rows.length === 0) return <div className="merge-arrows merge-arrows-empty" aria-hidden="true" />
   return (

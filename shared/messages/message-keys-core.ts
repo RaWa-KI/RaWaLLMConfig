@@ -3,6 +3,7 @@ export const CORE_MESSAGE_KEYS = [
   "settings.language.de",
   "settings.language.en",
   "settings.tab.tweaks",
+  "settings.tab.files",
   "settings.tab.updates",
   "settings.tab.sources",
   "settings.tab.modules",

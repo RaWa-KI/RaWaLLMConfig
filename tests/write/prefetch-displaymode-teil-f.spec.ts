@@ -14,7 +14,7 @@ const hook = read('src/renderer/components/useDisplayModeSwitch.ts')
 const modeSwitch = read('src/renderer/components/DisplayModeSwitch.tsx')
 const topBar = read('src/renderer/chrome/TopBar.tsx')
 const overviewSection = read('src/renderer/sections/overview/OverviewSection.tsx')
-const settingsPanel = read('src/renderer/sections/settings/SettingsActionsPanel.tsx')
+const displayModeCard = read('src/renderer/sections/settings/DisplayModeCard.tsx')
 
 // (a) Specifier-Paritaet: jeder lazy()-Import aus App.tsx ('./sections/…') und
 // ConfigSection.tsx ('../compare|coverage/…') liegt im Prefetch-Modul als
@@ -47,7 +47,7 @@ test('display mode switch is optimistic and the store update runs as a transitio
   expect(hook).toContain('setOptimistic(mode)')
   expect(hook).toContain('startTransition(() => actions.setDisplayMode(mode))')
   expect(hook).toContain('useEffect(() => { setOptimistic(ui.displayMode) }, [ui.displayMode])')
-  const callers = [['TopBar', topBar], ['OverviewSection', overviewSection], ['SettingsActionsPanel', settingsPanel]] as const
+  const callers = [['TopBar', topBar], ['OverviewSection', overviewSection], ['DisplayModeCard', displayModeCard]] as const
   for (const [name, source] of callers) {
     expect(source, `${name} nutzt useDisplayModeSwitch`).toContain('useDisplayModeSwitch(')
     expect(source, `${name} reicht actions.setDisplayMode nicht mehr direkt durch`).not.toContain('onSelect={actions.setDisplayMode}')

@@ -168,6 +168,29 @@ export interface IntegrityApplyData {
 /** Sanitisiertes IPC-Ergebnis des Apply-Schritts. */
 export type IntegrityApplyResult = IpcResult<IntegrityApplyData>
 
+// ── Fortschritt (Event integrity:applyProgress) ───────────────────────────
+
+/**
+ * Phase, über die der laufende Apply Fortschritt meldet. Die UI übersetzt sie
+ * in Alltagssprache (Sicherung anlegen / Dateien verschieben / Verweise
+ * aktualisieren / Prüfen) — hier stehen nur die technischen Schlüssel.
+ */
+export type IntegrityApplyPhase = 'snapshot' | 'fs' | 'references' | 'verify'
+
+/**
+ * Fortschritts-Meldung einer laufenden Integritäts-Transaktion. Trägt NIE
+ * Datei-Inhalte oder Secret-Werte — nur Zähler, Phase und die operationId, mit
+ * der die UI die Meldung ihrer eigenen Operation zuordnet.
+ * total = 0 bedeutet "Gesamtzahl unbekannt" → die UI zeigt dann einen
+ * unbestimmten Balken statt falscher Prozente.
+ */
+export interface IntegrityApplyProgressPayload {
+  operationId: string
+  phase: IntegrityApplyPhase
+  done: number
+  total: number
+}
+
 // ── Bridge-Vertrag (analog WriteApi/ElectronApi) ──────────────────────────
 
 /**
@@ -177,4 +200,6 @@ export type IntegrityApplyResult = IpcResult<IntegrityApplyData>
 export interface IntegrityApi {
   integrityPreview(req: IntegrityPreviewRequest): Promise<IntegrityPreviewResult>
   integrityApply(req: IntegrityApplyRequest): Promise<IntegrityApplyResult>
+  /** Abo auf den Apply-Fortschritt; liefert die Abmelde-Funktion zurück. */
+  onIntegrityApplyProgress(cb: (p: IntegrityApplyProgressPayload) => void): () => void
 }

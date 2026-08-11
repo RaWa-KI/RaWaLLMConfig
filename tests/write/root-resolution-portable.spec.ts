@@ -123,9 +123,13 @@ test('Source-Pin: Desktop/Projekte nur noch als markierter Migrations-Code', () 
 })
 
 test('Prefs-UI zeigt fehlende Wurzeln als nicht konfiguriert', () => {
+  // Die Verzeichnis-Felder liegen seit 2026-08-11 in RootRows.tsx (HR27-Split).
+  // Das optionale Feld sagt bewusst 'nicht gesetzt (normal)' statt einer
+  // Fehlanzeige — leer ist dort der Regelfall (F9), kein fehlender Wert.
   const prefsUi = readFileSync(
-    join(process.cwd(), 'src/renderer/sections/prefs/PrefsSection.tsx'), 'utf8')
+    join(process.cwd(), 'src/renderer/sections/prefs/RootRows.tsx'), 'utf8')
   expect(prefsUi).toContain('nicht konfiguriert')
+  expect(prefsUi).toContain('nicht gesetzt (normal)')
   expect(prefsUi).not.toContain('Vorhandener Standardpfad')
 })
 

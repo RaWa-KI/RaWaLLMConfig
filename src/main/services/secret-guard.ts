@@ -10,7 +10,7 @@ import type { GuardVerdict } from '@shared/contract-write'
 import { isSecretPathForWrite } from '@shared/secret-class'
 import { isWriteEnabled } from './write-mode'
 
-export { isSecretPathForRead, isSecretPathForWrite, isMarkdownDoc } from '@shared/secret-class'
+export { isSecretPathForRead, isSecretPathForWrite, isSecretDirName } from '@shared/secret-class'
 
 // Grund-Text fuer verweigertes Schreiben (sichtbar im UI, kein Secret).
 export const SECRET_DENY_REASON = 'owner-only/not-in-scope'

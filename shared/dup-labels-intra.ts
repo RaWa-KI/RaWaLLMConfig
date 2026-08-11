@@ -29,14 +29,21 @@ export function familienName(family: string): string {
  * inhaltsbasierte Erkennung (dedupe-content-scan.ts) setzt bei
  * confidence 'content-hash' IMMER mirrorFamily = eigene Familie — beide
  * Fundstellen entstammen derselben Familie, Shared ist nicht beteiligt.
- * Namens-/pfadbasierte Sets (heuristic/named-mirror) behalten bewusst die
- * Bestandslabels (Regression-Pin, Anti-Slimming).
+ * Seit dem D3-Narrowing gilt dasselbe fuer die namens-/pfadbasierten Sets
+ * ('named-mirror'/'heuristic'): dedupe.ts comparableConfidence() liefert bei
+ * a.family !== b.family strikt null, und dedupe.ts ist der EINZIGE Erzeuger
+ * dieser Confidence-Werte — auch diese Paare sind immer familienintern
+ * (Folge-WP 2026-08-07, Code-Beleg dedupe.ts Cross-Familie-Guard).
  */
 export function isIntraFamilyDup(
   d: Pick<DuplicateSet, 'confidence' | 'mirrorFamily'>,
   family: string
 ): boolean {
-  return d.confidence === 'content-hash' && d.mirrorFamily === family
+  const intraConfidence =
+    d.confidence === 'content-hash' ||
+    d.confidence === 'named-mirror' ||
+    d.confidence === 'heuristic'
+  return intraConfidence && d.mirrorFamily === family
 }
 
 // Pfad in Abschnitte zerlegen (Trenner '/' oder '\', leere Teile weg).
@@ -84,6 +91,25 @@ export function intraFamilyLabels(family: string, pfadA: string, pfadB: string):
  */
 export function istIntraLabels(l: DiffLabels): boolean {
   return l.trunkTag === FUNDSTELLE.a && l.mirrorTag === FUNDSTELLE.b
+}
+
+// Fassungs-Kurzname aus einem intraFamilyLabels-Seitenlabel zurueckgewinnen
+// („Claude — Fassung „x"" -> „x"). Nur fuer Labels aus intraFamilyLabels gedacht.
+function fassungAusLabel(label: string): string | null {
+  const i = label.indexOf('„')
+  return i >= 0 && label.length > i + 2 ? label.slice(i + 1, -1) : null
+}
+
+/**
+ * Beide Fassungs-Kurznamen aus fertigen Intra-Labels zurueckgewinnen — fuer
+ * Komponenten, die nur DiffLabels (kein DuplicateSet) erhalten (DirFileRow,
+ * MergeBar/MergeArrows). Liefert null fuer Nicht-Intra-Labels.
+ */
+export function intraFassungenAusLabels(l: DiffLabels): [string, string] | null {
+  if (!istIntraLabels(l)) return null
+  const a = fassungAusLabel(l.trunk)
+  const b = fassungAusLabel(l.mirror)
+  return a !== null && b !== null ? [a, b] : null
 }
 
 /**

@@ -26,7 +26,9 @@ import { frontmatterFields } from './frontmatter-meta'
 
 // Basis-Pfad aus der Single Source (Default = realer ~/.codex, M1 unveraendert;
 // mit RAWALLM_SANDBOX_ROOT = <sandbox>/.codex). Bei Modul-Load aufgeloest.
-const codexDir = configRoots().codexHome
+function codexDir() {
+  return configRoots().codexHome
+}
 
 // Sichtbare Spalten-Anker (Quelle->Ziel->Wirkung) zentral aus dup-labels:
 // zentrale Version (Shared) gegenueber der lokalen Codex-Kopie.
@@ -56,19 +58,19 @@ function pushAgentsMd(entries: ConfigEntry[], seen: Set<string>, dir: string, la
 function scanInstructions(): Category {
   const entries: ConfigEntry[] = []
   const seen = new Set<string>()
-  for (const d of listDir(codexDir)) {
+  for (const d of listDir(codexDir())) {
     if (!d.isFile()) continue
     const isMd = /\.md$/i.test(d.name) && /^(AGENTS|CLAUDE_PARITY|CODEX)/i.test(d.name)
     const isToml = /\.toml$/i.test(d.name) && /^(pm-|profile)/i.test(d.name)
     if (!isMd && !isToml) continue
-    if (/^AGENTS\.md$/i.test(d.name)) seen.add(normalizePathForCompare(path.join(codexDir, d.name), process.platform))
-    entries.push(fileEntry('codex-instr', codexDir, d.name, 'global', 'Startanker/Paritaets-Doku', true))
+    if (/^AGENTS\.md$/i.test(d.name)) seen.add(normalizePathForCompare(path.join(codexDir(), d.name), process.platform))
+    entries.push(fileEntry('codex-instr', codexDir(), d.name, 'global', 'Startanker/Paritaets-Doku', true))
   }
   for (const w of workspaceRoots()) {
     pushAgentsMd(entries, seen, w.root, `${w.label} (Root)`)
     pushAgentsMd(entries, seen, path.join(w.root, '.claude'), `${w.label} (.claude)`)
   }
-  return cat('codex-instructions', 'Instructions', 'list', codexDir, 'Startanker AGENTS.md (global + alle WS), Paritaet, Profile', entries)
+  return cat('codex-instructions', 'Instructions', 'list', codexDir(), 'Startanker AGENTS.md (global + alle WS), Paritaet, Profile', entries)
 }
 
 // config.toml: Sektionen + Top-Level-Keys, Werte komplett redacted.
@@ -76,7 +78,7 @@ function scanInstructions(): Category {
 // mit echten Sektions-/Key-Namen (aber allen Werten ersetzt durch "…").
 function scanSettings(): Category {
   const entries: ConfigEntry[] = []
-  const tomlPath = path.join(codexDir, 'config.toml')
+  const tomlPath = path.join(codexDir(), 'config.toml')
   try {
     const txt = fs.readFileSync(tomlPath, 'utf8')
     const lines = txt.split('\n')
@@ -133,7 +135,7 @@ function scanSettings(): Category {
 // Skripte tragen jetzt Inhalt (.cjs/.sh roh ok), hooks.json wird maskiert.
 function scanHooks(): Category {
   const entries: ConfigEntry[] = []
-  const hooksJson = path.join(codexDir, 'hooks.json')
+  const hooksJson = path.join(codexDir(), 'hooks.json')
   try {
     // WP17: hooks.json GENAU EINMAL lesen — JSON.parse, maskedPreview (raw)
     // und searchKeys teilen sich denselben Text (vorher 3 Reads + 1 stat).
@@ -164,7 +166,7 @@ function scanHooks(): Category {
     console.error('[scan:codex]', 'hooks.json', (e as Error).message.slice(0, 80))
     entries.push(invalidConfigEntry('codex-hooks-json', 'hooks.json', hooksJson, e)) // Variante A: sichtbarer Befund
   }
-  const hooksDir = path.join(codexDir, 'hooks')
+  const hooksDir = path.join(codexDir(), 'hooks')
   for (const d of listDir(hooksDir)) {
     if (d.isFile()) {
       entries.push(fileEntry('codex-hook', hooksDir, d.name, 'global', 'Hook-Skript', true))
@@ -211,7 +213,7 @@ function scanDirEntry(prefix: string, dir: string, name: string, desc: string, w
 // withContent surface Nicht-Secret-Inhalt fuer Text-Kategorien.
 // W8-Fix rules: fileEntry-Regex erkennt jetzt auch .rules-Endung.
 // B-3-Entkopplung: root + idPrefix sind jetzt PARAMETER (statt modul-lokalem
-// codexDir-Binding + Hardcode-Prefix `codex-${sub}`). Default-Werte halten die
+// codexDir()-Binding + Hardcode-Prefix `codex-${sub}`). Default-Werte halten die
 // bestehenden Codex-Aufrufer byte-/struktur-identisch (gleiche ids/Reihenfolge/
 // fields); die generische Engine (engine/) ruft scanDir mit eigenem root/prefix.
 // scanDirEntry/fileEntry waren bereits prefix-parametrisch — nur der `_memory`-
@@ -224,7 +226,7 @@ function scanDir(
   blurb: string,
   desc: string,
   withContent = false,
-  root: string = codexDir,
+  root: string = codexDir(),
   idPrefix: string = `codex-${sub}`,
 ): Category {
   const dir = path.join(root, sub)
@@ -241,7 +243,7 @@ function scanDir(
 
 // Exportierter Wrapper fuer die generische Engine (engine/category-runner.ts):
 // derselbe Ordner-Scanner, aber root + idPrefix sind PFLICHT-Parameter. Die
-// Engine kennt kein codexDir-Modul-Binding; sie loest root via resolveRoots()
+// Engine kennt kein codexDir()-Modul-Binding; sie loest root via resolveRoots()
 // auf und reicht den Manifest-/CategorySpec-Prefix durch. NULL Verhaltens-
 // aenderung am Codex-Pfad: scanCodex ruft weiter scanDir mit seinen Defaults.
 export function scanDirGeneric(
@@ -260,13 +262,13 @@ export function scanDirGeneric(
 
 // Exportierter Wrapper fuer den Einzel-Ordner-Drill (engine nutzt ihn fuer
 // dir-Kategorien). scanDirEntry war bereits vollstaendig prefix-parametrisch
-// (kein codexDir-Closure) — der Export macht ihn nur fuer die Engine erreichbar.
+// (kein codexDir()-Closure) — der Export macht ihn nur fuer die Engine erreichbar.
 export { scanDirEntry }
 
 // B-4: additive Exporte fuer die datengetriebenen Manifest-CustomCategories.
 // NUR Sichtbarmachung der bespoke Bestands-Funktionen — Logik UNVERAENDERT.
 // scanInstructions/scanSettings/scanHooks bauen jeweils eine FERTIGE Category.
-export { scanInstructions, scanSettings, scanHooks, codexDir }
+export { scanInstructions, scanSettings, scanHooks }
 
 export function scanCodex(): LlmConfig {
   try {

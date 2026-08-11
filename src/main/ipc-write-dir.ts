@@ -1,19 +1,22 @@
 // ipc-write-dir.ts — Self-registering Dir-Handler (Teil A, CONTRACT-SSoT).
-// Kanaele: writeArchiveDir / writeMoveDir / writeReconcileFolder.
+// Kanaele: writeArchiveDir / writeMoveDir.
 // isWriteEnabled() ZUERST in jedem Handler (Muster ipc-write-reconcile.ts).
 // Nur ipcMain.handle, kein .on. Antworten sanitisiert (IpcResult ohne Stack/Secret).
 // ipc-write.ts (registerWriteBase) wird NICHT angefasst — disjunkt.
+//
+// Der Ordner-Merge hat hier KEINEN eigenen Kanal mehr (2026-08-11): die UI zeigt
+// erst den Plan (integrity:preview, kind 'reconcile-folder') und fuehrt ihn dann
+// gegen seinen planHash aus (integrity:apply) — siehe ipc-write-integrity.ts.
 import { ipcMain } from 'electron'
+import { join, basename } from 'node:path'
 import { IPC_WRITE } from '@shared/channels-write'
-import type {
-  DirActionRequest,
-  DirActionResult,
-  DirReconcileRequest,
-  DirReconcileResult
-} from '@shared/contract-write'
-import { isWriteEnabled, getWriteContext } from './services/write-mode'
+import type { DirActionRequest, DirActionResult } from '@shared/contract-write'
+import type { IntegrityApplyProgressPayload } from '@shared/contract-integrity'
+import { isWriteEnabled, getWriteContext, type WriteContext } from './services/write-mode'
 import { applyDirAction } from './services/apply'
 import { previewIntegrity, applyIntegrity } from './services/integrity/apply-integrity'
+import { integrityProgressSender } from './ipc-integrity-progress'
+import { pickFolder, type PickFolderOptions } from './services/folder-picker'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { markScanCachesStale } from './services/scan-invalidation'
 import { guarded, guardedAsync } from './lib/guarded'
@@ -28,20 +31,45 @@ function handleArchiveDir(req: DirActionRequest): DirActionResult {
   return result
 }
 
-// Handler: Verzeichnis verschieben (move-dir). Finding A: dieser Kanal wird nur
-// owner-getriggert aufgerufen (Ordner-Verschieben-Dialog) -> ownerMove=true, das
-// frei gewaehlte Ziel ist nicht mehr auf die Config-Wurzeln beschraenkt. Quell-
-// Secret-Tree/Scope + snapshotDir bleiben hart (applyDirAction).
-async function handleMoveDir(req: DirActionRequest): Promise<DirActionResult> {
+// Testbare Injektion: Ordner-Dialog + Schreib-Kontext koennen im Spec ohne
+// echtes Electron-Fenster ersetzt werden. Default = die realen Implementierungen.
+export interface MoveDirDeps {
+  pick?: (opts?: PickFolderOptions) => Promise<string | null>
+  getCtx?: () => WriteContext
+}
+
+// Handler: Verzeichnis verschieben (move-dir). SICHERHEIT (Finding A): das Ziel
+// wird NICHT mehr aus req.to (renderer-geliefert) genommen — ein kompromittierter
+// Renderer koennte sonst trotz ownerMove=true (Scope-Skip) ein beliebiges Ziel
+// erzwingen (write-anywhere). Stattdessen oeffnet der Handler den NATIVEN
+// Ordnerdialog im Main-Prozess (pickFolder); nur der dort owner-gewaehlte Pfad
+// gilt als Ziel. req.to wird fuer move-dir bewusst IGNORIERT. Die "move anywhere"-
+// Freiheit bleibt, weil der Owner im echten OS-Dialog waehlt; ownerMove=true ist
+// damit sicher, weil das Ziel vertrauenswuerdig ist. Quell-Secret-Tree/Scope +
+// snapshotDir bleiben hart (Integrity-Transaktion).
+export async function handleMoveDir(
+  req: DirActionRequest,
+  deps?: MoveDirDeps,
+  onProgress?: (p: IntegrityApplyProgressPayload) => void
+): Promise<DirActionResult> {
   if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
-  if (!req || typeof req.path !== 'string' || typeof req.to !== 'string') {
-    return { data: null, error: 'invalid-request' }
-  }
-  const ctx = getWriteContext()
-  const moveReq = { version: 'shared' as const, fromPath: req.path, to: req.to }
+  if (!req || typeof req.path !== 'string') return { data: null, error: 'invalid-request' }
+  const pick = deps?.pick ?? pickFolder
+  // Zielordner kommt aus dem Main-Prozess-Ordnerdialog (owner-gewaehlt), NICHT aus
+  // req.to. Der Quell-Ordner wandert unter seinem eigenen Namen in den gewaehlten
+  // Ordner (join basename) — pickFolder liefert nur das Ziel-Verzeichnis.
+  const picked = await pick()
+  if (picked === null) return { data: null, error: 'move-cancelled' } // Owner-Abbruch: still, kein Fehler-Toast
+  const to = join(picked, basename(req.path))
+  const getCtx = deps?.getCtx ?? getWriteContext
+  const ctx = getCtx()
+  const moveReq = { version: 'shared' as const, fromPath: req.path, to }
   const preview = await previewIntegrity({ kind: 'move', req: moveReq }, ctx)
   if (preview.error || !preview.data) return { data: null, error: preview.error ?? 'integrity-preview-failed' }
-  const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
+  const apply = await applyIntegrity(
+    { plan: preview.data, planHash: preview.data.planHash },
+    { ...ctx, onProgress }
+  )
   if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
   if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
   markScanCachesStale('write:move-dir')
@@ -49,37 +77,8 @@ async function handleMoveDir(req: DirActionRequest): Promise<DirActionResult> {
     data: {
       action: 'move-dir',
       path: req.path,
-      movedTo: apply.data.movedTo ?? req.to,
+      movedTo: apply.data.movedTo ?? to,
       snapshotPath: null
-    },
-    error: null
-  }
-}
-
-// Handler: Ordner-Merge 2->1 (Pro-Datei-Entscheidung).
-async function handleReconcileFolder(req: DirReconcileRequest): Promise<DirReconcileResult> {
-  if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
-  if (!req || typeof req.trunkPath !== 'string' || typeof req.mirrorPath !== 'string') {
-    return { data: null, error: 'invalid-request' }
-  }
-  const ctx = getWriteContext()
-  const preview = await previewIntegrity({ kind: 'reconcile-folder', req }, ctx)
-  if (preview.error || !preview.data) return { data: null, error: preview.error ?? 'integrity-preview-failed' }
-  const apply = await applyIntegrity({ plan: preview.data, planHash: preview.data.planHash }, ctx)
-  if (apply.error || !apply.data) return { data: null, error: apply.error ?? 'integrity-apply-failed' }
-  if (!apply.data.applied) return { data: null, error: 'integrity-rolled-back' }
-  markScanCachesStale('write:reconcile-folder')
-  return {
-    data: {
-      trunkPath: req.trunkPath,
-      mirrorArchivedTo: null,
-      files: preview.data.fsOps.map((op) => ({
-        rel: op.rel ?? '',
-        decision: op.decision as never,
-        backupPath: null,
-        archivedTo: null
-      })),
-      partial: false
     },
     error: null
   }
@@ -97,12 +96,7 @@ export function registerDirWrite(): void {
   )
   ipcMain.handle(
     IPC_WRITE.writeMoveDir,
-    (_e, req: DirActionRequest): Promise<DirActionResult> =>
-      guardedAsync('moveDir', () => handleMoveDir(req))
-  )
-  ipcMain.handle(
-    IPC_WRITE.writeReconcileFolder,
-    (_e, req: DirReconcileRequest): Promise<DirReconcileResult> =>
-      guardedAsync('reconcileFolder', () => handleReconcileFolder(req))
+    (e, req: DirActionRequest): Promise<DirActionResult> =>
+      guardedAsync('moveDir', () => handleMoveDir(req, undefined, integrityProgressSender(e)))
   )
 }

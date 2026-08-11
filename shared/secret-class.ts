@@ -89,6 +89,18 @@ function hasSecretSegment(p: string): boolean {
 }
 
 /**
+ * True, wenn ein Ordnername SELBST ein Secret-WERT-Verzeichnis ist
+ * (credentials/security). Fuer rekursive Walker (z. B. dedupe-content-scan),
+ * die solche Baeume gar nicht erst betreten sollen — Defense-in-Depth zusaetzlich
+ * zur per-Datei-Pruefung ueber isSecretPathForRead(vollerPfad). `name` ist ein
+ * einzelnes Pfadsegment (Dirent-Name), kein ganzer Pfad.
+ */
+export function isSecretDirName(name: string): boolean {
+  if (!name) return false
+  return SECRET_SEGMENTS.includes(name.toLowerCase())
+}
+
+/**
  * READ-Klassifikation: NUR echte Secret-WERT-Pfade. Genutzt von den 4 Read-
  * Scannern (claude/codex/shared/mcp) sowie weiteren reinen Lese-Guards
  * (watcher-live, dedupe-Diff). Legitime Policy-/Agent-/Referenz-Doku bleibt

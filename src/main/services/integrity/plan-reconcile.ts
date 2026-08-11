@@ -14,7 +14,7 @@ import type {
 import type { ReconcileRequest } from '@shared/contract-write-reconcile'
 import type { DirReconcileRequest } from '@shared/contract-write-reconcile'
 
-import { scanReferences } from './reference-scan'
+import { scanReferencesBatchOffThread } from './reference-scan-host'
 import { computePlanHash } from './plan-hash'
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────
@@ -86,6 +86,11 @@ interface AggregateResult {
   truncated: boolean
 }
 
+/**
+ * Scannt ALLE Loser→Survivor-Paare in EINEM Batch-Durchlauf. Bisher wurde der
+ * gesamte Baum pro Paar neu gewalkt und gelesen — bei einem Ordner-Reconcile
+ * mit N Entscheidungen also N-mal (Ursache der minutenlangen Haenger).
+ */
 async function aggregateScans(
   mappings: Array<{ loser: string; survivor: string }>,
   opts: { allowedRoots?: string[] }
@@ -96,8 +101,11 @@ async function aggregateScans(
   let scannedFiles = 0
   let truncated = false
 
-  for (const { loser, survivor } of mappings) {
-    const scan = await scanReferences(loser, survivor, opts)
+  const scans = await scanReferencesBatchOffThread(
+    mappings.map(({ loser, survivor }) => ({ oldPath: loser, newPath: survivor })),
+    opts
+  )
+  for (const scan of scans) {
     allOps.push(...scan.ops)
     allBlockers.push(...scan.blockers)
     allManual.push(...scan.manualRequired)

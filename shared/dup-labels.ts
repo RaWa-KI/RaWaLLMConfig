@@ -44,8 +44,23 @@ export {
   unterscheidendeAbschnitte,
   intraFamilyLabels,
   istIntraLabels,
-  intraIntroSatz
+  intraIntroSatz,
+  intraFassungenAusLabels
 } from './dup-labels-intra'
+
+// Ehrliche AKTIONS-Texte fuer Intra-Familien-Paare (Folge-WP 2026-08-07):
+// Fundstellen-/Fassungs-Pendants zu UEBERNEHMEN/BEHALTEN/CONFIRM/ordnerConfirm/
+// SPEICHERN/CHUNK/SEITE_KURZ — Definitionen im Leaf-Modul, hier nur Re-Export.
+export {
+  fassungsName,
+  intraAktionTexte,
+  intraAktionTexteAusFassungen,
+  intraOrdnerConfirm,
+  intraSpeichern,
+  intraChunk,
+  intraSeiteKurz
+} from './dup-labels-intra-aktionen'
+export type { IntraAktionTexte } from './dup-labels-intra-aktionen'
 
 // Kurz-Anker (für Chips/Schnellwahl, wo wenig Platz ist).
 export const SEITE_KURZ = {
@@ -121,7 +136,12 @@ export const VERSCHIEBEN = {
   // Platzhalter für das freie Zielpfad-Feld (Ordner-Reconcile reicht Pfad durch).
   zielPlatzhalter: 'Ziel-Pfad (neuer Speicherort) …',
   abbrechen: 'Abbrechen',
-  bestaetigen: 'Verschieben'
+  bestaetigen: 'Verschieben',
+  // Ordner verschieben: das Ziel wählt der Nutzer im System-Ordnerdialog, nicht
+  // mehr über ein freies Textfeld — der Zielordner darf überall liegen.
+  ordnerKnopf: 'Ordner wählen & verschieben',
+  ordnerDialogHinweis:
+    'Beim Bestätigen öffnet sich der System-Ordnerdialog — dort den Zielordner auswählen. Der Zielordner darf überall liegen.'
 } as const
 
 // Kategorie-Chips der Schnellwahl (Familie → Kategorie → Pfad). Reihenfolge fix.

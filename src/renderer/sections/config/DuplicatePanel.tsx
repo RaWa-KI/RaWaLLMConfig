@@ -117,6 +117,7 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
   // Intra-Familien-Paar: Chips + Verdikt-Badge ohne Shared-Bezug (ehrlich) —
   // die zwei Fundstellen werden ueber ihren unterscheidenden Pfadabschnitt benannt.
   const intra = isIntraFamilyDup(d, ui.llm)
+  const fassungen = intra ? unterscheidendeAbschnitte(d.trunk.path, d.mirror.path) : null
   // Bug A: Bei ORDNER-Eintraegen (Skill/Agent) muessen die Eintrags-Kopf-Aktionen
   // den ORDNER treffen, nicht die Manifestdatei (SKILL.md/AGENT.md), auf die der
   // Set-Pfad zeigt. Manifest-Pfad -> enthaltender Ordner; Datei-Eintraege bleiben
@@ -135,7 +136,7 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
           <span className="deh-name">
             <span className="deh-fname mono">{d.name}</span>
             <LoadHintBadge path={d.trunk.path} />
-            <FamilyChips seite={seite} fassungen={intra ? unterscheidendeAbschnitte(d.trunk.path, d.mirror.path) : null} />
+            <FamilyChips seite={seite} fassungen={fassungen} />
           </span>
           <span className="deh-desc">{entryType(d, fileCount, catLabel)}</span>
         </span>
@@ -149,6 +150,7 @@ function DupEntryHead({ d, cat, open, renaming, onToggle, onStartRename, onDoneR
         fileCount={d.dir ? fileCount : undefined}
         sharedPath={sharedPath}
         claudePath={claudePath}
+        fassungen={fassungen}
         knownPaths={knownPaths}
         onStartRename={onStartRename}
       />

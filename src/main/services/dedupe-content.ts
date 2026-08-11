@@ -76,7 +76,7 @@ function toCtxLines(text: string): DiffLine[] {
  * 'same'-Paar: Inhalt EINMAL laden (beide Seiten identisch) und als ctx-Zeilen
  * liefern. Secret-Klasse -> maskiert. Liefert leere lines, wenn nicht lesbar.
  */
-export function loadSameContent(trunkAbs: string, mirrorAbs: string): SingleFileCompare {
+function loadSameContent(trunkAbs: string, mirrorAbs: string): SingleFileCompare {
   // Bevorzugt Trunk (kanonisch); Fallback Mirror, falls Trunk nicht lesbar.
   const tRaw = readText(trunkAbs)
   const usedAbs = tRaw !== null ? trunkAbs : mirrorAbs
@@ -92,7 +92,7 @@ export function loadSameContent(trunkAbs: string, mirrorAbs: string): SingleFile
  * (Anzeige maskiert; Verdict bleibt aus ROH-SHA in dedupe.ts). Grosse Dateien
  * werden gekappt (truncated=true) statt leer gelassen. Nicht lesbar -> leer.
  */
-export function compareDiffContent(trunkAbs: string, mirrorAbs: string): SingleFileCompare {
+function compareDiffContent(trunkAbs: string, mirrorAbs: string): SingleFileCompare {
   const tRaw = readText(trunkAbs)
   const mRaw = readText(mirrorAbs)
   if (tRaw === null || mRaw === null) return { lines: [], masked: false, truncated: false }

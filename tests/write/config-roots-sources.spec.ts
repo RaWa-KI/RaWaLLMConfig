@@ -7,7 +7,7 @@
 import { test, expect } from '@playwright/test'
 import { pathsEqual } from '../../shared/path-compare'
 import {
-  configRootList, configRoots, configWatchRootList,
+  configBaseRootList, configRootList, configRoots, configWatchRootList,
   resolveRoots,
   setUserSourceProviderRootsProvider,
   setUserSourceRootsProvider,
@@ -19,8 +19,11 @@ function clearEnv(): void {
   delete process.env.RAWALLM_SANDBOX_ROOT
 }
 
+// Basis-Wurzeln = Grundlage der WRITE-Allowlist. Seit 2026-08-11 ist der
+// Watcher-Scope bewusst BREITER (zusaetzlich ~/.agents und ~/.kimi-code, F3),
+// deshalb ist configWatchRootList() hier kein gueltiger Stellvertreter mehr.
 function baseRoots(): string[] {
-  return configWatchRootList()
+  return configBaseRootList()
 }
 
 test.afterEach(() => {
@@ -51,7 +54,9 @@ test('(b2) Live-Watcher bleibt auf Basis-Wurzeln begrenzt', () => {
   clearEnv()
   setUserSourceRootsProvider(() => ['D:\\Extra\\WideRoot'])
   expect(configRootList()).toContain('D:\\Extra\\WideRoot')
-  expect(configWatchRootList()).toEqual(baseRoots())
+  // Der Watcher beobachtet die Basis-Wurzeln plus die weiteren Tool-Homes —
+  // aber NIE die (potenziell sehr breiten) Nutzer-Zusatzquellen.
+  expect(configWatchRootList().slice(0, baseRoots().length)).toEqual(baseRoots())
   expect(configWatchRootList()).not.toContain('D:\\Extra\\WideRoot')
 })
 

@@ -8,8 +8,10 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { LlmConfig } from '../../shared/contract'
+import { buildAuditConfig } from '../../src/main/scan/scan-audit-categories'
+import { scanShared } from '../../src/main/scan/shared-scan'
 
-const TRUNK_IDS = ['shared-agents', 'shared-rules', 'shared-skills', 'shared-hooks', 'shared-plugins', 'shared-tools']
+const TRUNK_IDS =['shared-agents', 'shared-rules', 'shared-skills', 'shared-hooks', 'shared-plugins', 'shared-tools']
 
 function w(file: string, content: string): string {
   mkdirSync(dirname(file), { recursive: true })
@@ -17,33 +19,22 @@ function w(file: string, content: string): string {
   return file
 }
 
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (k.includes('/src/main/scan/') || k.includes('/src/main/services/')) delete require.cache[key]
-  }
-}
-
-// shared-scan.ts liest configRoots() beim MODUL-LOAD — Env setzen, Cache
-// busten, dann erst requiren.
+// shared-scan.ts loest sharedDir() bei JEDEM Aufruf ueber configRoots() auf —
+// es genuegt, die Env um den Scan herum zu setzen (kein Cache-Bust, kein
+// require: die Scanner sind statisch importiert).
 function withSandboxEnv<T>(sb: string, fn: () => T): T {
   const saved = process.env.RAWALLM_SANDBOX_ROOT
   process.env.RAWALLM_SANDBOX_ROOT = sb
   try {
-    bustScanCache()
     return fn()
   } finally {
     if (saved === undefined) delete process.env.RAWALLM_SANDBOX_ROOT
     else process.env.RAWALLM_SANDBOX_ROOT = saved
-    bustScanCache()
   }
 }
 
 function scanSharedIn(sb: string): LlmConfig {
-  return withSandboxEnv(sb, () => {
-    const { scanShared } = require('../../src/main/scan/shared-scan') as { scanShared: () => LlmConfig }
-    return scanShared()
-  })
+  return withSandboxEnv(sb, () => scanShared())
 }
 
 test('B11: leere Soll-Trunks (Parent existiert) werden als sichtbare leere Kategorien ausgeliefert', () => {
@@ -80,10 +71,7 @@ test('Buendelung: 50 Findings einer Audit-Kategorie liefern 1 Karte mit Zaehler'
   try {
     const links = Array.from({ length: 50 }, (_, i) => `[[kaputt-${i}]]`).join(' ')
     w(join(sb, 'project', 'docs', 'viele.md'), `${links}\n`)
-    const audit = withSandboxEnv(sb, () => {
-      const mod = require('../../src/main/scan/scan-audit-categories') as { buildAuditConfig: () => LlmConfig }
-      return mod.buildAuditConfig()
-    })
+    const audit = withSandboxEnv(sb, () => buildAuditConfig())
     const refs = audit.categories.find((cat) => cat.id === 'audit-references')
     expect(refs).toBeDefined()
     expect(refs!.entries).toHaveLength(1)

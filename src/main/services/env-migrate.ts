@@ -47,7 +47,7 @@ function isRegularFile(p: string): boolean {
 }
 
 // Liest exakt die erste von findCredentialLine gewaehlte KEY=VALUE-Zeile.
-export function readSecretValue(filePath: string): { value: string } | { reject: string } {
+function readSecretValue(filePath: string): { value: string } | { reject: string } {
   try {
     const content = readFileSync(filePath, 'utf8')
     const hit = findCredentialLine(content)

@@ -170,7 +170,9 @@ function StrukturSummary(props: {
       {truncated && (
         <>
           <span className="sum-sep">·</span>
-          <span className="sum-warn">Scan abgebrochen (Tiefenlimit)</span>
+          {/* Neutrale Info statt Warn-Klasse: das Tiefenlimit ist eine gewollte
+              Schutzgrenze, kein Fund und kein Fehler (F7). */}
+          <span className="struktur-sum-detail">Sehr tiefe Ordner wurden ausgelassen</span>
         </>
       )}
     </div>

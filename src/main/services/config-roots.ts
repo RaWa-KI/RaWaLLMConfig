@@ -7,7 +7,7 @@
 // LESEN aus Sandbox, Writes sind bereits dorthin confined). Env wird bei
 // JEDEM Aufruf gelesen (reine Funktion der Env) -> Tests setzen/loeschen Env
 // und rufen direkt. KEINE Secret-Werte, KEIN Schreiben.
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import fs from 'node:fs'
 import type { ProviderRoot } from '@shared/contract-provider'
 import { normalizePathForCompare } from '@shared/path-compare'
@@ -21,15 +21,9 @@ import {
 import type { ConfigRoots, RootExists, RootPrefs } from './config-root-resolution'
 export {
   discoverConfigRoots,
-  setRootPrefsProvider,
-  setRootExistsProvider
+  setRootPrefsProvider
 } from './config-root-resolution'
-export type {
-  ConfigRootDiscovery,
-  ConfigRoots,
-  RootDiscovery,
-  RootSource
-} from './config-root-resolution'
+export type { ConfigRoots } from './config-root-resolution'
 
 /**
  * Die vier Config-Wurzeln aufloesen. DEFAULT = Tool-Homes aus homedir(),
@@ -106,7 +100,7 @@ export function userSourceRootsForProvider(providerId: string): string[] {
  * vier Basis-Wurzeln (Invarianz).
  */
 export function configRootList(deps: ConfigRootDeps = {}): string[] {
-  const base = configWatchRootList(deps)
+  const base = configBaseRootList(deps)
   const seen = new Set(base.map(pathKey))
   const out = [...base]
   for (const extra of userSourceRoots()) {
@@ -146,7 +140,34 @@ function appendUserRoots(baseRoots: string[], providerId?: string): string[] {
  */
 export function configWatchRootList(deps: ConfigRootDeps = {}): string[] {
   const r = configRoots(deps)
-  return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot].filter((root): root is string => root !== null)
+  return [
+    ...configBaseRootList(deps),
+    ...siblingToolHomes(r.claudeHome)
+  ]
+}
+
+/**
+ * Die vier Basis-Wurzeln — Grundlage der WRITE-Allowlist (configRootList).
+ * Bewusst UNVERAENDERT: der Beobachtungs-Scope darf breiter sein als der
+ * Schreib-Scope, umgekehrt waere es eine stille Rechteausweitung.
+ */
+export function configBaseRootList(deps: ConfigRootDeps = {}): string[] {
+  const r = configRoots(deps)
+  return [r.claudeHome, r.codexHome, r.sharedClaude, r.projectRoot]
+    .filter((root): root is string => root !== null)
+}
+
+/**
+ * Weitere Tool-Homes neben ~/.claude und ~/.codex: ~/.agents und ~/.kimi-code.
+ * Sie werden — wie kimiHome() im Scanner — aus dem Elternverzeichnis von
+ * claudeHome abgeleitet und sind damit automatisch sandbox-aware. Ohne sie sah
+ * der Live-Watcher Aenderungen in diesen Baeumen nicht (F3: Zaehler/Listen
+ * aktualisierten sich erst nach manuellem Neuscan). NUR Beobachtung — sie
+ * erweitern die Schreib-Allowlist NICHT.
+ */
+function siblingToolHomes(claudeHome: string): string[] {
+  const parent = dirname(claudeHome)
+  return [join(parent, '.agents'), join(parent, '.kimi-code')]
 }
 
 export function resolveRoots(roots: ProviderRoot[], providerId?: string): string[] {
@@ -188,10 +209,29 @@ function projectsParent(): string | null {
   return sb ?? discoverConfigRoots().workspaceParent.value
 }
 
-// Registry-Pfad (relativ zum Parent). Im Sandbox-Modus existiert sie i.d.R.
-// nicht — dann faellt workspaceRoots() sauber auf nur den Parent zurueck.
+// Registry-Pfad (relativ zum Parent). Der reale Ablageort ist
+// `.shared/coordination/registry/` — der frueher allein erwartete Pfad unter
+// `.shared/.claude/` existiert so nicht, wodurch workspaceRoots() dauerhaft
+// leer blieb (F7/F8). Beide Kandidaten werden geprueft, der reale zuerst; der
+// erste existierende gewinnt. Im Sandbox-Modus existiert i.d.R. keiner —
+// dann faellt workspaceRoots() sauber auf nur den Parent zurueck.
+function registryCandidates(parent: string): string[] {
+  return [
+    join(parent, '.shared', 'coordination', 'registry', 'workspaces.json'),
+    join(parent, '.shared', '.claude', 'coordination', 'registry', 'workspaces.json')
+  ]
+}
+
 function registryPath(parent: string): string {
-  return join(parent, '.shared', '.claude', 'coordination', 'registry', 'workspaces.json')
+  const candidates = registryCandidates(parent)
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate
+    } catch {
+      // Unlesbarer Pfad zaehlt wie nicht vorhanden — naechsten Kandidaten pruefen.
+    }
+  }
+  return candidates[0]
 }
 
 // Registry lesen und WS path_local extrahieren. Nur lokale absolute Pfade

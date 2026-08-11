@@ -1,4 +1,5 @@
-import { accessSync, constants, existsSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import type {
   IntegrationActivation,
   IntegrationAvailability,
@@ -13,7 +14,7 @@ import { configRoots } from './config-roots'
 export type IntegrationExists = (root: string, definition: IntegrationDefinition) => boolean
 type IntegrationPathStatus = 'available' | 'missing' | 'unavailable'
 
-export type IntegrationProbe = (input: {
+type IntegrationProbe = (input: {
   activation: IntegrationActivation
   definition: IntegrationDefinition
   exists: IntegrationExists
@@ -88,8 +89,28 @@ function resolveAvailability(
   if (probe) return probe({ activation, definition, exists })
   if (hasCustomExists) return exists(activation.root, definition) ? activeOrFound(activation) : 'notConfigured'
   const status = pathStatus(activation.root)
-  if (status === 'available') return activeOrFound(activation)
-  return status === 'unavailable' ? 'unavailable' : 'notConfigured'
+  if (status !== 'available') return status === 'unavailable' ? 'unavailable' : 'notConfigured'
+  // graphify: die blosse Existenz des Roots sagt nichts — es zaehlt, ob darunter
+  // wirklich graphify-Daten liegen. Ein als Workspace-Parent gesetzter Root ist
+  // damit verfuegbar, sobald EIN <WS>/graphify-out existiert (F8).
+  if (definition.probeKind === 'graph' && !hasGraphifyData(activation.root)) return 'notConfigured'
+  return activeOrFound(activation)
+}
+
+/**
+ * graphify-Daten unter einem Root: entweder <root>/graphify-out selbst
+ * (Abwaertskompatibilitaet: Root zeigt direkt auf einen Workspace) oder
+ * mindestens ein <root>/<WS>/graphify-out (Root ist der Workspace-Parent).
+ */
+function hasGraphifyData(root: string): boolean {
+  if (pathStatus(join(root, 'graphify-out')) === 'available') return true
+  let children: string[]
+  try {
+    children = readdirSync(root)
+  } catch {
+    return false
+  }
+  return children.some((name) => pathStatus(join(root, name, 'graphify-out')) === 'available')
 }
 
 function activeOrFound(activation: IntegrationActivation): IntegrationAvailability {

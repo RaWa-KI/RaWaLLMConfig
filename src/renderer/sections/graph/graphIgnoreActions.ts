@@ -17,7 +17,7 @@ function mergeRules(state: IgnoreScopeState, rules: string[]): { content: string
   return { content: content ? content + '\n' : '', added: add.length }
 }
 
-export async function appendGraphignoreRules(
+async function appendGraphignoreRules(
   wsRoot: string,
   rules: string[]
 ): Promise<IgnoreAppendResult> {

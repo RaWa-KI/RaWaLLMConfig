@@ -13,7 +13,7 @@ import type {
   MoveImpactScanRequest,
   MoveImpactScanResult
 } from './contract-write-rename'
-import type { ReconcileRequest, ReconcileResult, DirReconcileRequest, DirReconcileResult } from './contract-write-reconcile'
+import type { ReconcileRequest, ReconcileResult } from './contract-write-reconcile'
 export * from './contract-write-reconcile'
 
 // ── Schreib-Aktionen ─────────────────────────────────────────────────────
@@ -276,8 +276,12 @@ export interface WriteApi {
   writeSetEnabled(req: WriteSetEnabledRequest): Promise<WriteStatusResult>
   // Dir-Operationen (Teil A — CONTRACT-SSoT)
   archiveDirEntry(path: string): Promise<DirActionResult>
-  moveDirEntry(path: string, to: string): Promise<DirActionResult>
-  reconcileFolder(req: DirReconcileRequest): Promise<DirReconcileResult>
+  // SICHERHEIT (Finding A): move-dir uebergibt KEIN Ziel mehr aus dem Renderer.
+  // Das Verschiebe-Ziel waehlt der Owner im nativen Main-Prozess-Ordnerdialog;
+  // DirActionRequest.to wird fuer move-dir ignoriert (write-anywhere-Schutz).
+  moveDirEntry(path: string): Promise<DirActionResult>
+  // Ordner-Merge laeuft ueber IntegrityApi (integrityPreview/integrityApply),
+  // nicht mehr ueber einen eigenen Dir-Kanal (Zwei-Klick-Vorschau, 2026-08-11).
   // Umbenennen-/Verschieben-Routen (WP-03; Typen aus contract-write-rename.ts)
   renameEntry(req: RenameRequest): Promise<RenameResult>
   moveEntryVersioned(req: MoveVersionedRequest): Promise<MoveVersionedResult>

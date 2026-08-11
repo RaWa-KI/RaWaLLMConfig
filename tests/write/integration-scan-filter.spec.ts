@@ -3,24 +3,13 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { IntegrationActivation } from '../../shared/contract-integrations'
+import { scanAll } from '../../src/main/scan/scan-index'
 
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (k.includes('/src/main/scan/') || k.includes('/src/main/services/') || k.includes('/shared/contract')) {
-      delete require.cache[key]
-    }
-  }
-}
-
-function loadScanAll(): () => { llms: Array<{ id: string }>, data: Record<string, { categories: unknown[]; scanError?: string }> } {
-  bustScanCache()
-  /* eslint-disable @typescript-eslint/no-var-requires */
-  return (require('../../src/main/scan/scan-index') as {
-    scanAll: () => { llms: Array<{ id: string }>, data: Record<string, { categories: unknown[]; scanError?: string }> }
-  }).scanAll
-  /* eslint-enable @typescript-eslint/no-var-requires */
-}
+// Statischer Import statt require + Cache-Bust: scan-index und die
+// Integrations-Filter lesen ihre Wurzeln bzw. integrations.json bei JEDEM
+// Aufruf (configRoots()/userDataRoot() sind reine Funktionen der Env). Das
+// Setzen von RAWALLM_SANDBOX_ROOT im Test genuegt, das Modul muss nicht neu
+// geladen werden.
 
 function activation(root: string, enabled: boolean): IntegrationActivation {
   return {
@@ -52,14 +41,13 @@ test('fresh user ohne aktiviertes Shared: kein Shared-Scan und kein Shared-Tab',
   mkdirSync(join(root, 'project'), { recursive: true })
   process.env.RAWALLM_SANDBOX_ROOT = root
   try {
-    const appData = loadScanAll()()
+    const appData = scanAll()
     expect(appData.data.shared.scanError).toBeUndefined()
     expect(appData.data.shared.categories).toEqual([])
     expect(appData.llms.some((item) => item.id === 'shared')).toBe(false)
   } finally {
     delete process.env.RAWALLM_SANDBOX_ROOT
     rmSync(root, { recursive: true, force: true })
-    bustScanCache()
   }
 })
 
@@ -74,13 +62,12 @@ test('aktiviertes Shared scannt den gewaehlten Root', () => {
   writeIntegrations(root, activation(root, true))
   process.env.RAWALLM_SANDBOX_ROOT = root
   try {
-    const appData = loadScanAll()()
+    const appData = scanAll()
     expect(appData.data.shared.scanError).toBeUndefined()
     expect(appData.data.shared.categories.length).toBeGreaterThan(0)
     expect(appData.llms.some((item) => item.id === 'shared')).toBe(true)
   } finally {
     delete process.env.RAWALLM_SANDBOX_ROOT
     rmSync(root, { recursive: true, force: true })
-    bustScanCache()
   }
 })

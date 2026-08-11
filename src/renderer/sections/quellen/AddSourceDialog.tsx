@@ -114,6 +114,14 @@ function ProviderField(props: {
           <option key={p.id} value={p.id}>{p.label}</option>
         ))}
       </select>
+      {/* Der Dialog fügt einen ZUSÄTZLICHEN Ordner zu einem bereits bekannten
+          Werkzeug hinzu. Für ein ganz neues Werkzeug reicht das nicht — das
+          war bisher nirgends gesagt und führte zu leeren Familien (F10). */}
+      <p className="qs-field-help">
+        Hier kommt ein <b>weiterer Ordner</b> zu einem Werkzeug dazu, das die App schon kennt.
+        Ein <b>komplett neues Werkzeug</b> lässt sich so nicht ergänzen — dafür braucht es eine
+        Werkzeug-Beschreibung im Ordner <code>rawallm-providers</code>.
+      </p>
     </label>
   )
 }

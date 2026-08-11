@@ -80,7 +80,7 @@ function markHits(text: string, q: string) {
   )
 }
 
-export const EntryRow = memo(function EntryRow({ cat, entry, showCat, highlight, inFile, onClick }: RowProps) {
+const EntryRow = memo(function EntryRow({ cat, entry, showCat, highlight, inFile, onClick }: RowProps) {
   const { ui } = useStore()
   const hl = highlight ?? ''
   return (
@@ -279,7 +279,5 @@ export function SearchView({
   )
 }
 
-// DiffView wurde nach ./DiffView.tsx extrahiert (WP-06, Split-WP). Re-Export hier,
-// damit ConfigSection.tsx (importiert DiffView aus config-parts) NICHT bricht —
-// Welle 3 raeumt den Import auf.
-export { DiffView } from './DiffView'
+// DiffView liegt in ./DiffView.tsx; Importe gehen dort hin (kein ungenutzter
+// Re-Export mehr aus config-parts, Knip 2026-08-10).

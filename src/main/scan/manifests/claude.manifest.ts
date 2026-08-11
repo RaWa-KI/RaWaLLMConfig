@@ -14,7 +14,6 @@ import type { ProviderManifest } from '@shared/contract-provider'
 import { diffLabels } from '@shared/dup-labels'
 import {
   claudeCat,
-  claudeDir,
   collectSkills,
   collectRules,
   collectAgents,
@@ -58,5 +57,3 @@ export const claudeManifest: ProviderManifest = {
   ],
 }
 
-// Genutzt im Equivalence-Test als Lesbarkeits-Anker (Bestands-claudeDir).
-export const claudeManifestRoot = claudeDir

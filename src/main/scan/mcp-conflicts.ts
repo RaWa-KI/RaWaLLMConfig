@@ -1,7 +1,7 @@
 import type { Category, ConfigEntry } from '@shared/contract'
 import { mcpNames } from './mcp-scan'
 
-export function isMcpServerEntry(entry: ConfigEntry): boolean {
+function isMcpServerEntry(entry: ConfigEntry): boolean {
   return entry.id.startsWith('mcp-') || Boolean(entry.fields?.Transport)
 }
 

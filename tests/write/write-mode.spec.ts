@@ -28,6 +28,11 @@ test.afterEach(() => {
 })
 
 // write-mode frisch laden NACH gesetztem Env (Env wird beim Load gelesen).
+// BEWUSST kein statischer Import: write-mode.ts liest RAWALLM_WRITE_ENABLED
+// EINMAL beim Modul-Load (`const ENV = {...}`). Nur ein echter Neu-Load liefert
+// den geaenderten Env-Wert; der Cache-Restore oben haelt zugleich die
+// kanonische Singleton-Instanz fuer apply/secret-guard stabil. Backlog
+// TEST-NIEDRIG-02 — nicht auf statische Imports umstellen.
 function loadWriteMode(): typeof import('../../src/main/services/write-mode') {
   delete require.cache[MODULE_PATH]
   // eslint-disable-next-line @typescript-eslint/no-var-requires

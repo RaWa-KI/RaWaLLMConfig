@@ -10,84 +10,49 @@
 // Frueh-Return, mergeMcp-Ergebnis (claude/codex/shared), buildUserglobal und die
 // data-Schluessel-Reihenfolge (shared, claude, codex, local, userglobal).
 //
-// MECHANIK (wie provider-equivalence): Alt-Scanner + mcp-scan binden ihren Basis-
-// Pfad bei Modul-Load. RAWALLM_SANDBOX_ROOT wird VOR dem Require gesetzt, der
-// Scan-Subtree-Cache vorher verworfen (loadFresh). buildData + die Alt-Scanner +
-// mergeMcp/buildUserglobal + scanMcp werden aus DEMSELBEN frischen Modulgraph
-// geladen -> identische sandbox-gebundene *Dir-Konstanten und dieselbe scanMcp-
-// Instanz. Runner: Playwright (test/expect) als reiner Node-Test-Runner.
+// MECHANIK: Alt-Scanner, mcp-scan und die Engine loesen ihre Basis-Pfade seit
+// 2026-08-10 bei JEDEM Aufruf ueber configRoots() auf (reine Funktion von
+// RAWALLM_SANDBOX_ROOT). Damit genuegen statische Imports: alle Funktionen
+// stammen ohnehin aus DEMSELBEN Modulgraph (gleiche scanMcp-Instanz fuer Alt-
+// und Neu-Pfad) und das gesetzte Env trifft beide Pfade gleich.
+// Runner: Playwright (test/expect) als reiner Node-Test-Runner.
 import { test, expect } from '@playwright/test'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LlmConfig } from '../../shared/contract'
 import type { IntegrationActivation } from '../../shared/contract-integrations'
+import { buildData, buildUserglobal, mergeMcp } from '../../src/main/scan/scan-index'
+import { scanShared } from '../../src/main/scan/shared-scan'
+import { scanClaude } from '../../src/main/scan/claude-scan'
+import { scanCodex } from '../../src/main/scan/codex-scan'
+import {
+  LOCAL_COMING_SOON,
+  LOCAL_DIFF_LABELS,
+  ggufRoots,
+  scanLocalLlm
+} from '../../src/main/scan/llm-scan'
+import { scanMcp } from '../../src/main/scan/mcp-scan'
 
-// ── Fresh-Load-Harness ─────────────────────────────────────────────────────
-// Scan-/Manifest-/Engine-/Service-Module aus dem require-Cache werfen, damit ihre
-// modul-gebundenen *Dir-Konstanten unter dem aktuellen RAWALLM_SANDBOX_ROOT neu
-// aufgeloest werden (Praefix-Sweep ueber den Scan-Subtree + shared/contract).
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (
-      k.includes('/src/main/scan/') ||
-      k.includes('/src/main/services/') ||
-      k.includes('/shared/contract')
-    ) {
-      delete require.cache[key]
-    }
+// legacyBuildData: exakt der hartcodierte M1-Pfad (vor B-5). Reihenfolge
+// shared, claude, codex, local; danach identische mergeMcp/userglobal-Steps.
+function legacyBuildData(): Record<string, LlmConfig> {
+  const data: Record<string, LlmConfig> = {
+    shared: safeScan('shared', scanShared),
+    claude: safeScan('claude', scanClaude),
+    codex: safeScan('codex', scanCodex),
+    local: safeScan('local', scanLocalLlm),
   }
-}
-
-// Alle benoetigten Funktionen aus EINEM frischen Modulgraph laden (gleiche
-// Sandbox-Bindung, gleiche scanMcp-Instanz fuer Alt- und Neu-Pfad).
-interface Fresh {
-  buildData: () => Record<string, LlmConfig>
-  legacyBuildData: () => Record<string, LlmConfig>
-}
-
-// Ergebnistyp von scanMcp aus dem MODUL-Typ ableiten. `ReturnType<typeof scanMcp>`
-// direkt an der require-Zuweisung waere zirkulaer (TS2577: die Variable wuerde
-// ihren eigenen Typ referenzieren) — der import()-Typ bricht den Zyklus.
-type McpResult = ReturnType<typeof import('../../src/main/scan/mcp-scan').scanMcp>
-
-function loadFresh(): Fresh {
-  bustScanCache()
-  /* eslint-disable @typescript-eslint/no-var-requires */
-  const idx = require('../../src/main/scan/scan-index') as {
-    buildData: () => Record<string, LlmConfig>
-    mergeMcp: (cfg: LlmConfig, mcp: McpResult, fam: 'claude' | 'codex' | 'shared') => void
-    buildUserglobal: (data: Record<string, LlmConfig>) => LlmConfig
+  try {
+    const mcp = scanMcp()
+    mergeMcp(data.claude, mcp, 'claude')
+    mergeMcp(data.codex, mcp, 'codex')
+    mergeMcp(data.shared, mcp, 'shared')
+  } catch (err) {
+    console.error('[legacy:mcp]', err instanceof Error ? err.message : 'scan-error')
   }
-  const { scanShared } = require('../../src/main/scan/shared-scan') as { scanShared: () => LlmConfig }
-  const { scanClaude } = require('../../src/main/scan/claude-scan') as { scanClaude: () => LlmConfig }
-  const { scanCodex } = require('../../src/main/scan/codex-scan') as { scanCodex: () => LlmConfig }
-  const { scanLocalLlm } = require('../../src/main/scan/llm-scan') as { scanLocalLlm: () => LlmConfig }
-  const { scanMcp } = require('../../src/main/scan/mcp-scan') as { scanMcp: () => McpResult }
-  /* eslint-enable @typescript-eslint/no-var-requires */
-
-  // legacyBuildData: exakt der hartcodierte M1-Pfad (vor B-5). Reihenfolge
-  // shared, claude, codex, local; danach identische mergeMcp/userglobal-Steps.
-  const legacyBuildData = (): Record<string, LlmConfig> => {
-    const data: Record<string, LlmConfig> = {
-      shared: safeScan('shared', scanShared),
-      claude: safeScan('claude', scanClaude),
-      codex: safeScan('codex', scanCodex),
-      local: safeScan('local', scanLocalLlm),
-    }
-    try {
-      const mcp = scanMcp()
-      idx.mergeMcp(data.claude, mcp, 'claude')
-      idx.mergeMcp(data.codex, mcp, 'codex')
-      idx.mergeMcp(data.shared, mcp, 'shared')
-    } catch (err) {
-      console.error('[legacy:mcp]', err instanceof Error ? err.message : 'scan-error')
-    }
-    data.userglobal = idx.buildUserglobal(data)
-    return data
-  }
-  return { buildData: idx.buildData, legacyBuildData }
+  data.userglobal = buildUserglobal(data)
+  return data
 }
 
 // safeScan-Aequivalent (wie scan-index/build-data) — Alt-Pfad crasht nie.
@@ -182,13 +147,10 @@ test.beforeEach(() => {
   process.env.RAWALLM_SANDBOX_ROOT = sandboxRoot
 })
 test.afterEach(() => {
+  // Das Loeschen der Env genuegt: die Scan-Module haengen an keinem eingefrorenen
+  // Sandbox-Pfad mehr (Wurzeln werden pro Aufruf aufgeloest), der naechste Spec
+  // im selben Worker trifft also automatisch wieder die realen Wurzeln.
   delete process.env.RAWALLM_SANDBOX_ROOT
-  // Cache erneut verwerfen, NACHDEM die Sandbox-Env entfernt ist: sonst bleiben
-  // die Scan-Module an den (gleich geloeschten) Sandbox-*Dir gebunden und der
-  // naechste Spec im selben Worker (default-roots-invariance importiert scanAll
-  // statisch gegen REALE Roots) liest aus dem toten Sandbox-Pfad -> leerer Scan.
-  // bustScanCache() ohne gesetzte Env erzwingt Neubindung an die realen Wurzeln.
-  bustScanCache()
   try {
     rmSync(sandboxRoot, { recursive: true, force: true })
   } catch {
@@ -200,7 +162,6 @@ test.afterEach(() => {
 test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl. diffLabels/comingSoon/Reihenfolge', () => {
   seedAll(sandboxRoot)
   enableShared(sandboxRoot)
-  const { buildData, legacyBuildData } = loadFresh()
   const oldData = legacyBuildData()
   const newData = buildData()
 
@@ -210,7 +171,8 @@ test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl.
   // Legacy-Familien, cloud wird separat geprueft (additive Erweiterung).
   // 'kimi' (WP-10, HR16-Paritaet) haengt wie 'cloud' ADDITIV hinter den Legacy-4.
   expect(Object.keys(oldData)).toEqual(['shared', 'claude', 'codex', 'local', 'userglobal'])
-  expect(Object.keys(newData)).toEqual(['shared', 'claude', 'codex', 'local', 'cloud', 'kimi', 'userglobal'])
+  // 'grok' (2026-08-11, HR16-Paritaet) haengt wie 'cloud'/'kimi' ADDITIV an.
+  expect(Object.keys(newData)).toEqual(['shared', 'claude', 'codex', 'local', 'cloud', 'kimi', 'grok', 'userglobal'])
 
   // (2) diffLabels je Familie identisch (LlmConfig-Ebene, nicht nur categories).
   for (const fam of ['shared', 'claude', 'codex', 'local']) {
@@ -253,14 +215,6 @@ test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl.
 test('llm-comingSoon: ohne Modellroot liefern beide Pfade den leeren comingSoon-Return', () => {
   seedAll(sandboxRoot)
   enableShared(sandboxRoot)
-  /* eslint-disable @typescript-eslint/no-var-requires */
-  const { ggufRoots, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } = require('../../src/main/scan/llm-scan') as {
-    ggufRoots: () => string[]
-    LOCAL_DIFF_LABELS: unknown
-    LOCAL_COMING_SOON: unknown
-  }
-  /* eslint-enable @typescript-eslint/no-var-requires */
-  const { buildData, legacyBuildData } = loadFresh()
   const oldLocal = legacyBuildData().local
   const newLocal = buildData().local
 

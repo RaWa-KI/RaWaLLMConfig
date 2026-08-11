@@ -2,11 +2,14 @@ import { useState } from 'react'
 import type { DirCompare, DuplicateSet } from '@shared/contract'
 import type { DirReconcileRequest } from '@shared/contract-write'
 import { Icon } from '../../components/Icon'
+import { OpProgress } from '../../components/OpProgress'
+import { useStore } from '../../state/store'
 import { useWriteConfig } from '../../state/store-write-config'
 import { DirConfirmBlock, type DirAction, type DirDecisions, type DirFileDecisionValue } from './DirConfirmBlock'
 import { CanonToggle, ReconcileButtons, OrdnerButtons, type Canon } from './DirReconcileButtons'
-import { TRUNCATED, WRITE_AUS } from '@shared/dup-labels'
-import { isPairDispatched, markPairDispatched } from './reconcile-dispatch'
+import { ReconcilePlanSummary } from './ReconcilePlanSummary'
+import { mergeButtonLabel, useMergePlan } from './use-merge-plan'
+import { TRUNCATED, WRITE_AUS, intraAktionTexte, isIntraFamilyDup } from '@shared/dup-labels'
 
 // DirReconcileActions — Ordner-Aktions-Komponente (HR27-Split: Confirm/Decisions in
 // DirConfirmBlock.tsx, Button-Reihen in DirReconcileButtons.tsx). SYMMETRISCH
@@ -19,20 +22,19 @@ import { isPairDispatched, markPairDispatched } from './reconcile-dispatch'
 interface DirReconcileActionsProps {
   d: DuplicateSet
   dir: DirCompare
-  knownPaths: string[]
 }
 
-export function DirReconcileActions({ d, dir, knownPaths }: DirReconcileActionsProps) {
-  const { busy, writeEnabled, writeReason, archiveDirEntry, moveDirEntry, reconcileFolder } =
-    useWriteConfig()
+export function DirReconcileActions({ d, dir }: DirReconcileActionsProps) {
+  const { busy, writeEnabled, writeReason, archiveDirEntry, moveDirEntry } = useWriteConfig()
   const [pending, setPending] = useState<DirAction | null>(null)
-  const [moveTo, setMoveTo] = useState('')
   const [canon, setCanon] = useState<Canon>('trunk')
   const [decisions, setDecisions] = useState<DirDecisions>(() => buildDecisions(dir, 'keep-trunk'))
+  const merge = useMergePlan(d)
 
   function pickCanon(c: Canon) {
     setCanon(c)
     setDecisions(buildDecisions(dir, canonAction(c))) // Default-Richtung folgt dem Owner-Umschalter
+    merge.reset() // Auswahl geaendert -> alter Plan passt nicht mehr zum Gezeigten
   }
 
   // Reconcile-Aktion gewaehlt: Pro-Datei-Defaults an die echte Richtung anpassen
@@ -40,36 +42,56 @@ export function DirReconcileActions({ d, dir, knownPaths }: DirReconcileActionsP
   // (archive/move) lassen die decisions unberuehrt.
   function pickAction(action: DirAction) {
     if (isReconcileDir(action)) setDecisions(buildDecisions(dir, action))
+    merge.reset()
     setPending(action)
+  }
+
+  function setDecision(rel: string, dec: DirFileDecisionValue) {
+    setDecisions((prev) => ({ ...prev, [rel]: dec }))
+    merge.reset() // geaenderte Zuordnung => neue Vorschau noetig (planHash)
   }
 
   function cancel() {
     setPending(null)
-    setMoveTo('')
     setDecisions(buildDecisions(dir, canonAction(canon)))
+    merge.reset()
   }
 
+  // Ordner-Merge laeuft ueber zwei Klicks (Preview -> Apply gegen planHash),
+  // Archivieren/Verschieben bleiben einstufig wie bisher.
   async function confirmAction() {
-    const ok = await runAction(pending, moveTo, { d, decisions, archiveDirEntry, moveDirEntry, reconcileFolder })
+    if (pending && isReconcileDir(pending)) {
+      if (await merge.step(buildReconcileReq(d, decisions))) cancel()
+      return
+    }
+    const ok = await runAction(pending, { d, archiveDirEntry, moveDirEntry })
     if (ok) cancel()
   }
 
   if (pending) {
+    const isMerge = isReconcileDir(pending)
     return (
       <DirConfirmBlock
         d={d}
         dir={dir}
         action={pending}
-        moveTo={moveTo}
-        onMoveTo={setMoveTo}
-        knownPaths={knownPaths}
         decisions={decisions}
-        onDecision={(rel, dec) => setDecisions((prev) => ({ ...prev, [rel]: dec }))}
-        busy={busy}
+        onDecision={setDecision}
+        busy={busy || merge.busy}
         writeEnabled={writeEnabled}
         writeReason={writeReason}
         onCancel={cancel}
         onConfirm={confirmAction}
+        planBlock={isMerge ? <ReconcilePlanSummary plan={merge.plan} error={merge.error} /> : null}
+        confirmLabel={isMerge ? mergeButtonLabel(merge.plan) : undefined}
+        confirmBlocked={isMerge && merge.blocked}
+        // Fortschritt nur beim eigentlichen Speichern (Plan liegt vor + laeuft).
+        progressBlock={
+          <OpProgress
+            active={isMerge && merge.busy && merge.plan !== null}
+            operationIds={merge.plan ? [merge.plan.operationId] : []}
+          />
+        }
       />
     )
   }
@@ -84,7 +106,6 @@ export function DirReconcileActions({ d, dir, knownPaths }: DirReconcileActionsP
       canon={canon}
       onCanon={pickCanon}
       onPending={pickAction}
-      onMoveTo={setMoveTo}
     />
   )
 }
@@ -100,13 +121,16 @@ interface ActionRowProps {
   canon: Canon
   onCanon(c: Canon): void
   onPending(a: DirAction): void
-  onMoveTo(v: string): void
 }
 
 function ActionRow(p: ActionRowProps) {
-  const { d, dir, busy, writeEnabled, writeReason, canon, onCanon, onPending, onMoveTo } = p
+  const { d, dir, busy, writeEnabled, writeReason, canon, onCanon, onPending } = p
+  const { ui } = useStore()
   const disabledTitle = !writeEnabled ? (writeReason ?? WRITE_AUS) : undefined
   const n = dir.files.length
+  // Intra-Familien-Paar: ehrliche Fassungs-Texte fuer Umschalter + Reconcile-
+  // Knoepfe statt „Shared"/„deine Kopie" — nur Beschriftung, Mechanik gleich.
+  const intra = isIntraFamilyDup(d, ui.llm) ? intraAktionTexte(d.trunk.path, d.mirror.path) : null
   return (
     <div className="dup-row dup-dir-actions">
       <span className="dup-name mono">{d.name}</span>
@@ -116,10 +140,10 @@ function ActionRow(p: ActionRowProps) {
           {TRUNCATED.bulkHinweis}
         </span>
       )}
-      <CanonToggle canon={canon} onCanon={onCanon} disabled={busy || !writeEnabled} />
+      <CanonToggle canon={canon} onCanon={onCanon} disabled={busy || !writeEnabled} intra={intra} />
       <div className="dup-btns">
-        <ReconcileButtons canon={canon} busy={busy} writeEnabled={writeEnabled} disabledTitle={disabledTitle} onPending={onPending} />
-        <OrdnerButtons name={d.name} n={n} busy={busy} writeEnabled={writeEnabled} disabledTitle={disabledTitle} onPending={onPending} onMoveTo={onMoveTo} />
+        <ReconcileButtons canon={canon} busy={busy} writeEnabled={writeEnabled} disabledTitle={disabledTitle} onPending={onPending} intra={intra} />
+        <OrdnerButtons name={d.name} n={n} busy={busy} writeEnabled={writeEnabled} disabledTitle={disabledTitle} onPending={onPending} />
       </div>
     </div>
   )
@@ -129,44 +153,29 @@ function ActionRow(p: ActionRowProps) {
 
 interface RunDeps {
   d: DuplicateSet
-  decisions: DirDecisions
   archiveDirEntry(path: string): Promise<boolean>
-  moveDirEntry(path: string, to: string): Promise<boolean>
-  reconcileFolder(req: DirReconcileRequest): Promise<boolean>
+  moveDirEntry(path: string): Promise<boolean>
 }
 
-async function runAction(pending: DirAction | null, moveTo: string, deps: RunDeps): Promise<boolean> {
+// Ganz-Ordner-Aktionen (einstufig). Der Ordner-Merge laeuft NICHT hier, sondern
+// zweistufig ueber useMergePlan (Vorschau -> Ausfuehren gegen planHash). Beim
+// Verschieben waehlt der Owner das Ziel im nativen Main-Ordnerdialog (Sicherheit
+// Finding A) — der Renderer gibt kein Ziel mehr mit.
+async function runAction(pending: DirAction | null, deps: RunDeps): Promise<boolean> {
   if (!pending) return false
-  const { d, decisions, archiveDirEntry, moveDirEntry, reconcileFolder } = deps
+  const { d, archiveDirEntry, moveDirEntry } = deps
   switch (pending) {
     case 'archive-dir':
       return archiveDirEntry(d.trunk.path)
     case 'archive-mirror':
       return archiveDirEntry(d.mirror.path)
     case 'move-dir':
-      return moveTo.trim() ? moveDirEntry(d.trunk.path, moveTo.trim()) : false
+      return moveDirEntry(d.trunk.path)
     case 'move-mirror':
-      return moveTo.trim() ? moveDirEntry(d.mirror.path, moveTo.trim()) : false
-    case 'keep-trunk':
-    case 'keep-mirror':
-    case 'adopt-mirror':
-    case 'adopt-trunk':
-      return runReconcileOnce(d, decisions, reconcileFolder)
+      return moveDirEntry(d.mirror.path)
+    default:
+      return false // Merge-Richtungen: siehe useMergePlan (Zwei-Klick-Weg)
   }
-}
-
-// F7-Idempotenz fuer den Ordner-Reconcile (Bulk je Eintrag): ein gespiegeltes
-// physisches Paar (trunk/mirror) wird nur EINMAL eingearbeitet. Zweiter Dispatch
-// = deterministisches no-op (true), MAIN backt das mit 'already-reconciled' ab.
-async function runReconcileOnce(
-  d: DuplicateSet,
-  decisions: DirDecisions,
-  reconcileFolder: (req: DirReconcileRequest) => Promise<boolean>
-): Promise<boolean> {
-  if (isPairDispatched(d.trunk.path, d.mirror.path)) return true
-  const ok = await reconcileFolder(buildReconcileReq(d, decisions))
-  if (ok) markPairDispatched(d.trunk.path, d.mirror.path)
-  return ok
 }
 
 // ── Hilfsfunktionen ──────────────────────────────────────────────────────────

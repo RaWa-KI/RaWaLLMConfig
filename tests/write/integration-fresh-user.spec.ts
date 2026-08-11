@@ -5,29 +5,11 @@ import { test, expect } from '@playwright/test'
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { scanAll } from '../../src/main/scan/scan-index'
 
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (
-      k.includes('/src/main/scan/') ||
-      k.includes('/src/main/services/') ||
-      k.includes('/shared/contract')
-    ) {
-      delete require.cache[key]
-    }
-  }
-}
-
-function loadScanAll(): () => { llms: Array<Record<string, unknown>>, data: Record<string, { scanError?: string }> } {
-  bustScanCache()
-  /* eslint-disable @typescript-eslint/no-var-requires */
-  const { scanAll } = require('../../src/main/scan/scan-index') as {
-    scanAll: () => { llms: Array<Record<string, unknown>>, data: Record<string, { scanError?: string }> }
-  }
-  /* eslint-enable @typescript-eslint/no-var-requires */
-  return scanAll
-}
+// Statischer Import statt require + Cache-Bust: scan-index loest seine Wurzeln
+// bei JEDEM Aufruf ueber configRoots() auf (reine Funktion von
+// RAWALLM_SANDBOX_ROOT) — kein Root-Freeze beim Modul-Load mehr.
 
 test('fresh user ohne .shared: shared bleibt ausgeblendet statt Scan-Fehler', () => {
   const root = mkdtempSync(join(tmpdir(), 'rawallm-fresh-user-'))
@@ -38,7 +20,7 @@ test('fresh user ohne .shared: shared bleibt ausgeblendet statt Scan-Fehler', ()
   process.env.RAWALLM_SANDBOX_ROOT = root
 
   try {
-    const appData = loadScanAll()()
+    const appData = scanAll()
     const shared = appData.llms.find((l) => l.id === 'shared')
 
     expect(appData.data.shared?.scanError).toBeUndefined()
@@ -48,6 +30,5 @@ test('fresh user ohne .shared: shared bleibt ausgeblendet statt Scan-Fehler', ()
   } finally {
     delete process.env.RAWALLM_SANDBOX_ROOT
     rmSync(root, { recursive: true, force: true })
-    bustScanCache()
   }
 })

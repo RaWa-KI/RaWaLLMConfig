@@ -14,6 +14,7 @@ import { codexManifest } from './codex.manifest'
 import { llmManifest } from './llm.manifest'
 import { cloudManifest } from './cloud.manifest'
 import { kimiManifest } from './kimi.manifest'
+import { grokManifest } from './grok.manifest'
 
 /**
  * Die Default-Provider-Registry. Die ersten vier (shared, claude, codex, local)
@@ -28,5 +29,11 @@ import { kimiManifest } from './kimi.manifest'
  * (loadUserManifests), nicht hier — diese Liste bleibt die built-in Default-Quelle.
  */
 export function providerRegistry(): ProviderRegistry {
-  return [sharedManifest, claudeManifest, codexManifest, llmManifest, cloudManifest, kimiManifest]
+  return [
+    sharedManifest, claudeManifest, codexManifest, llmManifest, cloudManifest,
+    kimiManifest,
+    // `grok` (~/.grok) ist ebenfalls ADDITIV (HR16-Paritaet, vierter nativer
+    // Loader) und haengt hinten an — Bestands-Familien bleiben unberuehrt.
+    grokManifest
+  ]
 }

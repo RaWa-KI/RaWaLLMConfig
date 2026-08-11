@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MoveVersionedRequest } from '@shared/contract-write-rename'
 import type { IntegrityPlan } from '@shared/contract-integrity'
-import { Icon } from '../../components/Icon'
 import { PathPicker } from './PathPicker'
-import { SEITE_KURZ, SICHERUNG, VERSCHIEBEN, VERSCHIEBEN_KATEGORIEN, WRITE_AUS } from '@shared/dup-labels'
+import { SEITE_KURZ, VERSCHIEBEN, VERSCHIEBEN_KATEGORIEN } from '@shared/dup-labels'
 import {
   buildQuickPath, ensureFileTarget, endsOnFolder, isAbsolutePath,
   type MvVersion
 } from './move-target'
 import { useWriteConfig } from '../../state/store-write-config'
 import { useIntegrity } from '../../state/store-write-integrity'
-import { MovePlanSummary } from './MovePlanSummary'
 import { moveRequests } from './MoveDialogImpact'
-import { applyButtonLabel, applyPlans, planFacts, previewPlans } from './move-plan-controller'
-import { buildWhatLabel, ChipRow, MvChips, MvField, pickerValue, sideLabel } from './MoveDialogParts'
+import { applyPlans, planFacts, previewPlans } from './move-plan-controller'
+import { buildWhatLabel, ChipRow, MvChips, MvField, pickerValue, versionOptions } from './MoveDialogParts'
+import { MoveFooter } from './MoveDialogFooter'
 import './MoveDialog.css'
 
 // MoveDialog — wiederverwendbarer Verschieben-Dialog (v4 §Verschieben, Mockup-JS
@@ -49,6 +48,9 @@ export interface MoveDialogProps {
   // ECHTE Quell-Pfade je vorhandener Version (nie DuplicateSet.name).
   sharedPath?: string
   claudePath?: string
+  // Intra-Familien-Paar: Fassungs-Kurznamen [A, B] fuer ehrliche Versions-Chips
+  // (statt „Shared — zentral"/„Claude — lokal"); ohne Wert bleibt der Bestand.
+  fassungen?: [string, string] | null
   // Schnellwahl-Quellen fuer den PathPicker (known-paths.ts).
   knownPaths: string[]
   busy?: boolean
@@ -106,7 +108,7 @@ function useMoveState(kind: 'Datei' | 'Ordner', name: string, knownPaths: string
 }
 
 export function MoveDialog(props: MoveDialogProps) {
-  const { open, name, kind = 'Datei', fileCount, sharedPath, claudePath } = props
+  const { open, name, kind = 'Datei', fileCount, sharedPath, claudePath, fassungen } = props
   const { knownPaths, busy = false, errorText, onClose } = props
   const { writeEnabled, writeReason } = useWriteConfig()
   const { preview, apply } = useIntegrity()
@@ -153,7 +155,8 @@ export function MoveDialog(props: MoveDialogProps) {
   return (
     <MoveDialogFrame
       kind={kind} st={st} whatLabel={whatLabel} knownPaths={knownPaths}
-      sharedPath={sharedPath} claudePath={claudePath} errorText={errorText ?? previewError}
+      sharedPath={sharedPath} claudePath={claudePath} fassungen={fassungen}
+      errorText={errorText ?? previewError}
       plans={plans} busy={isBusy} writeEnabled={writeEnabled} writeReason={writeReason}
       confirmDisabled={
         isBusy || !writeEnabled || !isAbsolutePath(st.effPath) ||
@@ -167,7 +170,8 @@ export function MoveDialog(props: MoveDialogProps) {
 
 interface MoveDialogFrameProps {
   kind: 'Datei' | 'Ordner'; st: MoveState; whatLabel: string; knownPaths: string[]
-  sharedPath?: string; claudePath?: string; errorText?: string | null
+  sharedPath?: string; claudePath?: string; fassungen?: [string, string] | null
+  errorText?: string | null
   plans: IntegrityPlan[] | null; busy: boolean; writeEnabled: boolean
   writeReason: string | null; confirmDisabled: boolean; onConfirm(): void; onClose(): void
 }
@@ -177,10 +181,11 @@ function MoveDialogFrame(p: MoveDialogFrameProps) {
     <div className="mvd-overlay" onClick={(e) => { if (e.target === e.currentTarget) p.onClose() }}>
       <div className="mvd-card" role="dialog" aria-modal="true">
         <div className="mvd-title">{p.kind === 'Ordner' ? 'Ganzen Ordner verschieben' : VERSCHIEBEN.titelDatei}</div>
-        <MoveBody st={p.st} whatLabel={p.whatLabel} knownPaths={p.knownPaths} sharedPath={p.sharedPath} claudePath={p.claudePath} />
+        <MoveBody st={p.st} whatLabel={p.whatLabel} knownPaths={p.knownPaths} sharedPath={p.sharedPath} claudePath={p.claudePath} fassungen={p.fassungen} />
         <MoveFooter
           whatLabel={p.whatLabel}
           version={p.st.version}
+          fassungen={p.fassungen}
           effPath={p.st.effPath}
           missingFile={p.st.missingFile}
           errorText={p.errorText}
@@ -203,9 +208,10 @@ interface MoveBodyProps {
   knownPaths: string[]
   sharedPath?: string
   claudePath?: string
+  fassungen?: [string, string] | null
 }
 
-function MoveBody({ st, whatLabel, knownPaths, sharedPath, claudePath }: MoveBodyProps) {
+function MoveBody({ st, whatLabel, knownPaths, sharedPath, claudePath, fassungen }: MoveBodyProps) {
   return (
     <>
       <MvField label={VERSCHIEBEN.frageWas}>
@@ -213,11 +219,7 @@ function MoveBody({ st, whatLabel, knownPaths, sharedPath, claudePath }: MoveBod
       </MvField>
       <MvChips
         label={VERSCHIEBEN.frageVersion}
-        options={[
-          { val: 'claude', label: SEITE_KURZ.claude, disabled: !claudePath },
-          { val: 'shared', label: SEITE_KURZ.shared, disabled: !sharedPath },
-          { val: 'beide', label: SEITE_KURZ.beide, disabled: !(sharedPath && claudePath) }
-        ]}
+        options={versionOptions(sharedPath, claudePath, fassungen)}
         value={st.version}
         onPick={(v) => st.setVersion(v as MvVersion)}
       />
@@ -239,55 +241,3 @@ function MoveBody({ st, whatLabel, knownPaths, sharedPath, claudePath }: MoveBod
   )
 }
 
-interface MoveFooterProps {
-  whatLabel: string; version: MvVersion; effPath: string
-  missingFile: boolean  // True: Eingabefeld zeigt Ordner ohne Dateiname
-  errorText?: string | null; plans: IntegrityPlan[] | null; busy: boolean
-  writeEnabled: boolean; writeReason: string | null
-  confirmDisabled: boolean; onConfirm(): void; onClose(): void
-}
-
-function MoveFooter(p: MoveFooterProps) {
-  const confirmTitle = !p.writeEnabled ? (p.writeReason ?? WRITE_AUS) : undefined
-  // Vor dem 1. Klick (kein Plan): „Verschieben prüfen". Mit Plan: Wortlaut je
-  // Plan-Zustand (Referenzen mitziehen / nur verschieben / manuell erforderlich).
-  const confirmText = p.plans ? applyButtonLabel(p.plans) : VERSCHIEBEN.bestaetigen
-  return (
-    <>
-      <div className="mvd-effect">
-        {/* Wortlaut aus den Shared-Labels; mit <strong>-Hervorhebung gerendert,
-            daher inline statt eines flachen Helpers. */}
-        <strong>{p.whatLabel}</strong> ({sideLabel(p.version)}) wandert nach <strong>{p.effPath}</strong> ·{' '}
-        {SICHERUNG.vorher}.
-      </div>
-      {p.plans ? <MovePlanSummary plans={p.plans} /> : null}
-      {p.missingFile && (
-        <div className="mvd-error">
-          {Icon.warn}
-          <span>Das Ziel ist ein Ordner ohne Dateiname — bitte den Dateinamen ergänzen, sonst kann nicht verschoben werden.</span>
-        </div>
-      )}
-      {p.errorText && (
-        <div className="mvd-error">
-          {Icon.warn}
-          <span>{p.errorText}</span>
-        </div>
-      )}
-      <div className="mvd-btns">
-        <button type="button" className="mvd-btn ghost" onClick={p.onClose} disabled={p.busy}>
-          {VERSCHIEBEN.abbrechen}
-        </button>
-        <button
-          type="button"
-          className="mvd-btn primary"
-          onClick={p.onConfirm}
-          disabled={p.confirmDisabled}
-          title={confirmTitle}
-        >
-          {Icon.check}
-          {p.busy ? 'Arbeitet …' : confirmText}
-        </button>
-      </div>
-    </>
-  )
-}

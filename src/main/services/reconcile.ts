@@ -45,7 +45,12 @@ function archiveFile(path: string, opts: Opts): WriteResult {
   return applyWrite({ action: 'archive', path }, opts)
 }
 
+// Referenz-Rewrite fuer die Standalone-Route (W0). `skipRefRewrite: true` (aus
+// ApplyOptions) ueberspringt ihn: dann orchestriert die Integrity-Transaktion
+// den Rewrite selbst plan-treu ueber applyReferenceOps — ohne den kompletten
+// Baum-Walk, den rewriteReferencesForMove pro Loser→Survivor-Paar auslöst.
 function rewriteRefs(loserPath: string, survivorPath: string, opts: Opts): string | null {
+  if (opts.skipRefRewrite === true) return null
   if (!opts.archiveRoot || !opts.auditPath) return null
   const refs = rewriteReferencesForMove(loserPath, survivorPath, {
     archiveRoot: opts.archiveRoot,

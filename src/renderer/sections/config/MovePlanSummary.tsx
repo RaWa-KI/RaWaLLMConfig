@@ -12,7 +12,12 @@ import './MovePlanSummary.css'
 
 export interface MovePlanSummaryProps {
   plans: IntegrityPlan[]
+  // Ueberschrift der Blocker-Box; ohne Wert der Verschieben-Wortlaut. Der
+  // Ordner-Merge nutzt denselben Block mit eigener Ueberschrift (kein Neubau).
+  blockerTitle?: string
 }
+
+const BLOCKER_TITLE_MOVE = 'Verschieben nicht möglich — bitte manuell prüfen:'
 
 // Aus allen Plaenen abgeleitete Zaehler/Listen (dedupe ueber Dateipfade).
 interface PlanFacts {
@@ -36,13 +41,13 @@ function deriveFacts(plans: IntegrityPlan[]): PlanFacts {
   return { refOps, refFiles: Array.from(refFiles), blockers, manual }
 }
 
-export function MovePlanSummary({ plans }: MovePlanSummaryProps) {
+export function MovePlanSummary({ plans, blockerTitle }: MovePlanSummaryProps) {
   if (plans.length === 0) return null
   const f = deriveFacts(plans)
   return (
     <div className="mps">
       <RefBlock refOps={f.refOps} refFiles={f.refFiles} />
-      <BlockerBlock blockers={f.blockers} />
+      <BlockerBlock blockers={f.blockers} title={blockerTitle ?? BLOCKER_TITLE_MOVE} />
       <ManualBlock manual={f.manual} />
     </div>
   )
@@ -74,13 +79,13 @@ function RefBlock({ refOps, refFiles }: { refOps: number; refFiles: string[] }) 
   )
 }
 
-function BlockerBlock({ blockers }: { blockers: IntegrityPlan['blockers'] }) {
+function BlockerBlock({ blockers, title }: { blockers: IntegrityPlan['blockers']; title: string }) {
   if (blockers.length === 0) return null
   return (
     <div className="mps-blockers" role="alert">
       <div className="mps-blockers-head">
         {Icon.warn}
-        <strong>Verschieben nicht möglich — bitte manuell prüfen:</strong>
+        <strong>{title}</strong>
       </div>
       <ul>
         {blockers.map((b, i) => (

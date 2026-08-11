@@ -21,10 +21,16 @@ import {
 // Quell-Pfade aus der Single Source. .claude.json liegt NEBEN ~/.claude (parent
 // von claudeHome), config.toml unter codexHome. Default = real (M1 unveraendert);
 // mit RAWALLM_SANDBOX_ROOT zeigen beide unter <sandbox>.
-const ROOTS = configRoots()
-const CLAUDE_JSON = join(dirname(ROOTS.claudeHome), '.claude.json')
-const CODEX_TOML = join(ROOTS.codexHome, 'config.toml')
-const SHARED_PLUGINS_DIR = ROOTS.sharedClaude ? join(ROOTS.sharedClaude, 'plugins') : null
+function claudeJsonPath() {
+  return join(dirname(configRoots().claudeHome), '.claude.json')
+}
+function codexTomlPath() {
+  return join(configRoots().codexHome, 'config.toml')
+}
+function sharedPluginsDir() {
+  const shared = configRoots().sharedClaude
+  return shared ? join(shared, 'plugins') : null
+}
 
 // SSOT-Vertrag: Quellen wie ~/.claude.json und config.toml sind echte Secret-
 // WERT-Klassen (isSecretPathForRead === true). mcp-scan parst sie AUSSCHLIESSLICH
@@ -107,7 +113,7 @@ function isStructuralSource(p: string): boolean {
 
 // Claude: ~/.claude.json, Feld mcpServers (Top-Level). Nur Namen + Transport.
 function scanClaudeMcp(): Category | null {
-  const filePath = CLAUDE_JSON
+  const filePath = claudeJsonPath()
   try {
     if (!existsSync(filePath) || !isStructuralSource(filePath)) return null
     const raw = readFileSync(filePath, 'utf8')
@@ -161,7 +167,7 @@ function consumeTomlLine(line: string, keys: Set<string>): boolean {
 
 // Codex: ~/.codex/config.toml, Sektionen [mcp_servers.*].
 function scanCodexMcp(): Category | null {
-  const filePath = CODEX_TOML
+  const filePath = codexTomlPath()
   try {
     if (!existsSync(filePath) || !isStructuralSource(filePath)) return null
     const lines = readFileSync(filePath, 'utf8').split(/\r?\n/)
@@ -216,26 +222,27 @@ function collectTomlServers(lines: string[]): { name: string; transport: string 
 // NIE Secret-Werte lesen — nur Namen + Transport-Schluessel.
 function scanSharedMcp(): Category | null {
   try {
-    if (!SHARED_PLUGINS_DIR) return notConfiguredSharedMcp()
-    if (!existsSync(SHARED_PLUGINS_DIR)) return null
+    const pluginsDir = sharedPluginsDir()
+    if (!pluginsDir) return notConfiguredSharedMcp()
+    if (!existsSync(pluginsDir)) return null
     const servers: { name: string; transport: string; path: string }[] = []
-    const entries = readdirSync(SHARED_PLUGINS_DIR, { withFileTypes: true })
+    const entries = readdirSync(pluginsDir, { withFileTypes: true })
     for (const d of entries) {
       if (isSecretPathForRead(d.name)) continue
       if (d.isDirectory()) {
         if (d.name.startsWith('.')) continue
-        const dir = join(SHARED_PLUGINS_DIR, d.name)
+        const dir = join(pluginsDir, d.name)
         const transport = detectPluginTransport(dir)
         // path zeigt auf das eigene Manifest des Plugins, nicht auf den Sammelordner
         if (transport) servers.push({ name: d.name, transport, path: pluginManifestPath(dir) })
       } else if (d.isFile() && isMcpDeclarationFile(d.name)) {
         // Top-Level-Deklaration (.mcp.json / mcp.json) fuer den Plugins-Ordner
-        const fp = join(SHARED_PLUGINS_DIR, d.name)
+        const fp = join(pluginsDir, d.name)
         servers.push({ name: mcpFileName(d.name), transport: transportFromMcpJson(fp), path: fp })
       }
     }
     if (servers.length === 0) return null
-    return buildCategory(SHARED_PLUGINS_DIR, 'shared', servers)
+    return buildCategory(pluginsDir, 'shared', servers)
   } catch (err) {
     console.error('[scan:mcp-shared]', err instanceof Error ? err.message : 'scan-error')
     return null

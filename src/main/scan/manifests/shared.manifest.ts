@@ -39,7 +39,7 @@ function aCustom(def: (typeof A_CATEGORIES)[number]): CustomCategory {
         id: def.id,
         label: def.label,
         icon: def.icon,
-        path: path.join(sharedDir, def.dir),
+        path: path.join(sharedDir(), def.dir),
         blurb: def.blurb,
         entries: [],
       },
@@ -58,7 +58,7 @@ function buildCustom(
 
 // Leere Huellen-Fabrik (Metadaten exakt wie der Bestands-Builder im Nicht-Null-Fall).
 function shell(id: string, label: string, icon: string, rel: string, blurb: string): () => Category {
-  return () => ({ id, label, icon, path: path.join(sharedDir, rel), blurb, entries: [] })
+  return () => ({ id, label, icon, path: path.join(sharedDir(), rel), blurb, entries: [] })
 }
 
 export const sharedManifest: ProviderManifest = {
@@ -77,5 +77,3 @@ export const sharedManifest: ProviderManifest = {
   ],
 }
 
-// Lesbarkeits-Anker fuer den Equivalence-Test (Bestands-sharedDir).
-export const sharedManifestRoot = sharedDir

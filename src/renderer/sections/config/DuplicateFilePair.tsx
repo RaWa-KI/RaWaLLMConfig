@@ -10,6 +10,8 @@ import {
   BEHALTEN,
   BEHALTEN_MIRROR,
   WRITE_AUS,
+  intraAktionTexte,
+  isIntraFamilyDup,
   seiteForFamily
 } from '@shared/dup-labels'
 import { useReconcile } from '../../state/store-write-reconcile'
@@ -62,6 +64,10 @@ function FilePairRow({ d, open, onToggle }: { d: DuplicateSet; open: boolean; on
   const [renaming, setRenaming] = useState(false)
   const same = d.verdict === 'same'
   const rel = fileName(d.trunk.path) || fileName(d.mirror.path) || d.name
+  // Intra-Familien-Paar: Fassungs-Namen fuer die ehrlichen MoveDialog-Chips.
+  const fassungen = isIntraFamilyDup(d, ui.llm)
+    ? intraAktionTexte(d.trunk.path, d.mirror.path).fassungen
+    : null
   if (renaming) {
     return (
       <div className="dir-file-row">
@@ -82,6 +88,7 @@ function FilePairRow({ d, open, onToggle }: { d: DuplicateSet; open: boolean; on
         kind="Datei"
         sharedPath={d.trunk.path}
         claudePath={d.mirror.path}
+        fassungen={fassungen}
         knownPaths={knownPaths}
         onStartRename={() => setRenaming(true)}
       />
@@ -140,7 +147,7 @@ function FilePairActions({ d }: { d: DuplicateSet }) {
   }
   return (
     <FilePairButtonRow
-      name={d.name}
+      d={d}
       canon={canon}
       onCanon={setCanon}
       showAdopt={!isSame}
@@ -156,8 +163,10 @@ function FilePairActions({ d }: { d: DuplicateSet }) {
 // Präsentations-Knopfzeile fuer das Einzeldatei-Paar (HR27-Split aus
 // FilePairActions). Umschalter (Shared|Claude) + Übernehmen (mit Pfeil) / Behalten
 // (ohne Pfeil), spiegelbildlich je canon-Richtung; Texte seite-/canon-parametrisiert.
+// Intra-Familien-Paare (isIntraFamilyDup) erhalten die ehrlichen Fassungs-Texte
+// statt „Shared"/„deine Kopie" — nur Beschriftung, Mechanik unveraendert.
 interface FilePairButtonRowProps {
-  name: string
+  d: DuplicateSet
   canon: Canon
   onCanon(c: Canon): void
   showAdopt: boolean
@@ -168,15 +177,20 @@ interface FilePairButtonRowProps {
   onKeep(): void
 }
 
-function FilePairButtonRow({ name, canon, onCanon, showAdopt, dis, canonDis, disabledTitle, onAdopt, onKeep }: FilePairButtonRowProps) {
+function FilePairButtonRow({ d, canon, onCanon, showAdopt, dis, canonDis, disabledTitle, onAdopt, onKeep }: FilePairButtonRowProps) {
   const { ui } = useStore()
   const seite = seiteForFamily(ui.llm)
-  const adoptLbl = canon === 'trunk' ? UEBERNEHMEN(seite) : UEBERNEHMEN_TRUNK(seite)
-  const keepLbl = canon === 'trunk' ? BEHALTEN(seite) : BEHALTEN_MIRROR(seite)
+  const intra = isIntraFamilyDup(d, ui.llm) ? intraAktionTexte(d.trunk.path, d.mirror.path) : null
+  const adoptLbl = intra
+    ? (canon === 'trunk' ? intra.uebernehmen : intra.uebernehmenTrunk)
+    : (canon === 'trunk' ? UEBERNEHMEN(seite) : UEBERNEHMEN_TRUNK(seite))
+  const keepLbl = intra
+    ? (canon === 'trunk' ? intra.behalten : intra.behaltenMirror)
+    : (canon === 'trunk' ? BEHALTEN(seite) : BEHALTEN_MIRROR(seite))
   return (
     <div className="dup-row">
-      <span className="dup-name mono">{name}</span>
-      <CanonToggle canon={canon} onCanon={onCanon} disabled={canonDis} />
+      <span className="dup-name mono">{d.name}</span>
+      <CanonToggle canon={canon} onCanon={onCanon} disabled={canonDis} intra={intra} />
       <div className="dup-btns">
         {showAdopt && (
           <button type="button" className="dup-btn adopt" onClick={onAdopt} disabled={dis} title={disabledTitle ?? adoptLbl.wirkung}>

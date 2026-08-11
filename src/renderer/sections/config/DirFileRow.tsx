@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { DirCompare, DirFileEntry, DirFileStatus, DiffLabels } from '@shared/contract'
 import { Icon } from '../../components/Icon'
-import { PILL, SECRET_PAAR } from '@shared/dup-labels'
+import { PILL, SECRET_PAAR, intraFassungenAusLabels } from '@shared/dup-labels'
 import { DirFileDrill, type DirBases } from './DirFileDrill'
 import { DupRowActions } from './DupRowActions'
 import { DupRowRename } from './DupRowRename'
@@ -149,6 +149,8 @@ function DirFileHead({ f, labels, name, knownPaths, open, onToggle, onStartRenam
           kind="Datei"
           sharedPath={f.trunkPath}
           claudePath={f.mirrorPath}
+          // Intra-Familien-Paar (Fundstellen-Labels): ehrliche Fassungs-Chips im MoveDialog.
+          fassungen={intraFassungenAusLabels(labels)}
           knownPaths={knownPaths}
           onStartRename={onStartRename}
         />

@@ -11,14 +11,14 @@ import type { CredentialMeta } from '@shared/contract-write'
 
 // Credential-Key-Kern: EINMALIG definiert, wiederverwendet in detectCredentials
 // (Zuweisungs-Heuristik) und findCredentialLine (Zeilen-/Key-Auswahl).
-export const CRED_KEY_RX = /(?:password|passwd|token|secret|api[_-]?key|auth[_-]?key)/i
+const CRED_KEY_RX = /(?:password|passwd|token|secret|api[_-]?key|auth[_-]?key)/i
 
 // Bereits migrierter Wert: ${VAR}-Referenz (optional gequotet) am Wertanfang.
 const VAR_REF_VALUE_RX = /^["']?\$\{[A-Z_][A-Z0-9_]*\}/
 
 // VAR-Namens-Konvention aus Dateibasename ableiten (TH_DB_PW-Stil).
 // Liefert KEINEN Wert — nur den vorgeschlagenen Variablennamen.
-export function deriveVarName(filePath: string): string {
+function deriveVarName(filePath: string): string {
   const base = basename(filePath)
     .replace(/\.[^.]+$/, '') // Extension entfernen
     .replace(/[^a-zA-Z0-9]+/g, '_') // Nicht-Alphanum -> _

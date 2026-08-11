@@ -6,32 +6,16 @@
 //   (4) config.toml wird NUR maskiert getragen (kein Wert),
 //   (5) credentials/ wird NUR klassifiziert: kein Dateiname, kein Wert, keine
 //       Vorschau, keine searchKeys — nur Ordner-Metadaten (Existenz + Anzahl).
-// MECHANIK wie builddata-equivalence: RAWALLM_SANDBOX_ROOT wird VOR dem Require
-// gesetzt und der Scan-Subtree-Cache verworfen, damit die modul-gebundenen
-// *Dir-Konstanten unter der Sandbox neu aufgeloest werden.
+// MECHANIK: RAWALLM_SANDBOX_ROOT wird vor dem Scan gesetzt. Die Scan-Module
+// loesen ihre Wurzeln bei JEDEM Aufruf ueber configRoots() auf — ein statischer
+// Import reicht, kein require + Cache-Bust mehr noetig.
 // Runner: Playwright (test/expect) als reiner Node-Test-Runner (kein Browser).
 import { test, expect } from '@playwright/test'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LlmConfig } from '../../shared/contract'
+import { buildData } from '../../src/main/scan/scan-index'
 import { discoverSources } from '../../src/main/services/source-discovery'
-
-function bustScanCache(): void {
-  for (const key of Object.keys(require.cache)) {
-    const k = key.replace(/\\/g, '/')
-    if (k.includes('/src/main/scan/') || k.includes('/src/main/services/') || k.includes('/shared/contract')) {
-      delete require.cache[key]
-    }
-  }
-}
-
-function loadBuildData(): () => Record<string, LlmConfig> {
-  bustScanCache()
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const idx = require('../../src/main/scan/scan-index') as { buildData: () => Record<string, LlmConfig> }
-  return idx.buildData
-}
 
 function w(file: string, content: string): void {
   mkdirSync(join(file, '..'), { recursive: true })
@@ -59,9 +43,6 @@ test.beforeEach(() => {
 })
 test.afterEach(() => {
   delete process.env.RAWALLM_SANDBOX_ROOT
-  // Cache erneut verwerfen, NACHDEM die Env entfernt ist (sonst bleiben die
-  // Scan-Module an den geloeschten Sandbox-Pfad gebunden).
-  bustScanCache()
   try {
     rmSync(sandboxRoot, { recursive: true, force: true })
   } catch {
@@ -81,12 +62,14 @@ test('(1) discoverSources findet ~/.kimi-code als providerId kimi', () => {
 // (2)-(5) Scan-Ergebnis.
 test('(2-5) Familie kimi befuellt, userglobal uebernimmt, credentials nur klassifiziert', () => {
   seedKimi(sandboxRoot)
-  const data = loadBuildData()()
+  const data = buildData()
 
-  // (2) alle 5 Kategorien in fixer Reihenfolge, jede real befuellt.
+  // (2) alle 6 Kategorien in fixer Reihenfolge, jede real befuellt.
+  // kimi-skills kam 2026-08-11 dazu: ~/.kimi-code/skills existiert real und
+  // fehlte in der Familie (F10) — die Skills des Loaders waren unsichtbar.
   const cats = data.kimi?.categories ?? []
   expect(cats.map((c) => c.id)).toEqual([
-    'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-hooks', 'kimi-workspaces',
+    'kimi-instructions', 'kimi-settings', 'kimi-credentials', 'kimi-skills', 'kimi-hooks', 'kimi-workspaces',
   ])
   const count = (id: string): number => cats.find((c) => c.id === id)?.entries.length ?? -1
   expect(count('kimi-instructions'), 'AGENTS.md fehlt').toBeGreaterThan(0)
