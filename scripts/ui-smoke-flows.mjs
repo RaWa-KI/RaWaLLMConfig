@@ -142,7 +142,11 @@ async function addSource(win, runtime, dialogs) {
 
 async function setProjectRoot(win, runtime, dialogs) {
   await openSettings(win, 'tweaks')
-  const row = win.locator('.backup-row').filter({ hasText: 'RaWaLLMConfig-Ordner' })
+  // Die Verzeichnis-Felder liegen seit 0.1.12 in RootRows.tsx und tragen die
+  // Klasse .root-row (vorher .backup-row, das bleibt dem Backup-Ordner-Feld).
+  // Feldtitel und Buttonbeschriftung sind unveraendert — die Pruefabsicht
+  // (echter Klick auf „Ordner waehlen" der Projekt-Zeile) bleibt identisch.
+  const row = win.locator('.root-row').filter({ hasText: 'RaWaLLMConfig-Ordner' })
   assert(dialogs.ok, 'main dialog patch failed')
   await row.getByRole('button', { name: /Ordner wählen/i }).click()
   await waitFor(async () => {

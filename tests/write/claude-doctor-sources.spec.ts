@@ -26,6 +26,12 @@ function service(overrides: Partial<DoctorMcpEvidence>): DoctorMcpEvidence {
   }
 }
 
+// Die Fixtures unten sind bewusst Windows-Pfad-Literale. `path.basename` haengt
+// an der LAUFENDEN Plattform: auf POSIX ist "\" kein Trenner, dort lieferte
+// path.basename('C:\\plugins\\two\\agents\\same.md') den kompletten String
+// zurueck statt 'same.md' — die D5-Assertion auf sourceBasename schlug damit nur
+// unter Linux fehl (CI). Windows-Literale werden deshalb mit dem win32-Helfer
+// zerlegt (Muster der D6-Faelle unten: path.win32.join + explizites platform).
 function component(
   kind: DoctorComponentCandidate['kind'],
   scope: DoctorComponentCandidate['scope'],
@@ -37,7 +43,7 @@ function component(
     kind,
     scope,
     filePath,
-    sourceBasename: path.basename(filePath),
+    sourceBasename: path.win32.basename(filePath),
     ...(frontmatterName ? { frontmatterName } : {}),
     ...(pluginEnabled !== undefined ? { pluginEnabled } : {}),
   }
