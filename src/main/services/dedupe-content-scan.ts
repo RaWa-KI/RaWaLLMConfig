@@ -16,7 +16,7 @@ import { isManifestPath, manifestParent } from '@shared/manifest-map'
 import { isSecretPathForRead, isSecretDirName } from './secret-guard'
 import { configRoots, userSourceRootsForProvider } from './config-roots'
 import { kimiHome } from '../scan/manifests/kimi-cats'
-import { hashFile } from './dedupe-fs'
+import { hashFile, MAX_HASH_BYTES } from './dedupe-fs'
 import { normalizeCat } from './dedupe-key'
 import { buildDuplicateSet, hiddenDecisionKeys, isHiddenByDecision, pushUniqueSet } from './dedupe-set-builder'
 import type { DriftDecisionSource } from './drift-relation'
@@ -31,7 +31,7 @@ import { createDriftRelationStore } from './drift-relation-store'
 // nur echte Befunde mit Handhabe).
 const CAT_DIRS = ['skills', 'agents', 'rules', 'hooks', 'teams'] as const
 const SKIP_DIRS = new Set(['_memory', 'node_modules', '.git'])
-const MAX_HASH_BYTES = 10 * 1024 * 1024 // groessere Dateien: kein Hash (Log)
+// Size-Cap kommt aus dedupe-fs (eine Quelle): groessere Dateien werden nicht gehasht.
 const MAX_WALK_FILES = 5000 // Sicherheitsgrenze je Familien-Baum (Log + Kappung)
 
 interface FoundFile {

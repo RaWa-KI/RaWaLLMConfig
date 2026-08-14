@@ -173,7 +173,7 @@ function buildMachines(): Machine[] {
   } catch {
     label = 'Dieser PC'
   }
-  return [{ id: 'local', label, role: 'Lokal', path: '~/.claude', active: true }]
+  return [{ id: 'local', label, role: 'Lokal', path: '~', active: true }]
 }
 
 // Aggregiert alle Scanner zu AppData. Selbst klein gehalten; jede Teilaufgabe

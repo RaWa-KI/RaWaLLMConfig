@@ -12,6 +12,7 @@ export function ModelDiscoveryStep(props: {
   return (
     <section className="ob-section" aria-labelledby="ob-model-title">
       <h2 id="ob-model-title" className="ob-section-title">{msg('onboarding.modelDiscovery.title')}</h2>
+      <p className="ob-section-hint">Modellordner enthalten lokale Modelle, keine Einstellungen oder Projekte.</p>
       {hits.length === 0 ? <ModelEmpty onPickModelFolder={onPickModelFolder} busy={busy} /> : <ModelList hits={hits} />}
     </section>
   )

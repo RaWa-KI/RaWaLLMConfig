@@ -1,5 +1,6 @@
 {
   "name": "rawallmconfig",
+  "desktopName": "de.rawasuite.rawallmconfig.desktop",
   "version": "0.1.12",
   "description": "Local desktop app for inspecting and safely managing Claude, Codex, MCP, hooks, local models, and AI workspace configuration.",
   "author": "RaWaLLMConfig contributors",

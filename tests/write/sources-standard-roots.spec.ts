@@ -57,7 +57,9 @@ test('(c) Source-Pin: Standard-Markierung, Badge-Tooltip, Dialog-Guidance, Filte
   expect(row).toContain('Gelesen von:')
 
   const dlg = readFileSync(join(process.cwd(), 'src/renderer/sections/quellen/AddSourceDialog.tsx'), 'utf8')
-  expect(dlg).toContain('Standard-Ordner')
+  expect(dlg).toContain('Konfigurationsordner')
+  expect(dlg).toContain('Ordner hinzufügen')
+  expect(dlg).not.toContain('Quelle hinzufügen')
 
   const disco = readFileSync(join(process.cwd(), 'src/main/services/source-discovery.ts'), 'utf8')
   expect(disco).toContain('configRoots')

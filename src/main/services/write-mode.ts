@@ -9,8 +9,10 @@
 // (Single Source) — keine doppelte Pfadliste. KEINE Secret-Werte.
 import { join } from 'node:path'
 import { resolveDefaultArchiveRoot } from './backup'
+import { archiveRoot as fallbackArchiveRoot } from './app-paths'
 import { DEFAULT_AUDIT_PATH } from './audit-log'
 import { configRootList, activeSandboxRoot } from './config-roots'
+import { archiveRootVerdict, forbiddenArchiveRoots } from './archive-root-guard'
 
 // Zentrale, laienverstaendliche Begruendung, solange das Schreib-Gate AUS ist
 // (nur per ausdruecklichem Opt-out). EINZIGE Quelle — ipc-write.ts re-exportiert
@@ -135,8 +137,17 @@ export function getWriteContext(): WriteContext {
       sandboxRoot
     }
   }
+  // Archiv-Root fail-closed validieren (Security 2026-08-14): ein ungueltiger
+  // oder gefaehrlicher Wert (z. B. aus dem Renderer-schreibbaren archiveRoot-
+  // Pref) faellt auf den App-Default zurueck statt Roh-Backups dorthin zu
+  // leiten. Grund wird ohne Pfadwert protokolliert.
+  const requestedArchiveRoot = ENV.archiveOverride ?? resolveDefaultArchiveRoot()
+  const verdict = archiveRootVerdict(requestedArchiveRoot, forbiddenArchiveRoots())
+  if (!verdict.ok) {
+    console.error('[write-mode] archive-root verworfen:', verdict.reason)
+  }
   return {
-    archiveRoot: ENV.archiveOverride ?? resolveDefaultArchiveRoot(),
+    archiveRoot: verdict.ok ? requestedArchiveRoot : fallbackArchiveRoot(),
     auditPath: ENV.auditOverride ?? DEFAULT_AUDIT_PATH,
     allowedRoots,
     sandboxRoot: null

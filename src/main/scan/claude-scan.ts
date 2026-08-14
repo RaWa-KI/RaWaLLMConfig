@@ -123,6 +123,7 @@ function collectRules(): ConfigEntry[] {
 // collectSettings und scan-claude-plugins.ts (1 Inventardatei). Kein Scope-Kriechen (HR4).
 function collectHookEvents(fp: string): ConfigEntry[] {
   const out: ConfigEntry[] = []
+  if (!fs.existsSync(fp)) return out
   try {
     const s = JSON.parse(fs.readFileSync(fp, 'utf8')) as { hooks?: Record<string, unknown[]> }
     const updated = mtimeSafe(fp)
@@ -181,6 +182,7 @@ function collectHooks(): ConfigEntry[] {
 // Settings: nur Top-Level-Key-Namen + Strukturzaehler, Werte redacted.
 function collectSettings(): ConfigEntry[] {
   const fp = path.join(claudeDir(), 'settings.json')
+  if (!fs.existsSync(fp)) return []
   try {
     const s = JSON.parse(fs.readFileSync(fp, 'utf8')) as Record<string, unknown>
     const perm = s.permissions as { deny?: unknown[]; allow?: unknown[] } | undefined

@@ -97,6 +97,19 @@ async function firstCdpPage(browser) {
   return page
 }
 
+async function assertAppPage(browser, label) {
+  const win = await firstCdpPage(browser)
+  await win.waitForLoadState('domcontentloaded')
+  await win.locator('body').waitFor({ state: 'visible', timeout: 15_000 })
+  const bodyTextLength = await win.evaluate(() => document.body?.innerText?.trim().length ?? 0)
+  const shellMatches = await win.locator('.sec-btn, .settings-tabs, .nav-item, .rows, .empty, .ob-card').count()
+  const url = win.url()
+  assert(url.startsWith('app://host'), `unexpected ${label} URL: ${url}`)
+  assert(bodyTextLength >= 20, `${label} app is blank: ${bodyTextLength} characters`)
+  assert(shellMatches > 0, `${label} app shell is missing`)
+  return { url, title: await win.title(), bodyTextLength, shellMatches }
+}
+
 async function extractAppImage(path, tempRoot) {
   const target = join(tempRoot, 'appimage')
   await mkdir(target)
@@ -137,22 +150,10 @@ async function smokeAppImage(path, tempRoot) {
     await waitForSpawn(child, 'package-appimage')
     await waitForCdp(runtime.port)
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${runtime.port}`, { timeout: 10_000 })
-    const win = await firstCdpPage(browser)
-    await win.waitForLoadState('domcontentloaded')
-    await win.locator('body').waitFor({ state: 'visible', timeout: 15_000 })
-    const bodyTextLength = await win.evaluate(() => document.body?.innerText?.trim().length ?? 0)
-    const shellMatches = await win.locator('.sec-btn, .settings-tabs, .nav-item, .rows, .empty, .ob-card').count()
-    const url = win.url()
-    assert(url === 'app://host' || url.startsWith('app://host/'), `unexpected packaged URL: ${url}`)
-    assert(bodyTextLength >= 20, `packaged app is blank: ${bodyTextLength} characters`)
-    assert(shellMatches > 0, 'packaged app shell is missing')
     return {
       launchMode: 'appimage-wrapper-cdp',
       payload: extracted.payload,
-      url,
-      title: await win.title(),
-      bodyTextLength,
-      shellMatches
+      ...await assertAppPage(browser, 'packaged')
     }
   } finally {
     await browser?.close().catch((error) => {
@@ -162,23 +163,57 @@ async function smokeAppImage(path, tempRoot) {
   }
 }
 
+async function smokeInstalledBinary(path, tempRoot) {
+  await access(path, constants.X_OK)
+  const runtime = await prepareAppImageRuntime(join(tempRoot, 'installed'))
+  let browser
+  let child
+  try {
+    child = spawn(path, [
+      '--no-sandbox',
+      `--user-data-dir=${runtime.userData}`,
+      `--remote-debugging-port=${runtime.port}`
+    ], { env: runtime.env, stdio: 'ignore' })
+    await waitForSpawn(child, 'package-installed')
+    await waitForCdp(runtime.port)
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${runtime.port}`, { timeout: 10_000 })
+    return { path, ...await assertAppPage(browser, 'installed') }
+  } finally {
+    await browser?.close().catch((error) => {
+      console.error('[linux-package-smoke] installed CDP close failed:', String(error).slice(0, 160))
+    })
+    await terminateProcess(child)
+  }
+}
+
 async function checkDeb(path, tempRoot) {
-  const [name, version, architecture, contents] = await Promise.all([
+  const [name, version, architecture, dependencies, contents] = await Promise.all([
     command('dpkg-deb', ['--field', path, 'Package']),
     command('dpkg-deb', ['--field', path, 'Version']),
     command('dpkg-deb', ['--field', path, 'Architecture']),
+    command('dpkg-deb', ['--field', path, 'Depends']),
     command('dpkg-deb', ['--contents', path])
   ])
   assert(name === 'rawallmconfig', `unexpected deb package name: ${name}`)
   assert(version === pkg.version, `unexpected deb version: ${version}`)
   assert(architecture === 'amd64', `unexpected deb architecture: ${architecture}`)
+  const dependencyNames = dependencies.split(',').map((entry) => entry.trim().split(/[ (]/)[0])
+  assert(
+    dependencies.includes('libasound2t64 | libasound2'),
+    'deb dependencies lack the cross-release ALSA alternative'
+  )
   assert(contents.includes('resources/app.asar'), 'deb listing lacks resources/app.asar')
+  assert(
+    contents.includes('usr/share/applications/de.rawasuite.rawallmconfig.desktop'),
+    'deb listing lacks synchronized desktop entry'
+  )
   await command('dpkg', ['--dry-run', '--install', path])
   const target = join(tempRoot, 'deb')
   await mkdir(target)
   await command('dpkg-deb', ['--extract', path, target])
   return {
-    name, version, architecture, transaction: 'dpkg --dry-run --install',
+    name, version, architecture, dependencies: dependencyNames,
+    transaction: 'dpkg --dry-run --install',
     payload: await assertPayload(target, 'deb')
   }
 }
@@ -201,11 +236,19 @@ async function extractRpm(path, target) {
 async function checkRpm(path, tempRoot) {
   const metadata = await command('rpm', ['-qp', '--queryformat', '%{NAME}\n%{VERSION}\n%{ARCH}\n', path])
   const [name, version, architecture] = metadata.split(/\r?\n/)
-  const contents = await command('rpm', ['-qpl', path])
+  const [contents, requirements] = await Promise.all([
+    command('rpm', ['-qpl', path]),
+    command('rpm', ['-qpR', path])
+  ])
   assert(name === 'rawallmconfig', `unexpected rpm package name: ${name}`)
   assert(version === pkg.version, `unexpected rpm version: ${version}`)
   assert(architecture === 'x86_64', `unexpected rpm architecture: ${architecture}`)
+  assert(requirements.split(/\r?\n/).includes('alsa-lib'), 'rpm dependencies lack alsa-lib')
   assert(contents.includes('resources/app.asar'), 'rpm listing lacks resources/app.asar')
+  assert(
+    contents.includes('share/applications/de.rawasuite.rawallmconfig.desktop'),
+    'rpm listing lacks synchronized desktop entry'
+  )
   const transactionRoot = join(tempRoot, 'rpm-transaction')
   await mkdir(transactionRoot)
   await command('rpm', ['--root', transactionRoot, '--initdb'])
@@ -223,12 +266,16 @@ async function verifyArtifacts() {
   for (const path of Object.values(expected)) await access(path, constants.R_OK)
   const tempRoot = await mkdtemp(join(tmpdir(), 'rawallmconfig-linux-packages-'))
   const appImage = await assertElfAndMode(expected.appImage, 'AppImage')
-  return {
+  const evidence = {
     tempRoot,
     appImage: { ...appImage, smoke: await smokeAppImage(expected.appImage, tempRoot) },
     deb: await checkDeb(expected.deb, tempRoot),
     rpm: await checkRpm(expected.rpm, tempRoot)
   }
+  if (process.env.RAWALLM_INSTALLED_BINARY) {
+    evidence.installed = await smokeInstalledBinary(process.env.RAWALLM_INSTALLED_BINARY, tempRoot)
+  }
+  return evidence
 }
 
 async function writeReport(payload) {

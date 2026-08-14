@@ -8,6 +8,14 @@ import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 
+// Obergrenze fuer Hash-Reads (Security 2026-08-14: unbounded drift hashing).
+// hashFile laeuft synchron im Main-Prozess; ohne Cap koennten grosse gleichnamige
+// Dateien in zwei Provider-Roots (Drift-Relationen) oder Content-Dedupe-Funde den
+// Prozess blockieren (Speicher + Event-Loop). EINE Quelle — dedupe-content-scan
+// importiert den Wert (vorher lokale Kopie). Ueberschreitung -> null (graceful,
+// wie Lesefehler): die Datei gilt als nicht vergleichbar statt als 'same'.
+export const MAX_HASH_BYTES = 10 * 1024 * 1024
+
 /** True, wenn der absolute Pfad ein Verzeichnis ist (graceful bei Fehler). */
 export function isDirSafe(abs: string): boolean {
   try {
@@ -28,13 +36,13 @@ export function isFileSafe(abs: string): boolean {
   }
 }
 
-/** Liest Datei und liefert SHA-256-Hex; null wenn nicht lesbar (graceful). */
+/** Liest Datei und liefert SHA-256-Hex; null wenn nicht lesbar/zu gross (graceful). */
 export function hashFile(rawPath: string): string | null {
   try {
     const abs = resolvePath(rawPath)
     if (!abs) return null
     const st = statSync(abs)
-    if (!st.isFile()) return null
+    if (!st.isFile() || st.size > MAX_HASH_BYTES) return null
     return createHash('sha256').update(readFileSync(abs)).digest('hex')
   } catch (err) {
     fail('hashFile', err)

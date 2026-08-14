@@ -2,19 +2,15 @@ import type { PrefValue } from '@shared/contract-write'
 import { Icon } from '../../components/Icon'
 import { effectiveRootPath, sameFolder, type RootFieldKey } from './root-field-help'
 
-// RootRows — die drei Verzeichnis-Felder der Einstellungen (HR27-Split aus
-// PrefsSection.tsx). Jedes Feld erklaert in Alltagssprache, wofuer es da ist,
-// zeigt einen Beispielpfad und sagt, dass man es nur bei abweichendem Aufbau
-// aendern muss. Zusaetzlich sichtbar: der tatsaechlich wirksame Pfad — die App
-// normalisiert den gemeinsamen Ordner auf die darunterliegende `.claude`-Ebene,
-// was vorher unsichtbar war und wie ein ignorierter Eintrag wirkte (F9).
+// RootRows — die drei konfigurierbaren Grundordner. Sie erscheinen ausschliesslich
+// im Tab „Ordner“, gemeinsam mit weiteren Konfigurations- und Modellordnern.
 
 interface RootField {
   key: RootFieldKey
   label: string
   optional?: boolean
   help: string
-  beispiel: string
+  expectation: string
 }
 
 const ROOT_FIELDS: readonly RootField[] = [
@@ -22,20 +18,20 @@ const ROOT_FIELDS: readonly RootField[] = [
     key: 'roots.sharedClaude',
     label: 'Gemeinsamer Konfigurationsordner',
     optional: true,
-    help: 'Ein Ordner, den mehrere Arbeitsbereiche zusammen nutzen. Viele Aufbauten haben so etwas nicht — leer lassen ist völlig normal und kein Fehler.',
-    beispiel: '…\\Projekte\\.shared'
+    help: 'Nutze ihn nur, wenn mehrere Projekte bewusst gemeinsame Einstellungen verwenden. Ohne diesen Ordner arbeitet die App ganz normal weiter.',
+    expectation: 'Erwartet werden gemeinsame Einstellungsdateien. Leer lassen ist normal und löst keine Warnung aus.'
   },
   {
     key: 'roots.workspaceParent',
-    label: 'Arbeitsbereich-Ordner',
-    help: 'Der Ordner, in dem deine einzelnen Projektordner nebeneinander liegen.',
-    beispiel: '…\\Projekte'
+    label: 'Projektübersicht-Ordner',
+    help: 'Nutze ihn nur, wenn du mehrere Projekte in einem übergeordneten Ordner verwaltest.',
+    expectation: 'Erwartet werden einzelne Projektordner. Leer lassen, wenn du keine gemeinsame Projektübersicht brauchst.'
   },
   {
     key: 'roots.projectRoot',
-    label: 'RaWaLLMConfig-Ordner',
-    help: 'Der Ordner dieser App selbst.',
-    beispiel: '…\\Projekte\\RaWaLLMConfig'
+    label: 'App-Ordner',
+    help: 'Dieser Eintrag ist nur für eine abweichende Installation der App gedacht.',
+    expectation: 'Erwartet werden die Dateien dieser App. Leer lassen, wenn die App normal startet.'
   }
 ]
 
@@ -55,9 +51,9 @@ export function RootRows({ prefs, onSet }: RootRowsProps) {
 
   return (
     <div className="root-rows">
-      <div className="tweak-label">Verzeichnisse</div>
+      <div className="tweak-label">Grundordner</div>
       <p className="tweak-help">
-        Nur ändern, wenn dein Aufbau von der Beschreibung abweicht. Änderungen gelten nach dem Neustart der App.
+        Diese drei Angaben sind selten nötig. Ändere sie nur, wenn dein Aufbau davon abweicht; die Änderung gilt nach einem Neustart.
       </p>
       {ROOT_FIELDS.map((field) => (
         <RootRow
@@ -90,7 +86,8 @@ function RootRow({ field, value, warnung, onPick, onReset }: RootRowProps) {
           {field.label}
           {field.optional && <span className="root-optional"> · optional</span>}
         </div>
-        <p className="tweak-help">{field.help} Beispiel: <code>{field.beispiel}</code></p>
+        <p className="tweak-help">{field.help}</p>
+        <p className="tweak-help">{field.expectation}</p>
         <code className="backup-path">{value || (field.optional ? 'nicht gesetzt (normal)' : 'nicht konfiguriert')}</code>
         {wirksam && (
           <p className="root-effective">

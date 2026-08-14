@@ -223,7 +223,7 @@ function collectTomlServers(lines: string[]): { name: string; transport: string 
 function scanSharedMcp(): Category | null {
   try {
     const pluginsDir = sharedPluginsDir()
-    if (!pluginsDir) return notConfiguredSharedMcp()
+    if (!pluginsDir) return null
     if (!existsSync(pluginsDir)) return null
     const servers: { name: string; transport: string; path: string }[] = []
     const entries = readdirSync(pluginsDir, { withFileTypes: true })
@@ -246,14 +246,6 @@ function scanSharedMcp(): Category | null {
   } catch (err) {
     console.error('[scan:mcp-shared]', err instanceof Error ? err.message : 'scan-error')
     return null
-  }
-}
-
-function notConfiguredSharedMcp(): Category {
-  return {
-    id: 'plugins', label: 'Plugins / MCP', icon: 'plug', path: '',
-    blurb: 'Shared-Konfiguration ist nicht eingerichtet.',
-    entries: [{ id: 'mcp-shared-not-configured', name: 'Shared-Ordner nicht eingerichtet', status: 'stale', scope: 'shared', path: '', desc: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.', updated: '' }]
   }
 }
 

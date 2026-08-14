@@ -15,15 +15,15 @@ export function SourceChoiceStep({ hits, picked, onToggle }: Props): ReactElemen
       <div className="ob-state">
         <span className="ob-state-ic" aria-hidden>{Icon.folder}</span>
         <p>
-          Keine Standard-Ordner gefunden — du kannst die App leer starten und
-          später Ordner hinzufügen.
+          Keine Konfigurationsordner erkannt — du kannst die App ohne zusätzliche Konfiguration
+          starten und später unter Einstellungen → Ordner gezielt Ordner hinzufügen.
         </p>
       </div>
     )
   }
   return (
     <div className="ob-list-wrap">
-      <p className="ob-list-hint">Gefundene Ordner ({hits.length}):</p>
+      <p className="ob-list-hint">Erkannte Konfigurationsordner ({hits.length}):</p>
       <DiscoveryStep hits={hits} selected={picked} onToggle={onToggle} />
     </div>
   )

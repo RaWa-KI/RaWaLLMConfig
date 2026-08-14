@@ -79,6 +79,9 @@ function scanInstructions(): Category {
 function scanSettings(): Category {
   const entries: ConfigEntry[] = []
   const tomlPath = path.join(codexDir(), 'config.toml')
+  if (!fs.existsSync(tomlPath)) {
+    return cat('codex-settings', 'Settings', 'gear', tomlPath, 'config.toml — Sektionen/Keys (Werte redacted)', entries)
+  }
   try {
     const txt = fs.readFileSync(tomlPath, 'utf8')
     const lines = txt.split('\n')
@@ -136,7 +139,7 @@ function scanSettings(): Category {
 function scanHooks(): Category {
   const entries: ConfigEntry[] = []
   const hooksJson = path.join(codexDir(), 'hooks.json')
-  try {
+  if (fs.existsSync(hooksJson)) try {
     // WP17: hooks.json GENAU EINMAL lesen — JSON.parse, maskedPreview (raw)
     // und searchKeys teilen sich denselben Text (vorher 3 Reads + 1 stat).
     const rawTxt = fs.readFileSync(hooksJson, 'utf8')

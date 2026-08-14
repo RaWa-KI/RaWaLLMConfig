@@ -25,8 +25,8 @@ const MODULE_COPY: Record<IntegrationId, ModuleCopy> = {
       en: 'Your own folders that the app should also scan and explain.'
     },
     expert: {
-      de: 'Zusätzliche Scan-Roots aus der Quellenliste; wirkt auf Config-, Struktur- und Vergleichsflächen.',
-      en: 'Additional scan roots from the source list; affects config, structure, and comparison views.'
+      de: 'Zusätzliche Ordner, die du im Bereich „Ordner“ bewusst hinzufügst. Sie werden nur dort verwaltet.',
+      en: 'Additional folders you intentionally add in Folders. They are managed there only.'
     }
   },
   'shared-trunk': {
@@ -35,8 +35,8 @@ const MODULE_COPY: Record<IntegrationId, ModuleCopy> = {
       en: 'Shared rules for several workspaces; important when projects work together.'
     },
     expert: {
-      de: 'Erwartet den Shared-Trunk unter .shared/.claude mit rules, skills, agents, hooks und coordination.',
-      en: 'Expects the shared trunk under .shared/.claude with rules, skills, agents, hooks, and coordination.'
+      de: 'Optionaler gemeinsamer Regelbestand. Einen zugehörigen Ordner wählst du nur bei Bedarf im Bereich „Ordner“.',
+      en: 'Optional shared rules. Choose an associated folder in Folders only when you need one.'
     }
   },
   'workspace-registry': {
@@ -100,8 +100,8 @@ const LANGUAGE_PACK_HINT: Record<AppLocale, string> = {
 }
 
 const WATCHER_HELP: Record<AppLocale, string> = {
-  de: 'Der Toolchain-Watcher ist die Wartungsprüfung für bekannte Werkzeuge wie Codex oder Claude Code. Er liest vorhandene Quellen automatisch, prüft lokale Versionen und zeigt Hinweise oder Updates. Neue Werkzeuge richtet er nicht selbst ein; zusätzliche Quellen fügst du in Einrichtung oder Module hinzu.',
-  en: 'The toolchain watcher is the maintenance check for known tools such as Codex or Claude Code. It reads existing sources automatically, checks local versions, and shows notices or updates. It does not set up new tools by itself; add extra sources in setup or modules.'
+  de: 'Der Toolchain-Watcher ist die Wartungsprüfung für erkannte oder von dir aktivierte Werkzeuge. Er prüft vorhandene Quellen und zeigt Hinweise oder Updates. Neue Werkzeuge richtet er nicht ein; weitere Ordner fügst du im Bereich „Ordner“ hinzu.',
+  en: 'The toolchain watcher checks tools that are detected or enabled by you. It checks existing sources and shows notices or updates. It does not set up new tools; add folders in Folders.'
 }
 
 const SETTINGS_EXPERT_LIST: Record<AppLocale, string[]> = {

@@ -19,6 +19,7 @@ import {
 import { appendAudit, makeAuditEntry } from './services/audit-log'
 import { explain } from './services/explain'
 import { isWriteEnabled, getWriteContext } from './services/write-mode'
+import { archiveRootVerdict, forbiddenArchiveRoots } from './services/archive-root-guard'
 import { WRITE_DISABLED_REASON } from './ipc-write'
 import { markScanCachesStale } from './services/scan-invalidation'
 import { guardedAsync } from './lib/guarded'
@@ -132,6 +133,17 @@ export async function handlePrefsSet(req: PrefsSetRequest): Promise<PrefsSetResu
   }
   if (!isWriteEnabled()) return { data: null, error: WRITE_DISABLED_REASON }
   const value = req.value as PrefValue
+  // Security 2026-08-14: der archiveRoot-Pref ist kein generischer Tweak —
+  // er steuert das Backup-Ziel. Ungueltige/gefaehrliche Pfade werden hier
+  // abgelehnt (leerer String = Reset auf Default bleibt erlaubt); die
+  // fail-closed-Leseabsicherung sitzt zusaetzlich in getWriteContext().
+  if (req.key === 'archiveRoot' && typeof value === 'string' && value.trim() !== '') {
+    const verdict = archiveRootVerdict(value, forbiddenArchiveRoots())
+    if (!verdict.ok) {
+      console.error('[prefs] archive-root abgelehnt:', verdict.reason)
+      return { data: null, error: `invalid-archive-root:${verdict.reason}` }
+    }
+  }
   const out = await getActiveStore().set(req.key, value)
   if (!out.ok) return { data: null, error: out.error ?? 'prefs-set-failed' }
   appendAudit(makeAuditEntry('prefs-set', req.key, 'ok'), getWriteContext().auditPath)

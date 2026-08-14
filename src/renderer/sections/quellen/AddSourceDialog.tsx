@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AddSourceRequest, ProviderChoice } from '@shared/contract-sources'
 import { Icon } from '../../components/Icon'
 
-// Dialog zum Hinzufuegen einer neuen Config-Quelle. Schritte fuer den Owner:
+// Dialog zum Hinzufuegen eines weiteren Ordners. Schritte fuer den Nutzer:
 // 1) Ordner waehlen (oeffnet den System-Ordner-Dialog ueber pickFolder),
 // 2) Provider zuordnen, 3) optional einen eigenen Namen vergeben.
 // Hinzufuegen ist erst moeglich, wenn Ordner UND Provider gesetzt sind. Die
@@ -20,7 +20,7 @@ interface AddSourceDialogProps {
 
 export function AddSourceDialog({ providers, pickFolder, addSource, onClose, onResult }: AddSourceDialogProps) {
   const [root, setRoot] = useState<string | null>(null)
-  const [providerId, setProviderId] = useState<string>(providers[0]?.id ?? '')
+  const [providerId, setProviderId] = useState('')
   const [label, setLabel] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -57,19 +57,18 @@ export function AddSourceDialog({ providers, pickFolder, addSource, onClose, onR
   )
 }
 
-// Titel + Guidance: wann ein zusaetzlicher Ordner noetig ist (B8).
+// Titel + Guidance: Inhalt und Zweck des Ordners sind vor der Auswahl klar.
 function DialogHead() {
   return (
     <>
       <div className="itd-head">
         <span className="itd-ic">{Icon.folder}</span>
-        <h3>Quelle hinzufügen</h3>
+        <h3>Ordner hinzufügen</h3>
       </div>
       <p className="itd-detail">
-        Die App liest die Standard-Ordner deiner Werkzeuge (z. B. .claude und .codex in deinem
-        Benutzerordner) automatisch mit. Einen zusätzlichen Ordner brauchst du nur, wenn
-        Einstellungsdateien an einem anderen Ort liegen — etwa in einem eigenen Projekt- oder
-        Sicherungsordner. Wähle diesen Ordner und ordne ihn dem passenden Werkzeug zu.
+        Füge nur einen Ordner hinzu, dessen Inhalt du nutzen möchtest oder den die App erkannt hat.
+        Ein Konfigurationsordner enthält Einstellungen; ein lokaler Modellordner enthält Modelle.
+        Die Auswahl richtet kein Werkzeug ein und macht aus einem Ordner keinen Arbeitsbereich.
       </p>
     </>
   )
@@ -93,7 +92,7 @@ function FolderField({ root, onChoose }: { root: string | null; onChoose(): void
   )
 }
 
-// Schritt 2: Werkzeug (Provider) zuordnen — Liste kommt aus der Registry.
+// Schritt 2: bekannte Zuordnung wählen. Die Auswahl signalisiert Nutzung, keine Installation.
 function ProviderField(props: {
   providers: ProviderChoice[]
   providerId: string
@@ -102,25 +101,22 @@ function ProviderField(props: {
   const { providers, providerId, onChange } = props
   return (
     <label className="qs-field">
-      <span className="qs-field-lbl">2 · Werkzeug</span>
+      <span className="qs-field-lbl">2 · Zugehöriges Werkzeug</span>
       <select
         className="qs-select"
         value={providerId}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Werkzeug für diese Quelle"
       >
+        <option value="">Werkzeug auswählen</option>
         {providers.length === 0 && <option value="">Keine Werkzeuge verfügbar</option>}
         {providers.map((p) => (
           <option key={p.id} value={p.id}>{p.label}</option>
         ))}
       </select>
-      {/* Der Dialog fügt einen ZUSÄTZLICHEN Ordner zu einem bereits bekannten
-          Werkzeug hinzu. Für ein ganz neues Werkzeug reicht das nicht — das
-          war bisher nirgends gesagt und führte zu leeren Familien (F10). */}
       <p className="qs-field-help">
-        Hier kommt ein <b>weiterer Ordner</b> zu einem Werkzeug dazu, das die App schon kennt.
-        Ein <b>komplett neues Werkzeug</b> lässt sich so nicht ergänzen — dafür braucht es eine
-        Werkzeug-Beschreibung im Ordner <code>rawallm-providers</code>.
+        Wähle nur ein Werkzeug, das du bereits nutzt oder das die App erkannt hat. Die Auswahl
+        installiert nichts. Für lokale Modelle wähle die lokale Zuordnung und keinen Konfigurationsordner.
       </p>
     </label>
   )
@@ -130,7 +126,7 @@ function ProviderField(props: {
 function LabelField({ label, onChange }: { label: string; onChange(next: string): void }) {
   return (
     <label className="qs-field">
-      <span className="qs-field-lbl">3 · Name (optional)</span>
+      <span className="qs-field-lbl">3 · Anzeigename (optional)</span>
       <input
         className="qs-input"
         type="text"

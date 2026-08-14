@@ -156,13 +156,7 @@ export {
 // Trunk-Kanonik scannen: A (volle Karten) + Instructions + C (references/registry) + D (Zaehler).
 // B (changelogs/tracking) bewusst ausgelassen — gehoert in den Watcher.
 export function scanShared(): LlmConfig {
-  if (!sharedDir()) return {
-    categories: [{
-      id: 'shared-root-not-configured', label: 'Shared', icon: 'warning', path: '',
-      blurb: 'Shared-Konfiguration ist nicht eingerichtet.',
-      entries: [{ id: 'shared-root-not-configured', name: 'Shared-Ordner nicht eingerichtet', status: 'stale', scope: 'shared', path: '', desc: 'Nicht konfiguriert — bitte in Einstellungen einen Shared-Ordner waehlen.', updated: '' }]
-    }], duplicates: [], diffLabels: SHARED_DIFF_LABELS
-  }
+  if (!sharedDir()) return { categories: [], duplicates: [], diffLabels: SHARED_DIFF_LABELS }
   const categories: Category[] = []
   for (const def of A_CATEGORIES) {
     try {

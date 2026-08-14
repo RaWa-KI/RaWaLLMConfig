@@ -139,3 +139,26 @@ test('normalizes stdio packages, captures ports and excludes unrelated project M
   expect(JSON.stringify(context)).not.toContain('FIRST')
   expect(JSON.stringify(context)).not.toContain('SECOND')
 })
+
+// Security 2026-08-14 (unbounded doctor reads): JSON-Quellen ueber dem Cap
+// duerfen den Main-Prozess nicht mehr synchron einlesen — graceful 'too-large'
+// statt Freeze/OOM. Der Cap ist ueber deps.maxJsonBytes injizierbar.
+test('Size-Guard: uebergrosse JSON-Quelle wird nicht gelesen (too-large, graceful)', () => {
+  const sb = makeSandbox()
+  const claudeHome = path.join(sb.root, '.claude')
+  const statePath = path.join(sb.root, '.claude.json')
+  writeJson(statePath, { projects: { 'C:/x': {} }, fuellung: 'Y'.repeat(2048) })
+  const context = buildClaudeDoctorContext({ deps: {
+    configRoots: () => ({ claudeHome, codexHome: path.join(sb.root, '.codex'), sharedClaude: null, projectRoot: null }),
+    sharedDataRoots: () => null,
+    maxJsonBytes: 512,
+  } })
+  expect(context.sourceIssues).toEqual(
+    expect.arrayContaining([expect.objectContaining({ kind: 'claude-state', issue: 'too-large' })])
+  )
+  expect(context.coverage.sources).toEqual(
+    expect.arrayContaining([expect.objectContaining({ kind: 'claude-state', status: 'unavailable' })])
+  )
+  expect(context.projectKeys).toEqual([])
+  expect(JSON.stringify(context)).not.toContain('fuellung')
+})

@@ -7,12 +7,16 @@ import type { ConfigRoots } from '../services/config-roots'
 import { sharedDataRoots } from './shared-data-roots'
 import type { SharedDataRoots } from './shared-data-roots'
 import { collectLocalMcpServices, collectMcpServices } from './claude-doctor-mcp-context'
+import {
+  createJsonReader, isRecord, sourceRef, MAX_DOCTOR_JSON_BYTES
+} from './claude-doctor-json-reader'
+import type { DoctorSourceCoverage, DoctorSourceIssue, DoctorSourceRef, JsonReader } from './claude-doctor-json-reader'
+// HR27-Split: Reader in claude-doctor-json-reader.ts; DoctorSourceRef bleibt
+// hier re-exportiert (Bestands-Importe in mcp-context/source-audit).
+export type { DoctorSourceRef } from './claude-doctor-json-reader'
 export const DOCTOR_RULES = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11'] as const
 type DoctorRule = typeof DOCTOR_RULES[number]
 type DoctorSeverity = 'info' | 'warning' | 'conflict'
-type DoctorSourceKind = 'claude-state' | 'settings' | 'installed-plugins' | 'known-marketplaces'
-  | 'project-mcp' | 'plugin-mcp' | 'port-registry'
-export interface DoctorSourceRef { kind: DoctorSourceKind; basename: string }
 export interface DoctorFinding {
   rule: DoctorRule; kind: string; severity: DoctorSeverity; source: DoctorSourceRef
   evidence?: Array<{ key: string; value: string | number | boolean }>
@@ -25,6 +29,7 @@ export const DEFAULT_DOCTOR_LIMITS: DoctorLimits = {
   transcripts: { maxAgeDays: 10, maxFiles: 100, maxFileBytes: 8 * 1024 ** 2, maxTotalBytes: 64 * 1024 ** 2 },
   tempCandidates: { maxCandidates: 256, maxEntriesPerCandidate: 50_000, maxBytesPerCandidate: 2 * 1024 ** 3 },
 }
+// Size-Cap MAX_DOCTOR_JSON_BYTES liegt in claude-doctor-json-reader.ts (eine Quelle).
 type DoctorSettingsLayerName = 'managed' | 'local' | 'project' | 'user'
 export interface DoctorHookRegistration {
   event: string; type: string; timeoutSeconds?: number; async: boolean; scriptPath?: string
@@ -58,10 +63,6 @@ interface DoctorContextPaths {
   settings: Partial<Record<DoctorSettingsLayerName, string>>
   transcriptCandidates: string[]; tempCandidates: string[]
 }
-interface DoctorSourceCoverage extends DoctorSourceRef {
-  status: 'read' | 'unavailable' | 'invalid'; reads: 1
-}
-interface DoctorSourceIssue extends DoctorSourceRef { issue: 'unavailable' | 'invalid-json' }
 export interface ClaudeDoctorContext {
   paths: DoctorContextPaths; limits: DoctorLimits; projectKeys: string[]
   skillUsage: Record<string, number>; pluginUsage: Record<string, number>
@@ -76,50 +77,7 @@ export interface ClaudeDoctorContextOptions {
   paths?: Partial<Omit<DoctorContextPaths, 'settings'>> & { settings?: Partial<Record<DoctorSettingsLayerName, string>> }
   limits?: Partial<{ transcripts: Partial<DoctorLimits['transcripts']>; tempCandidates: Partial<DoctorLimits['tempCandidates']> }>
   unknownHigherSettingsLayer?: boolean
-  deps?: { configRoots?: () => ConfigRoots; sharedDataRoots?: () => SharedDataRoots | null; readText?: (filePath: string) => string }
-}
-interface JsonReader {
-  read(kind: DoctorSourceKind, filePath: string | null | undefined): unknown | null
-  status(filePath: string | null | undefined): DoctorSourceCoverage['status'] | undefined
-  coverage: DoctorSourceCoverage[]; issues: DoctorSourceIssue[]
-}
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
-}
-function sourceRef(kind: DoctorSourceKind, filePath: string): DoctorSourceRef {
-  return { kind, basename: path.basename(filePath) }
-}
-function createJsonReader(readText: (filePath: string) => string): JsonReader {
-  const cache = new Map<string, unknown | null>()
-  const states = new Map<string, DoctorSourceCoverage['status']>()
-  const coverage: DoctorSourceCoverage[] = []
-  const issues: DoctorSourceIssue[] = []
-  function read(kind: DoctorSourceKind, filePath: string | null | undefined): unknown | null {
-    if (!filePath) return null
-    const key = process.platform === 'win32' ? path.resolve(filePath).toLowerCase() : path.resolve(filePath)
-    if (cache.has(key)) return cache.get(key) ?? null
-    let raw: string
-    try { raw = readText(filePath) } catch {
-      cache.set(key, null); states.set(key, 'unavailable')
-      coverage.push({ ...sourceRef(kind, filePath), status: 'unavailable', reads: 1 })
-      issues.push({ ...sourceRef(kind, filePath), issue: 'unavailable' }); return null
-    }
-    try {
-      const parsed = JSON.parse(raw) as unknown
-      cache.set(key, parsed); states.set(key, 'read')
-      coverage.push({ ...sourceRef(kind, filePath), status: 'read', reads: 1 }); return parsed
-    } catch {
-      cache.set(key, null); states.set(key, 'invalid')
-      coverage.push({ ...sourceRef(kind, filePath), status: 'invalid', reads: 1 })
-      issues.push({ ...sourceRef(kind, filePath), issue: 'invalid-json' }); return null
-    }
-  }
-  const status = (filePath: string | null | undefined): DoctorSourceCoverage['status'] | undefined => {
-    if (!filePath) return undefined
-    const key = process.platform === 'win32' ? path.resolve(filePath).toLowerCase() : path.resolve(filePath)
-    return states.get(key)
-  }
-  return { read, status, coverage, issues }
+  deps?: { configRoots?: () => ConfigRoots; sharedDataRoots?: () => SharedDataRoots | null; readText?: (filePath: string) => string; maxJsonBytes?: number }
 }
 function resolvePaths(options: ClaudeDoctorContextOptions): DoctorContextPaths {
   const roots = (options.deps?.configRoots ?? configRoots)()
@@ -257,7 +215,8 @@ function mergeLimits(input: ClaudeDoctorContextOptions['limits']): DoctorLimits 
 }
 export function buildClaudeDoctorContext(options: ClaudeDoctorContextOptions = {}): ClaudeDoctorContext {
   const paths = resolvePaths(options)
-  const reader = createJsonReader(options.deps?.readText ?? ((filePath) => fs.readFileSync(filePath, 'utf8')))
+  const reader = createJsonReader(options.deps?.readText ?? ((filePath) => fs.readFileSync(filePath, 'utf8')),
+    options.deps?.maxJsonBytes ?? MAX_DOCTOR_JSON_BYTES)
   const state = reader.read('claude-state', paths.claudeStateJson)
   const stateNode = isRecord(state) ? state : {}
   const layers = (['managed', 'local', 'project', 'user'] as const).map((name, index) => settingsLayer(name, index, paths.settings[name], reader))

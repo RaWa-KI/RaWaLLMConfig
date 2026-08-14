@@ -5,6 +5,9 @@ import { useSources } from '../../state/useSources'
 import { SourceRow } from './SourceRow'
 import { AddSourceDialog } from './AddSourceDialog'
 import { CloudProviderToggles } from './CloudProviderToggles'
+import { ModuleFolderAssignments } from './ModuleFolderAssignments'
+import { RootRows } from '../prefs/RootRows'
+import { usePrefs } from '../../state/store-write-prefs'
 import './quellen.css'
 
 // Quellen-Verwaltung: zeigt die vom Owner registrierten Config-Ordner an und
@@ -16,6 +19,7 @@ import './quellen.css'
 export function SourcesSection() {
   const { actions } = useStore()
   const src = useSources()
+  const { prefs, setPref } = usePrefs()
   const [adding, setAdding] = useState(false)
 
   async function syncAll(msg = 'Quellen neu synchronisiert'): Promise<void> {
@@ -46,6 +50,18 @@ export function SourcesSection() {
 
   return (
     <main id="settings-tab-sources" className="main qs-wrap">
+      <div className="view-head qs-intro">
+        <div className="view-title">
+          <h2>Ordner</h2>
+          <p>
+            Hier legst du alle Ordner für diese App fest: Grundordner, weitere Einstellungen,
+            lokale Modelle und optionale Module. Füge nur Ordner hinzu, die du nutzt oder die die App erkannt hat.
+          </p>
+        </div>
+      </div>
+      <section className="qs-root-card" aria-label="Grundordner">
+        <RootRows prefs={prefs} onSet={(key, value) => void setPref(key, value)} />
+      </section>
       <CloudProviderToggles />
 
       <SourcesHeader
@@ -55,6 +71,8 @@ export function SourcesSection() {
       />
 
       <SourcesBody src={src} onToggle={onToggle} onRemove={onRemove} />
+
+      <ModuleFolderAssignments />
 
       {adding && (
         <AddSourceHost src={src} onClose={() => setAdding(false)} onResult={onAddResult} />
@@ -81,16 +99,16 @@ function AddSourceHost(props: {
   )
 }
 
-// Kopfzeile: Titel, Guidance und die beiden Aktionen (Sync + Hinzufuegen).
+// Kopfzeile: die weiteren Ordner ergaenzen alle oben erklärten Grundordner.
 function SourcesHeader(props: { loading: boolean; onSync(): void; onAdd(): void }) {
   const { loading, onSync, onAdd } = props
   return (
     <div className="view-head">
       <div className="view-title">
-        <h2>Zusätzliche Ordner</h2>
+        <h2>Weitere Konfigurations- und Modellordner</h2>
         <p>
-          Diese Ordner durchsucht die App zusätzlich nach Einstellungsdateien. Die Standard-Ordner
-          werden ohnehin gelesen — hier ergänzt du nur eigene Pfade.
+          Konfigurationsordner enthalten Einstellungen. Lokale Modellordner enthalten Modelle.
+          Wenn hier nichts steht, nutzt die App nur die Grundordner und erkannte Standardordner.
         </p>
       </div>
       <div className="qs-actions">
@@ -100,7 +118,7 @@ function SourcesHeader(props: { loading: boolean; onSync(): void; onAdd(): void 
         </button>
         <button type="button" className="btn-ghost" onClick={onAdd} disabled={loading}>
           {Icon.plus}
-          Quelle hinzufügen
+          Ordner hinzufügen
         </button>
       </div>
     </div>
@@ -118,7 +136,7 @@ function SourcesBody(props: {
     return (
       <div className="empty">
         {Icon.refresh}
-        <p>Lade Quellen …</p>
+        <p>Lade Ordner …</p>
       </div>
     )
   }
@@ -135,8 +153,8 @@ function SourcesBody(props: {
       <div className="empty">
         {Icon.folder}
         <p>
-          Noch keine eigenen Quellen — die App nutzt die Standard-Ordner. Mit „Quelle hinzufügen“
-          wählst du weitere Ordner.
+          Noch keine weiteren Ordner. Das ist normal: Die App nutzt nur Grundordner und erkannte
+          Standardordner, bis du hier bewusst einen weiteren Ordner hinzufügst.
         </p>
       </div>
     )

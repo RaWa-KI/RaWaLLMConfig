@@ -9,7 +9,6 @@ import { useLocale } from '../../state/store-locale'
 import { useStore } from '../../state/store'
 import { usePrefs } from '../../state/store-write-prefs'
 import { DisplayModeCard } from '../settings/DisplayModeCard'
-import { RootRows } from './RootRows'
 
 // PrefsSection — Tweaks/App-Prefs (F-Tweaks). Zeigt die Tweaks an und speichert
 // sie via usePrefs() (Main: backup-first + atomar). Persistierter Zustand wird
@@ -178,7 +177,7 @@ export function PrefsSection() {
       <div className="view-head">
         <div className="view-title">
           <h2>Darstellung</h2>
-          <p>Optik, Sprache und Backup-Ordner der App · jede Änderung wird mit Backup gespeichert.</p>
+          <p>Optik, Sprache und Sicherungen der App · jede Änderung wird mit Backup gespeichert.</p>
         </div>
       </div>
 
@@ -212,7 +211,6 @@ export function PrefsSection() {
           onPick={() => void pickArchiveRoot()}
           onReset={() => void setPref('archiveRoot', '')}
         />
-        <RootRows prefs={prefs} onSet={(key, value) => void setPref(key, value)} />
       </div>
 
       {storeHint && (

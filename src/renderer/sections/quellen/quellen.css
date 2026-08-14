@@ -7,8 +7,10 @@
 .qs-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 1rem;
   grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
 }
 
 .qs-wrap .view-head {
@@ -22,6 +24,50 @@
 .qs-wrap .view-title p {
   font-size: 12.5px; font-weight: 600; color: var(--text-lt);
   margin-top: 3px; line-height: 1.5; max-width: 62ch;
+}
+
+.qs-intro,
+.qs-root-card,
+.qs-module-folders {
+  width: 100%;
+  max-width: 68rem;
+  min-width: 0;
+}
+
+.qs-root-card {
+  padding: var(--pad);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.qs-module-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.qs-module-grid {
+  width: 100%;
+}
+
+.qs-module-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--text-lt);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.qs-module-footnote svg {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
 }
 
 .qs-actions {
@@ -127,4 +173,12 @@
   .qs-row { grid-template-columns: 44px 1fr; gap: 8px 12px; }
   .qs-ic { display: none; }
   .qs-provider, .qs-act, .qs-confirm { justify-self: start; grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  .qs-wrap .view-head { flex-direction: column; }
+  .qs-actions { width: 100%; }
+  .qs-actions .btn-ghost { flex: 1 1 auto; justify-content: center; }
+  .qs-pick { align-items: flex-start; flex-direction: column; }
+  .qs-pick-val { overflow-wrap: anywhere; white-space: normal; }
 }

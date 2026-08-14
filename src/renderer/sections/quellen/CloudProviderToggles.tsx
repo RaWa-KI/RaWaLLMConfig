@@ -56,10 +56,10 @@ export function CloudProviderToggles() {
     <section className="qs-cloud" aria-labelledby="qs-cloud-title">
       <div className="view-head">
         <div className="view-title">
-          <h2 id="qs-cloud-title">Cloud-Anbieter</h2>
+          <h2 id="qs-cloud-title">Cloud-Anbieter · optional</h2>
           <p>
-            Welche Cloud-Anbieter nutzt du? Nur für aktivierte Anbieter prüft die App,
-            ob ein Zugangsschlüssel fehlt. Ausgeschaltete Anbieter bleiben ohne Hinweise.
+            Diese Auswahl zeigt mögliche Anbieter, keine erkannten Installationen. Schalte nur einen
+            Anbieter ein, den du wirklich nutzt; erst dann prüft die App den Zugang.
           </p>
         </div>
       </div>

@@ -4,8 +4,10 @@
 // codex/agents) werden DriftRelation mit suggestion 'parity' und Hash-Status.
 // ALLE Pfade liegen in einer temp-Sandbox (NIE reale Config); Inhalte Dummy.
 import { test, expect } from '@playwright/test'
+import { appendFileSync, statSync } from 'node:fs'
 import { findDriftRelations } from '../../src/main/services/drift-relation'
 import { createDriftRelationStore } from '../../src/main/services/drift-relation-store'
+import { hashFile, MAX_HASH_BYTES } from '../../src/main/services/dedupe-fs'
 import { driftRelationKey } from '../../shared/contract-drift'
 import { makeSandbox, seedFile } from './fixtures'
 import type { Sandbox } from './fixtures'
@@ -153,4 +155,35 @@ test('nicht-userglobal-Kategorien werden ignoriert (shared-/nackte Achsen)', () 
   }
   findDriftRelations(data, mkStore(sb))
   expect(relations(data)).toHaveLength(0)
+})
+
+// Security 2026-08-14 (unbounded drift hashing): hashFile hat einen Size-Guard.
+// Riesige gleichnamige Dateien in zwei Provider-Roots duerfen den Main-Prozess
+// nicht mehr blockieren — Oversize gilt als nicht vergleichbar (sha256 fehlt,
+// Status 'diff'), statt synchron eine unbegrenzte Datei zu lesen.
+test('Size-Guard: Datei ueber MAX_HASH_BYTES wird nicht gehasht', () => {
+  const sb = makeSandbox()
+  const big = seedFile(sb, 'big.md', 'KOPF\n')
+  appendFileSync(big, Buffer.alloc(MAX_HASH_BYTES + 1, 65))
+  expect(statSync(big).size).toBeGreaterThan(MAX_HASH_BYTES)
+  expect(hashFile(big)).toBeNull()
+  const small = seedFile(sb, 'small.md', 'klein\n')
+  expect(typeof hashFile(small)).toBe('string')
+})
+
+test('Size-Guard: Oversize-Mitglieder liefern sha256 undefined und status diff', () => {
+  const sb = makeSandbox()
+  const claudePath = seedFile(sb, 'claude-big.md', 'KOPF\n')
+  const codexPath = seedFile(sb, 'codex-big.md', 'KOPF\n')
+  appendFileSync(claudePath, Buffer.alloc(MAX_HASH_BYTES + 1, 66))
+  appendFileSync(codexPath, Buffer.alloc(MAX_HASH_BYTES + 1, 66))
+  const data = mkData([
+    mkCat('userglobal-claude-skills', [mkEntry('c-big', 'big', claudePath)]),
+    mkCat('userglobal-codex-skills', [mkEntry('x-big', 'big', codexPath)]),
+  ])
+  findDriftRelations(data, mkStore(sb))
+  expect(relations(data)).toHaveLength(1)
+  const rel = relations(data)[0]
+  expect(rel.status).toBe('diff')
+  expect(rel.members.every((m) => m.sha256 === undefined)).toBe(true)
 })

@@ -10,11 +10,12 @@ interface IntegrationCardProps {
   displayMode: DisplayMode
   busy: boolean
   bridgeReady: boolean
+  showFolderAction?: boolean
   onToggle(module: ModuleCardState): void
 }
 
 export function IntegrationCard(props: IntegrationCardProps) {
-  const { module, displayMode, busy, bridgeReady, onToggle } = props
+  const { module, displayMode, busy, bridgeReady, showFolderAction = false, onToggle } = props
   const { definition } = module
   const canToggle = !definition.informational && bridgeReady
   const canChooseFolder = canToggle && definition.folderAction && typeof window.electronAPI?.pickFolder === 'function'
@@ -47,7 +48,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
             {actionLabel}
           </button>
         )}
-        {definition.folderAction && (
+        {definition.folderAction && showFolderAction && (
           <button type="button" className="btn-ghost sm" disabled={!canChooseFolder || busy} onClick={() => void chooseFolder()}>
             {Icon.folder}
             {msg('integrations.action.chooseFolder')}

@@ -13,6 +13,7 @@ export function IntegrationsSection() {
       <div className="view-head">
         <div className="view-title">
           <h2>{msg('integrations.title')}</h2>
+          <p className="mi-folder-guide">Ordner ordnest du in Einstellungen → Ordner zu. Hier aktivierst oder pausierst du nur Funktionen.</p>
         </div>
         {message && (
           <div className="mi-message" role="status">
@@ -29,6 +30,7 @@ export function IntegrationsSection() {
             displayMode={ui.displayMode}
             busy={busyId === module.id}
             bridgeReady={bridgeReady}
+            showFolderAction={false}
             onToggle={(item) => void toggle(item)}
           />
         ))}

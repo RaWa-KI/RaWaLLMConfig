@@ -31,7 +31,6 @@ export function OnboardingFlow({ src }: { src: UseSources }): ReactElement {
         />
         <ObActions
           phase={flow.phase}
-          pickedCount={flow.picked.size}
           onTakeOver={() => void flow.takeOver()}
           onSkip={() => void flow.skip()}
           onPickOwn={() => void flow.pickOwn()}
@@ -47,8 +46,9 @@ function ObHeader(): ReactElement {
       <span className="ob-logo" aria-hidden>{Icon.sparkle}</span>
       <h1 className="ob-title">Willkommen</h1>
       <p className="ob-lead">
-        Diese App zeigt dir deine KI-Konfigurationen übersichtlich an. Wähle unten,
-        welche Ordner sie einlesen soll. Du kannst das später jederzeit ändern.
+        Diese App zeigt dir deine KI-Konfigurationen übersichtlich an. Konfigurationsordner
+        und Modellordner bleiben getrennt: Wähle nur Ordner, die du nutzen möchtest. Du kannst
+        alles später unter Einstellungen → Ordner ändern.
       </p>
     </header>
   )
@@ -81,12 +81,11 @@ function ObBody(props: {
 
 function ObActions(props: {
   phase: OnboardingPhase
-  pickedCount: number
   onTakeOver: () => void
   onSkip: () => void
   onPickOwn: () => void
 }): ReactElement {
-  const { phase, pickedCount, onTakeOver, onSkip, onPickOwn } = props
+  const { phase, onTakeOver, onSkip, onPickOwn } = props
   const busy = phase === 'busy'
   const scanning = phase === 'scan'
   return (
@@ -99,9 +98,9 @@ function ObActions(props: {
         <button type="button" className="btn ghost" onClick={onSkip} disabled={busy}>
           Überspringen
         </button>
-        <button type="button" className="btn primary" onClick={onTakeOver} disabled={busy || scanning || pickedCount === 0}>
+        <button type="button" className="btn primary" onClick={onTakeOver} disabled={busy || scanning}>
           {Icon.check}
-          Quellen übernehmen
+          Einrichtung abschließen
         </button>
       </div>
     </footer>

@@ -10,7 +10,7 @@ import { providerRegistry } from '../manifests'
 import { loadUserManifests } from '../providers/manifest-loader'
 import { scanProvider } from './scan-engine'
 import { ggufRoots, LOCAL_DIFF_LABELS, LOCAL_COMING_SOON } from '../llm-scan'
-import { isProviderScanEnabled } from '../integration-filter'
+import { isProviderPresent } from '../provider-presence'
 import { yieldToEventLoop } from '../../lib/yield-loop'
 
 // Original-data-Key-Reihenfolge (scan-index.ts buildData, M1-Stand). findDuplicates/
@@ -40,8 +40,8 @@ function safeScan(name: string, fn: () => LlmConfig): LlmConfig {
   }
 }
 
-function scanIfEnabled(manifest: ProviderManifest): LlmConfig {
-  return isProviderScanEnabled(manifest.id)
+function scanIfPresent(manifest: ProviderManifest, explicit = false): LlmConfig {
+  return isProviderPresent(manifest, explicit)
     ? safeScan(manifest.id, () => scanProvider(manifest))
     : emptyConfig()
 }
@@ -76,7 +76,7 @@ export function scanRegistry(): Record<string, LlmConfig> {
   // 1) Bestands-Familien in fixer Reihenfolge -> Migrations-Gleichheit (B-6).
   for (const id of DATA_ORDER) {
     const m = byId.get(id)
-    data[id] = m ? scanIfEnabled(m) : emptyConfig()
+    data[id] = m ? scanIfPresent(m) : emptyConfig()
   }
   // llm-comingSoon-Frueh-Return (LlmConfig-Ebene) reproduzieren (vor mergeMcp).
   data.local = applyLocalComingSoon(data.local)
@@ -85,13 +85,13 @@ export function scanRegistry(): Record<string, LlmConfig> {
   //    Gleichheit der Bestands-Familien bleibt unberuehrt.
   for (const m of registry) {
     if ((DATA_ORDER as readonly string[]).includes(m.id) || data[m.id]) continue
-    data[m.id] = scanIfEnabled(m)
+    data[m.id] = scanIfPresent(m)
   }
   // 3) Nutzerdefinierte Laufzeit-Manifeste (D6), graceful (fehlendes Verzeichnis
   //    -> leer). Built-in gewinnt bei id-Kollision (kein Override der Bestaende).
   for (const m of loadUserManifests().manifests) {
     if (data[m.id]) continue
-    data[m.id] = scanIfEnabled(m)
+    data[m.id] = scanIfPresent(m, true)
   }
   return data
 }
@@ -108,18 +108,18 @@ export async function scanRegistryAsync(): Promise<Record<string, LlmConfig>> {
   for (const id of DATA_ORDER) {
     await yieldToEventLoop()
     const m = byId.get(id)
-    data[id] = m ? scanIfEnabled(m) : emptyConfig()
+    data[id] = m ? scanIfPresent(m) : emptyConfig()
   }
   data.local = applyLocalComingSoon(data.local)
   for (const m of registry) {
     if ((DATA_ORDER as readonly string[]).includes(m.id) || data[m.id]) continue
     await yieldToEventLoop()
-    data[m.id] = scanIfEnabled(m)
+    data[m.id] = scanIfPresent(m)
   }
   for (const m of loadUserManifests().manifests) {
     if (data[m.id]) continue
     await yieldToEventLoop()
-    data[m.id] = scanIfEnabled(m)
+    data[m.id] = scanIfPresent(m, true)
   }
   return data
 }
