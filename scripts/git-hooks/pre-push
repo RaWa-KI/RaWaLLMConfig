@@ -14,10 +14,18 @@ POLICY_LOCAL="$ROOT/scripts/git-hooks/public-push-policy.local.txt"
 ZERO="0000000000000000000000000000000000000000"
 EMPTY_TREE="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
-[ -f "$POLICY" ] || { echo "pre-push: Policy-Datei fehlt ($POLICY) — Push blockiert (fail-closed)." >&2; exit 1; }
+PATHS_FILE="$(mktemp)"; PATTERNS_FILE="$(mktemp)"; POLICY_TMP=""
+trap 'rm -f "$PATHS_FILE" "$PATTERNS_FILE" "$POLICY_TMP"' EXIT
 
-PATHS_FILE="$(mktemp)"; PATTERNS_FILE="$(mktemp)"
-trap 'rm -f "$PATHS_FILE" "$PATTERNS_FILE"' EXIT
+# Policy aus dem Worktree; falls der ausgecheckte Stand sie nicht kennt,
+# Fallback auf origin/main. Fehlt sie auch dort: fail-closed.
+if [ ! -f "$POLICY" ]; then
+  POLICY_TMP="$(mktemp)"
+  git show origin/main:scripts/git-hooks/public-push-policy.txt > "$POLICY_TMP" 2>/dev/null \
+    && POLICY="$POLICY_TMP" \
+    || { echo "pre-push: Policy-Datei weder im Worktree noch auf origin/main — Push blockiert (fail-closed)." >&2; exit 1; }
+fi
+
 grep -h '^PATH:' "$POLICY" "$POLICY_LOCAL" 2>/dev/null | cut -d: -f2- > "$PATHS_FILE"
 grep -h '^PATTERN:' "$POLICY" "$POLICY_LOCAL" 2>/dev/null | cut -d: -f2- > "$PATTERNS_FILE"
 [ -f "$POLICY_LOCAL" ] && LOCAL_NOTE=" (+ lokale persoenliche Muster)"
