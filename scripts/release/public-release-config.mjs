@@ -7,6 +7,7 @@ export const ROOT_FILES = new Set([
   'CONTRIBUTING.md',
   'LICENSE',
   'NOTICE',
+  'PUSH-CHECKLISTE.md',
   'README.md',
   'SECURITY.md',
   'electron-builder.yml',
