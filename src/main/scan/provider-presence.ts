@@ -5,6 +5,7 @@ import type { ProviderManifest } from '@shared/contract-provider'
 import { resolveRoots, userSourceRootsForProvider } from '../services/config-roots'
 import { isCloudProviderEnabled } from '../services/cloud-provider-state'
 import { isProviderScanEnabled } from './integration-filter'
+import { ggufRoots } from './llm-scan'
 
 const CLOUD_IDS = ['openai', 'anthropic', 'gemini'] as const
 const CLOUD_ENV_NAMES = [
@@ -36,6 +37,10 @@ export function isProviderPresent(manifest: ProviderManifest, explicit = false):
   if (!isProviderScanEnabled(manifest.id)) return false
   if (explicit) return true
   if (manifest.id === 'cloud') return cloudIsPresent()
+  // local: dieselbe Evidenz wie scanLocalLlm (ggufRoots inkl. Env-/Laufwerks-
+  // Kandidaten) — manifest.roots deckt nur den Default-Root ab und wuerde
+  // Modelle auf externen Laufwerken als "nicht vorhanden" klassifizieren.
+  if (manifest.id === 'local') return ggufRoots().some(pathExists)
   if (userSourceRootsForProvider(manifest.id).length > 0) return true
   return resolveRoots(manifest.roots, manifest.id).some(pathExists)
 }
