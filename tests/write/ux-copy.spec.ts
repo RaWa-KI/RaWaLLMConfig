@@ -9,7 +9,7 @@ import {
 
 test('module descriptions differ between simple and expert wording', () => {
   expect(moduleDescription('shared-trunk', 'simple')).toContain('Gemeinsame Regeln')
-  expect(moduleDescription('shared-trunk', 'expert')).toContain('.shared/.claude')
+  expect(moduleDescription('shared-trunk', 'expert')).toContain('Ordner')
   expect(moduleDescription('graphify', 'simple')).not.toEqual(moduleDescription('graphify', 'expert'))
 })
 
@@ -29,7 +29,7 @@ test('settings helper copy names local file fallback and language pack state', (
 
 test('watcher helper explains automatic and manual source handling', () => {
   expect(watcherHelp()).toContain('Wartungsprüfung')
-  expect(watcherHelp()).toContain('automatisch')
+  expect(watcherHelp()).toContain('erkannte oder von dir aktivierte Werkzeuge')
   expect(watcherHelp()).toContain('Neue Werkzeuge')
   expect(watcherHelp('en')).toContain('does not set up new tools')
 })

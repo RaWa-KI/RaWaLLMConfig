@@ -25,5 +25,8 @@ test('ordner- und onboarding-copy trennt Konfiguration, Modelle und optionale An
 })
 
 function read(path: string): string {
-  return readFileSync(resolve(process.cwd(), path), 'utf8')
+  // Zeilenenden-normalisiert lesen: ohne .gitattributes haengt CRLF/LF vom
+  // Checkout ab (Windows-Runner liefern CRLF) — die Copy-Assertions pruefen
+  // Inhalt, nicht Zeilenenden.
+  return readFileSync(resolve(process.cwd(), path), 'utf8').replace(/\r\n/g, '\n')
 }
