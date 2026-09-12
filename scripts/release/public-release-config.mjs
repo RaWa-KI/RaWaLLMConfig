@@ -40,6 +40,8 @@ export const SCRIPT_FILES = new Set([
   'scripts/gen-icon.cjs',
   'scripts/generate-update-manifest.mjs',
   'scripts/git-hooks/pre-commit',
+  'scripts/git-hooks/pre-push',
+  'scripts/git-hooks/public-push-policy.txt',
   'scripts/install-git-hooks.mjs',
   'scripts/hr27-lines-baseline.json',
   'scripts/hr27-lines-check.mjs',

@@ -16,8 +16,8 @@ for (const hook of HOOKS) {
   const src = resolve(root, 'scripts', 'git-hooks', hook)
   const dst = resolve(root, '.git', 'hooks', hook)
   if (!existsSync(src)) {
-    console.error(`hooks:install: Quelle fehlt: ${src} — uebersprungen.`)
-    continue
+    console.error(`hooks:install: Quelle fehlt: ${src} — Abbruch.`)
+    process.exit(1)
   }
 
   // LF erzwingen: core.autocrlf=true kann die Quelle mit CRLF auschecken, CRLF bricht sh.
@@ -26,6 +26,11 @@ for (const hook of HOOKS) {
   if (existsSync(dst)) {
     const existing = readFileSync(dst, 'utf8').replace(/\r\n/g, '\n')
     if (existing === content) {
+      try {
+        chmodSync(dst, 0o755)
+      } catch {
+        // Windows: chmod ohne Wirkung — git for Windows führt Hooks via sh aus.
+      }
       console.log(`hooks:install: ${hook} bereits aktuell — nichts zu tun.`)
       continue
     }

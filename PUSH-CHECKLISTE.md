@@ -11,7 +11,7 @@ Punkte 7–9 liegen in der Verantwortung der pushenden Person/Session.
 |---|---|---|
 | 1 | Verbotene Pfade in ungepushten Historie | Interne Doku, Provider-Loader, Steuerdokumente, Session-/Toolchain-Arbeitsstaende in irgendeinem Commit des Push-Deltas |
 | 2 | Verbotene Pfade im Tree | Dieselben Pfade im Stand des gepushten Refs (auch bei `git add -f`) |
-| 3 | Verbotene Inhalts-Muster im Delta | Secrets (Private Keys, Token-Muster) und persoenliche Muster in added lines + Commit-Messages. Persoenliche Muster: lokal in `scripts/git-hooks/public-push-policy.local.txt` (gitignored) |
+| 3 | Verbotene Inhalts-Muster im Push-Bereich | Secrets (Private Keys, Token-Muster) und persoenliche Muster in jeder hinzugefuegten Zeile jedes zu uebertragenden Commits, Commit-Messages und annotierten Tag-Messages. Persoenliche Muster: lokal in `scripts/git-hooks/public-push-policy.local.txt` (gitignored) |
 | 4 | `pnpm typecheck` gruen | Pushes mit rotem Typecheck |
 | 5 | Herkunft: Ref basiert auf `origin/main` | Pushes von Branches, die nicht auf dem oeffentlichen main aufsetzen |
 | 6 | Fast-forward auf `main` + Tags | Force-Push auf `main`, Ueberschreiben/Loesch-Veraenderung bestehender Tags |
