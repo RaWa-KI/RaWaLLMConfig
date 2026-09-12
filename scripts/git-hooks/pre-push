@@ -1,0 +1,23 @@
+#!/bin/sh
+# RaWaLLMConfig pre-push — Re-Exposure-Guard (Leak-Response 2026-09-12).
+# Versionierte Quelle: scripts/git-hooks/pre-push — Installation: pnpm hooks:install
+# Blockiert Pushes, deren ungepushte Historie private Pfade je beruehrt hat
+# (interne Doku, Provider-Loader, Steuerdokumente, Session-/Toolchain-Arbeitsstaende).
+# Hintergrund: versehentlicher Push interner Doku auf den oeffentlichen Branch
+# agent/fix-conflict-compare (Commit 1525179). Annahme: origin = oeffentliches Remote;
+# Commits, die bereits auf origin erreichbar sind, gelten als freigegeben.
+FORBIDDEN="docs/00-meta docs/01-referenz docs/02-brainstorming docs/03-planung docs/04-berichte docs/05-lessons docs/06-entscheidungen session packages extensions .llm-config .claude .grok .codex .agents .kimi-code AGENTS.md CLAUDE.md ZIELE.md MODULAR-DEBT.md"
+ZERO="0000000000000000000000000000000000000000"
+blocked=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$ZERO" ] && continue  # Ref-Loeschung ist immer erlaubt
+  hit=$(git log "$local_sha" --not --remotes=origin --format='%h %s' -- $FORBIDDEN 2>/dev/null | head -1)
+  if [ -n "$hit" ]; then
+    echo "pre-push: BLOCKIERT — $local_ref: ungepushte Historie beruehrt private Pfade ($hit)." >&2
+    echo "pre-push: Nur die App geht auf das oeffentliche Remote. Branch ab origin/main verwenden." >&2
+    echo "pre-push: Bypass nur mit Owner-Go: git push --no-verify" >&2
+    blocked=1
+  fi
+done
+[ "$blocked" -eq 1 ] && exit 1
+exit 0
