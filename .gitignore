@@ -40,4 +40,38 @@ graphify-out/
 .DS_Store
 Thumbs.db
 
+# Interne Doku (nie committen/pushen; oeffentlich bleiben nur
+# docs/PUBLIC-RELEASE-SCOPE.md, docs/THIRD-PARTY-NOTICES.md, docs/brand/)
+docs/00-meta/
+docs/01-referenz/
+docs/02-brainstorming/
+docs/03-planung/
+docs/04-berichte/
+docs/05-lessons/
+docs/06-entscheidungen/
+
+# Provider-/Toolchain-Loader, Steuerdokumente, Session-Laufzeit (nie committen/pushen)
+.agents/
+.claude/
+.codex/
+.grok/
+.kimi-code/
+.llm-config/
+session/
+packages/
+extensions/
+AGENTS.md
+CLAUDE.md
+ZIELE.md
+MODULAR-DEBT.md
+.graphifyignore
+.gitleaksignore
+.vscode/
+
+# Design-Export-Varianten (Arbeitsstaende, nicht die App)
+design-export-*/
+
+# Lokale persoenliche Push-Policy (enthaelt persoenliche Muster; niemals committen)
+scripts/git-hooks/public-push-policy.local.txt
+
 # Archiv liegt extern; keine lokalen Archivkopien ins Repo committen.

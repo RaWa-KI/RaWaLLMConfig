@@ -1,0 +1,43 @@
+# Public-Push-Policy — mechanisch erzwungen durch scripts/git-hooks/pre-push.
+# Checklisten-Doku: PUSH-CHECKLISTE.md
+#
+# PATH:-Zeilen:    verbotene Pfad-Praefixe — weder in der ungepushten Historie
+#                  noch im Tree eines gepushten Refs erlaubt.
+# PATTERN:-Zeilen: verbotene Inhalts-Muster (egrep, case-insensitive) — geprueft
+#                  auf added lines + Commit-Messages des Push-Deltas.
+#
+# Persoenliche Muster (E-Mail, Hostname, Username) stehen NICHT hier, sondern in
+# scripts/git-hooks/public-push-policy.local.txt (gitignored, nur lokal).
+PATH:docs/00-meta
+PATH:docs/01-referenz
+PATH:docs/02-brainstorming
+PATH:docs/03-planung
+PATH:docs/04-berichte
+PATH:docs/05-lessons
+PATH:docs/06-entscheidungen
+PATH:session
+PATH:packages
+PATH:extensions
+PATH:.llm-config
+PATH:.claude
+PATH:.grok
+PATH:.codex
+PATH:.agents
+PATH:.kimi-code
+PATH:AGENTS.md
+PATH:CLAUDE.md
+PATH:ZIELE.md
+PATH:MODULAR-DEBT.md
+PATH:.graphifyignore
+PATH:.gitleaksignore
+PATH:.vscode
+PATH:design-export-*
+PATTERN:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----
+PATTERN:gh[pousr]_[A-Za-z0-9]{20,}
+PATTERN:github_pat_[A-Za-z0-9_]{20,}
+PATTERN:sk-[A-Za-z0-9]{20,}
+PATTERN:sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{16,}
+PATTERN:sk-ant-(?:api[0-9]{2}|oat[0-9]{2})-[A-Za-z0-9_-]{16,}
+PATTERN:AIza[A-Za-z0-9_-]{35}
+PATTERN:xox[baprs]-[A-Za-z0-9-]{10,}
+PATTERN:AKIA[0-9A-Z]{16}

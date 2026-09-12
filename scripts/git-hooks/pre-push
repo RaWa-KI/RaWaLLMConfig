@@ -1,0 +1,185 @@
+#!/bin/sh
+# RaWaLLMConfig pre-push — Push-Checklisten-Enforcer (Leak-Response 2026-09-12).
+# Versionierte Quelle: scripts/git-hooks/pre-push — Installation: pnpm hooks:install
+# Jeder Punkt wird geprueft und mit ✅/❌ ausgegeben; ein ❌ blockiert den Push.
+# Bypass nur mit Owner-Go: git push --no-verify
+#
+# Policy: scripts/git-hooks/public-push-policy.txt (getrackt, generisch)
+#       + scripts/git-hooks/public-push-policy.local.txt (gitignored, persoenlich)
+
+ROOT="$(git rev-parse --show-toplevel)"
+POLICY_PATH="scripts/git-hooks/public-push-policy.txt"
+POLICY="$ROOT/$POLICY_PATH"
+POLICY_LOCAL="$ROOT/scripts/git-hooks/public-push-policy.local.txt"
+ZERO="0000000000000000000000000000000000000000"
+EMPTY_TREE="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+PATHS_FILE="$(mktemp)"; PATTERNS_FILE="$(mktemp)"; CANDIDATES_FILE="$(mktemp)"
+BASELINE_POLICY=""
+trap 'rm -f "$PATHS_FILE" "$PATTERNS_FILE" "$CANDIDATES_FILE" "$BASELINE_POLICY"' EXIT
+
+# Bereits auf main vorhandene Regeln sind ein Mindeststandard: Ein Branch darf
+# sie nicht durch das Aendern seiner Worktree-Policy abschwaechen. Beim ersten
+# Einfuehren der Policy ist sie selbst die Quelle; fehlt sie dann, fail-closed.
+if git cat-file -e "origin/main:$POLICY_PATH" 2>/dev/null; then
+  BASELINE_POLICY="$(mktemp)"
+  git show "origin/main:$POLICY_PATH" > "$BASELINE_POLICY" || exit 1
+fi
+if [ ! -f "$POLICY" ]; then
+  [ -n "$BASELINE_POLICY" ] && POLICY="$BASELINE_POLICY" \
+    || { echo "pre-push: Policy-Datei weder im Worktree noch auf origin/main — Push blockiert (fail-closed)." >&2; exit 1; }
+fi
+
+# CRLF aus Windows-Checkouts entfernen, bevor Pfade oder Regexe ausgewertet werden.
+for source in "$BASELINE_POLICY" "$POLICY" "$POLICY_LOCAL"; do
+  [ -n "$source" ] && [ -f "$source" ] || continue
+  sed 's/\r$//' "$source" | sed -n 's/^PATH://p' >> "$PATHS_FILE"
+  sed 's/\r$//' "$source" | sed -n 's/^PATTERN://p' >> "$PATTERNS_FILE"
+done
+[ -s "$PATHS_FILE" ] && [ -s "$PATTERNS_FILE" ] \
+  || { echo "pre-push: Policy ohne PATH:- oder PATTERN:-Regeln — Push blockiert (fail-closed)." >&2; exit 1; }
+[ -f "$POLICY_LOCAL" ] && LOCAL_NOTE=" (+ lokale persoenliche Muster)"
+
+# Eine fehlerhafte lokale Regex darf die gesamte Inhaltspruefung nicht aushebeln.
+grep -Ei -f "$PATTERNS_FILE" /dev/null >/dev/null 2>&1
+regex_status=$?
+[ "$regex_status" -lt 2 ] \
+  || { echo "pre-push: Policy enthaelt ungueltige Regex — Push blockiert (fail-closed)." >&2; exit 1; }
+
+matches_forbidden_path() {
+  candidate=$1
+  while IFS= read -r prefix; do
+    case "$candidate" in
+      $prefix|$prefix/*) return 0 ;;
+    esac
+  done < "$PATHS_FILE"
+  return 1
+}
+
+find_tree_path_hit() {
+  git ls-tree -r --name-only "$1" | while IFS= read -r path; do
+    if matches_forbidden_path "$path"; then printf '%s\n' "$path"; break; fi
+  done
+}
+
+# Nur PATTERN:-Definitionen duerfen sich selbst als generische Regel zeigen.
+# Kommentare und alle anderen Zeilen der Policy bleiben Teil des Secret-Scans.
+collect_added_lines() {
+  git diff-tree --no-commit-id --unified=0 -r "$1" -- . 2>/dev/null \
+    | awk -v policy="$POLICY_PATH" '
+        /^\+\+\+ b\// { path=substr($0, 7); next }
+        /^\+/ && !/^\+\+/ { if (!(path == policy && /^\+PATTERN:/)) print substr($0, 2) }
+      '
+}
+
+find_content_hit() {
+  range=$1
+  : > "$CANDIDATES_FILE"
+  for commit in $(git rev-list --reverse "$range" 2>/dev/null); do
+    collect_added_lines "$commit" >> "$CANDIDATES_FILE"
+    git log -1 --format=%B "$commit" >> "$CANDIDATES_FILE"
+  done
+  grep -Ei -m 1 -f "$PATTERNS_FILE" "$CANDIDATES_FILE"
+  status=$?
+  [ "$status" -eq 0 ] && return 0
+  [ "$status" -eq 1 ] && return 1
+  return 2
+}
+
+fails=""
+report=""
+
+# ── Punkt 4 (typecheck) laeuft einmal pro Push, nicht pro Ref ────────────────
+if pnpm typecheck > /dev/null 2>&1; then
+  report="$report\n✅ 4. typecheck gruen"
+else
+  report="$report\n❌ 4. typecheck rot — erst reparieren, dann pushen"
+  fails="$fails 4"
+fi
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Tag-Loeschungen und jede Aenderung eines existierenden Tags sind verboten.
+  case "$remote_ref" in
+    refs/tags/*)
+      if [ "$local_sha" = "$ZERO" ] || [ "$remote_sha" != "$ZERO" ]; then
+        report="$report\n❌ 6. $remote_ref: Loeschen oder Ueberschreiben eines bestehenden Tags blockiert"
+        fails="$fails 6"
+        continue
+      fi
+      ;;
+  esac
+  [ "$local_sha" = "$ZERO" ] && continue
+
+  if [ "$remote_sha" != "$ZERO" ]; then
+    base="$remote_sha"
+  else
+    base=$(git merge-base "$local_sha" origin/main 2>/dev/null)
+    [ -z "$base" ] && base="$EMPTY_TREE"
+  fi
+  range="$base..$local_sha"
+
+  # ── 1. Verbotene Pfade in der tatsaechlich uebertragenen Historie ──────────
+  hit=$(git log "$range" --format='%h %s' -- $(cat "$PATHS_FILE") 2>/dev/null | head -1)
+  if [ -n "$hit" ]; then
+    report="$report\n❌ 1. $local_ref: Historie beruehrt verbotene Pfade ($hit)"
+    fails="$fails 1"
+  else
+    report="$report\n✅ 1. $local_ref: Historie ohne verbotene Pfade"
+  fi
+
+  # ── 2. Verbotene Pfade im gepushten Tree ───────────────────────────────────
+  hit=$(find_tree_path_hit "$local_sha")
+  if [ -n "$hit" ]; then
+    report="$report\n❌ 2. $local_ref: Tree enthaelt verbotenen Pfad: $hit"
+    fails="$fails 2"
+  else
+    report="$report\n✅ 2. $local_ref: Tree ohne verbotene Pfade"
+  fi
+
+  # ── 3. Jede neue Commit-Zeile, Message und Tag-Annotation scannen ─────────
+  hit=$(find_content_hit "$range")
+  status=$?
+  if [ "$status" -eq 2 ]; then
+    report="$report\n❌ 3. $local_ref: Inhaltspruefung fehlgeschlagen (fail-closed)"
+    fails="$fails 3"
+  elif [ -n "$hit" ]; then
+    report="$report\n❌ 3. $local_ref: Push enthaelt verbotenes Inhalts-Muster: $hit"
+    fails="$fails 3"
+  elif [ "$(git cat-file -t "$local_sha" 2>/dev/null)" = "tag" ] \
+       && git cat-file -p "$local_sha" | grep -Ei -m 1 -f "$PATTERNS_FILE" >/dev/null; then
+    report="$report\n❌ 3. $local_ref: Tag-Annotation enthaelt verbotenes Inhalts-Muster"
+    fails="$fails 3"
+  else
+    report="$report\n✅ 3. $local_ref: Push ohne verbotene Inhalts-Muster$LOCAL_NOTE"
+  fi
+
+  # ── 5. Herkunft: Ref muss auf origin/main aufsetzen ────────────────────────
+  if git merge-base --is-ancestor origin/main "$local_sha" 2>/dev/null; then
+    report="$report\n✅ 5. $local_ref: basiert auf origin/main"
+  else
+    report="$report\n❌ 5. $local_ref: basiert NICHT auf origin/main — nur Branches ab origin/main pushen"
+    fails="$fails 5"
+  fi
+
+  # ── 6. Kein Force-Push auf main ────────────────────────────────────────────
+  case "$remote_ref" in
+    refs/heads/main)
+      if [ "$remote_sha" != "$ZERO" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        report="$report\n❌ 6. $remote_ref: nicht-fast-forward — Force-Push blockiert"
+        fails="$fails 6"
+      else
+        report="$report\n✅ 6. $remote_ref: fast-forward / neu"
+      fi
+      ;;
+    refs/tags/*) report="$report\n✅ 6. $remote_ref: neuer Tag" ;;
+  esac
+done
+
+printf '%b\n' "$report" >&2
+if [ -n "$fails" ]; then
+  echo "pre-push: PUSH-CHECKLISTE nicht bestanden (Punkte:$fails) — Push blockiert." >&2
+  echo "pre-push: Details in PUSH-CHECKLISTE.md. Bypass nur mit Owner-Go: git push --no-verify" >&2
+  exit 1
+fi
+echo "pre-push: Push-Checkliste bestanden$LOCAL_NOTE."
+exit 0
