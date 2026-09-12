@@ -126,9 +126,17 @@ async function openSettings(win, tab = 'tweaks') {
 async function addSource(win, runtime, dialogs) {
   await openSettings(win, 'sources')
   assert(dialogs.ok, 'main dialog patch failed')
-  await win.getByRole('button', { name: /Quelle hinzufügen/i }).click()
+  // Redesign Teil F (0.1.12+, 5e90c28): Der Hinzufuegen-Button heisst jetzt
+  // „Ordner hinzufuegen" (SourcesHeader) und der Dialog verlangt zwingend eine
+  // Werkzeug-Zuordnung (select.qs-select) — ohne sie bleibt „Hinzufuegen"
+  // deaktiviert (AddSourceDialog canAdd: root + providerId).
+  await win.getByRole('button', { name: /Ordner hinzufügen/i }).click()
   const modal = win.locator('[role="dialog"]')
   await modal.getByRole('button', { name: /Ordner wählen/i }).click()
+  const provider = modal.locator('select.qs-select')
+  await provider.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
+  const value = await provider.locator('option').nth(1).getAttribute('value')
+  if (value) await provider.selectOption(value)
   await modal.locator('input').fill('S9 UI Source')
   await modal.getByRole('button', { name: /^Hinzufügen$/i }).click()
   await win.getByText('S9 UI Source', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS })
@@ -141,12 +149,13 @@ async function addSource(win, runtime, dialogs) {
 }
 
 async function setProjectRoot(win, runtime, dialogs) {
-  await openSettings(win, 'tweaks')
-  // Die Verzeichnis-Felder liegen seit 0.1.12 in RootRows.tsx und tragen die
-  // Klasse .root-row (vorher .backup-row, das bleibt dem Backup-Ordner-Feld).
-  // Feldtitel und Buttonbeschriftung sind unveraendert — die Pruefabsicht
-  // (echter Klick auf „Ordner waehlen" der Projekt-Zeile) bleibt identisch.
-  const row = win.locator('.root-row').filter({ hasText: 'RaWaLLMConfig-Ordner' })
+  // Die Grundordner-Felder (RootRows.tsx, Klasse .root-row) liegen seit dem
+  // Ordner-Redesign (5e90c28) im Tab „Ordner" (sources), nicht mehr unter
+  // Tweaks. Die Projekt-Zeile traegt dort das Label „App-Ordner"
+  // (roots.projectRoot). Pruefabsicht unveraendert: echter Klick auf
+  // „Ordner waehlen" der Projekt-Zeile.
+  await openSettings(win, 'sources')
+  const row = win.locator('.root-row').filter({ hasText: 'App-Ordner' })
   assert(dialogs.ok, 'main dialog patch failed')
   await row.getByRole('button', { name: /Ordner wählen/i }).click()
   await waitFor(async () => {
