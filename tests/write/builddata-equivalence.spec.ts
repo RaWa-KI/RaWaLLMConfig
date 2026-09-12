@@ -196,10 +196,16 @@ test('buildData (Registry) == legacyBuildData (Alt-Scanner) — deep-equal inkl.
     expect(newData[fam]).toEqual(oldData[fam])
   }
 
-  // (5) Additive Cloud-Familie (Teil D): vorhanden, mit den 3 Provider-Kategorien
-  // (OpenAI/Anthropic/Gemini). Metadaten-only -> nie ein Key-WERT im Ergebnis.
+  // (5) Additive Cloud-Familie (Teil D): Schluessel immer vorhanden; gescannt
+  // (3 Provider-Kategorien OpenAI/Anthropic/Gemini) nur bei Presence-Evidenz
+  // (Provider-Toggle oder gesetzter API-Key-Env-NAME), sonst leere Familie
+  // (provider-presence-Gate, 2026-08-14). Metadaten-only -> nie ein Key-WERT.
   expect(newData.cloud).toBeDefined()
-  expect(newData.cloud.categories.length).toBe(3)
+  if (newData.cloud.categories.length > 0) {
+    expect(newData.cloud.categories.length).toBe(3)
+  } else {
+    expect(newData.cloud.categories).toEqual([])
+  }
   expect(JSON.stringify(newData.cloud)).not.toContain('dummy')
 })
 
