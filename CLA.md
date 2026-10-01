@@ -13,8 +13,8 @@ contributions require a Contributor License Agreement (CLA) before merge.
   reproduce, modify, distribute, sublicense, and relicense the contribution.
 - The public project license remains AGPL-3.0-or-later unless explicitly
   changed by the project owner.
-- The CLA does not grant trademark rights to use the RaWaLLMConfig name,
-  logo, or confusingly similar branding.
+- The CLA does not grant any rights to use the RaWaLLMConfig name, logo, or
+  confusingly similar branding.
 
 ## Why This Exists
 

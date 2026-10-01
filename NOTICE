@@ -8,21 +8,20 @@ later version. See the LICENSE file for the full license text.
 
 ----------------------------------------------------------------------
 
-Markenhinweis / Trademark notice
+Namenshinweis / Name notice
 
-"RaWaLLMConfig" ist eine geschützte Marke des Projekts. Die AGPL-3.0-Lizenz
-gewährt Rechte am Quellcode, nicht an Namen, Logos oder anderen Marken-
-zeichen des Projekts.
+"RaWaLLMConfig" ist der Name dieses Projekts. Die AGPL-3.0-Lizenz gewährt
+Rechte am Quellcode, aber keine Rechte am Namen oder an Logos des Projekts
+(vgl. AGPL-3.0, Abschnitt 7 e).
 
 Forks und abgeleitete Werke dürfen den Code unter den Bedingungen der
-AGPL-3.0 nutzen, verändern und weiterverbreiten, aber NICHT den Namen
-"RaWaLLMConfig" (oder verwechslungsfähig ähnliche Namen) als Produkt-,
-Projekt- oder Distributionsnamen führen. Abgeleitete Distributionen sind
-unter einem eigenen, unterscheidbaren Namen zu veröffentlichen.
+AGPL-3.0 nutzen, verändern und weiterverbreiten. Bitte veröffentlicht
+abgeleitete Distributionen unter einem eigenen, unterscheidbaren Namen,
+damit sie nicht mit RaWaLLMConfig verwechselt werden.
 
-"RaWaLLMConfig" is a protected trademark of the project. The AGPL-3.0 license
-grants rights to the source code, not to the project's name, logos, or other
-trademarks. Forks and derivative works may use, modify, and redistribute the
-code under the terms of the AGPL-3.0, but may NOT use the name "RaWaLLMConfig"
-(or confusingly similar names) as the name of a product, project, or
-distribution. Derivative distributions must be released under a distinct name.
+"RaWaLLMConfig" is the name of this project. The AGPL-3.0 license grants
+rights to the source code, but no rights to the project's name or logos
+(see AGPL-3.0, section 7 e). Forks and derivative works may use, modify, and
+redistribute the code under the terms of the AGPL-3.0. Please release
+derivative distributions under a distinct name so they are not confused with
+RaWaLLMConfig.
