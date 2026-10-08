@@ -1,5 +1,23 @@
 # RaWaLLMConfig
 
+## Aktueller Status / Current status
+
+**Hinweis: Diese Alpha wird durch einen Neubau ersetzt**
+
+Die hier veröffentlichte Version 0.1.12 gehört zur bisherigen RaWaLLMConfig-App. Für diesen Altstand bestehen offene Sicherheitswarnungen in verwendeten Abhängigkeiten. Wir empfehlen deshalb, diese Version vorerst nicht neu zu installieren oder einzusetzen.
+
+RaWaLLMConfig wird derzeit als eigenständige App neu entwickelt. Der Neubau ist noch nicht zur Nutzung freigegeben; einen Veröffentlichungstermin gibt es noch nicht.
+
+Quellcode und bisherige Releases bleiben zur Nachvollziehbarkeit erhalten.
+
+**Notice: This alpha is being replaced**
+
+Version 0.1.12 belongs to the previous RaWaLLMConfig app. Dependencies used by this version have unresolved security alerts. We therefore recommend against installing or using it for now.
+
+RaWaLLMConfig is being rebuilt as a standalone app. The replacement is not yet available for use, and no release date has been announced.
+
+Source code and previous releases remain available for reference.
+
 RaWaLLMConfig is a local desktop app for inspecting and safely managing AI
 tool configuration. Deutsche Informationen stehen zuerst; an English summary
 follows below.
@@ -23,8 +41,8 @@ MCP, Hooks, Agenten und lokale Modelle an einem Ort sichtbar. Die App
 arbeitet lokal. Schreibaktionen brauchen eine Bestätigung und legen zuerst
 eine Sicherung an.
 
-Die App ist eine öffentliche Alpha. Der Kern ist nutzbar, einzelne Ansichten
-und Integrationen werden noch vereinfacht und vervollständigt.
+Die folgenden Abschnitte dokumentieren die bisherige öffentliche Alpha.
+Für die aktuelle Nutzungsempfehlung gilt der Statushinweis oben.
 
 ### Enthaltene Funktionen
 
@@ -39,36 +57,13 @@ und Integrationen werden noch vereinfacht und vervollständigt.
 - Plattformbezogene Auswahl passender Update-Pakete.
 - Node-basierte Service-Tests für zentrale App-Flows.
 
-### Downloads und Updates nach Betriebssystem
+### Bisherige Downloads und Updates
 
-Windows- und Linux-Pakete sind getrennte Erstdownloads. Verwende immer das
-Paket für dein Betriebssystem.
-
-#### Windows
-
-Der derzeit geprüfte Endnutzer-Download ist der Windows-Installer auf der
-[GitHub-Releases-Seite][releases]. Er trägt das Namensmuster
-`RaWaLLMConfig-Setup-x.y.z.exe` und wird als NSIS-Installer ausgeführt.
-
-Der In-App-Updater wählt für Windows das passende `.exe`-Paket aus dem
-Release. Windows SmartScreen kann bei einer noch unsignierten Alpha einen
-Hinweis anzeigen. Der jeweilige Release stellt Prüfsummen bereit.
-
-#### Linux
-
-Die Build-Konfiguration enthält getrennte Ziele für AppImage, deb und rpm.
-Der vollständige Paket- und Startbeweis auf einem nativen Linux-Runner steht
-für die aktuelle Alpha noch aus. Ein Linux-Download gilt deshalb erst dann als
-verfügbar, wenn die passenden Dateien im jeweiligen Release veröffentlicht
-und dort als geprüft ausgewiesen sind.
-
-- **AppImage:** Das AppImage ist der portable Erstdownload. Wird die App als
-  AppImage gestartet, ist der In-App-Updater für den gesicherten Austausch
-  genau dieser AppImage-Datei vorgesehen.
-- **deb/rpm:** Diese Pakete werden über den Paketmanager installiert. Es gibt
-  derzeit kein eigenes apt-/dnf-Paket-Repository. Eine neue Version wird daher
-  manuell als neues deb-/rpm-Paket über den Paketmanager installiert; der
-  In-App-Updater ersetzt keine paketverwaltete Installation.
+Die [bisherigen Releases][releases] bleiben als historische Artefakte erhalten.
+Die frühere Downloadempfehlung ist zurückgenommen. Wir empfehlen vorerst
+weder die Installation noch den Einsatz der alten Alpha. Dies gilt für alle
+Betriebssysteme; ein früherer Build- oder Paketnachweis ist keine aktuelle
+Sicherheitsfreigabe.
 
 ### Toolchain-Watcher
 
@@ -138,8 +133,8 @@ RaWaLLMConfig brings local configuration for Claude, Codex, Kimi, Grok, MCP,
 hooks, agents, and local models into one desktop app. It runs locally. Write
 actions require confirmation and create a backup before changing files.
 
-The app is a public alpha. Its core is usable, while some views and
-integrations are still being simplified and completed.
+The following sections document the previous public alpha.
+For current usage guidance, see the status notice above.
 
 ### Included features
 
@@ -154,36 +149,13 @@ integrations are still being simplified and completed.
 - Platform-aware selection of matching update packages.
 - Node-based service tests for central app flows.
 
-### Downloads and updates by operating system
+### Previous downloads and updates
 
-Windows and Linux packages are separate first downloads. Always choose the
-package built for your operating system.
-
-#### Windows download
-
-The currently verified end-user download is the Windows installer on the
-[GitHub Releases page][releases]. Its name follows the pattern
-`RaWaLLMConfig-Setup-x.y.z.exe`, and it runs as an NSIS installer.
-
-On Windows, the in-app updater selects the matching `.exe` asset from the
-release. Windows SmartScreen may show a notice for an unsigned alpha. Each
-release provides checksums for verification.
-
-#### Linux downloads
-
-The build configuration contains separate AppImage, deb, and rpm targets.
-Complete package and launch evidence from a native Linux runner is still
-pending for the current alpha. A Linux download is therefore considered
-available only when the matching files are published in a release and marked
-there as verified.
-
-- **AppImage:** The AppImage is the portable first download. When the app is
-  launched as an AppImage, the in-app updater is intended to replace that
-  AppImage file after creating a backup.
-- **deb/rpm:** These packages are installed through the package manager. The
-  project does not currently provide its own apt or dnf repository. Later
-  versions must therefore be installed manually as a new deb or rpm package;
-  the in-app updater does not replace a package-managed installation.
+[Previous releases][releases] remain available as historical artifacts.
+The previous download recommendation has been withdrawn. We recommend
+against installing or using the old alpha for now. This applies to every
+operating system; previous build or package verification is not current
+security approval.
 
 ### Toolchain watcher
 
